@@ -1,0 +1,62 @@
+# class RegisterSerializer(serializers.Serializer):
+#     username = serializers.CharField(max_length=150)
+#     email = serializers.EmailField()
+#     password = serializers.CharField(write_only=True, min_length=6)
+#     password_confirm = serializers.CharField(write_only=True)
+#     name = serializers.CharField(max_length=255)
+#     role = serializers.ChoiceField(
+#         choices=[
+#             ('user', 'Utilisateur standard'),
+#             ('technician', 'Technicien'),
+#             ('secretary', 'Secrétaire'),
+#             ('director', 'Directeur'),
+#             ('admin', 'Administrateur'),
+#         ],
+#         default='user'
+#     )
+#     departement = serializers.CharField(max_length=100, default='À définir')
+#     telephone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+
+#     def validate_username(self, value):
+#         if User.objects.filter(username=value).exists():
+#             raise serializers.ValidationError("Ce nom d'utilisateur est déjà utilisé.")
+#         return value
+
+#     def validate_email(self, value):
+#         if User.objects.filter(email=value).exists():
+#             raise serializers.ValidationError("Cet email est déjà utilisé.")
+#         return value
+
+#     def validate(self, data):
+#         if data['password'] != data['password_confirm']:
+#             raise serializers.ValidationError({"password_confirm": "Les mots de passe ne correspondent pas."})
+#         return data
+
+#     def create(self, validated_data):
+#         # Extraire les données du profil
+#         departement = validated_data.pop('departement', 'À définir')
+#         telephone = validated_data.pop('telephone', '')
+#         role = validated_data.pop('role', 'user')
+        
+#         # Créer l'utilisateur
+#         name_parts = validated_data['name'].split(' ')
+#         first_name = name_parts[0] if len(name_parts) > 0 else ''
+#         last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
+        
+#         user = User.objects.create_user(
+#             username=validated_data['username'],
+#             email=validated_data['email'],
+#             password=validated_data['password'],
+#             first_name=first_name,
+#             last_name=last_name
+#         )
+        
+#         # Créer automatiquement le profil
+#         ProfilUtilisateur.objects.create(
+#             user=user,
+#             departement=departement,
+#             telephone=telephone,
+#             role=role
+#         )
+        
+#         return user

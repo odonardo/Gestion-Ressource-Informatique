@@ -1,0 +1,1721 @@
+// import React, { useState, useEffect } from 'react';
+// import { 
+//   X, User, Phone, Building, Calendar, Shield, Settings, 
+//   Briefcase, Mail, Lock, Eye, EyeOff, CheckCircle, AlertCircle 
+// } from 'lucide-react';
+// import { ProfilUtilisateur, User as UserType } from '../types';
+
+// interface ProfilUtilisateurFormData {
+//   // Pour la création d'un nouvel utilisateur
+//   new_username: string;
+//   new_email: string;
+//   new_password: string;
+//   new_password_confirm: string;
+//   new_first_name: string;
+//   new_last_name: string;
+  
+//   // Pour la sélection d'un utilisateur existant
+//   existing_user_id: number | null;
+  
+//   // Informations du profil
+//   departement: string;
+//   telephone: string;
+//   date_embauche: string;
+//   role: 'user' | 'technician' | 'secretary' | 'director' | 'admin';
+// }
+
+// interface ProfilUtilisateurFormProps {
+//   isOpen: boolean;
+//   onClose: () => void;
+//   onSubmit: (profilData: any) => void;
+//   profil?: ProfilUtilisateur;
+//   usersWithoutProfile?: UserType[];
+// }
+
+// const ProfilUtilisateurForm: React.FC<ProfilUtilisateurFormProps> = ({
+//   isOpen,
+//   onClose,
+//   onSubmit,
+//   profil,
+//   usersWithoutProfile = []
+// }) => {
+//   const DEPARTEMENTS = [
+//     'Direction',
+//     'Comptabilité',
+//     'Ressources Humaines',
+//     'Informatique',
+//     'Secrétariat',
+//     'Archives',
+//     'À définir'
+//   ];
+
+//   const ROLE_DESCRIPTIONS = {
+//     user: 'Accès basique - Consultation et signalement',
+//     technician: 'Gestion technique - Réparations et installations',
+//     secretary: 'Gestion administrative - Fournisseurs et documents',
+//     director: 'Vue globale - Tableaux de bord et rapports',
+//     admin: 'Accès complet - Administration du système'
+//   };
+
+//   const [formData, setFormData] = useState<ProfilUtilisateurFormData>({
+//     new_username: '',
+//     new_email: '',
+//     new_password: '',
+//     new_password_confirm: '',
+//     new_first_name: '',
+//     new_last_name: '',
+//     existing_user_id: null,
+//     departement: '',
+//     telephone: '',
+//     date_embauche: new Date().toISOString().split('T')[0],
+//     role: 'user'
+//   });
+
+//   const [mode, setMode] = useState<'new' | 'existing'>('new'); // 'new' ou 'existing'
+//   const [showPassword, setShowPassword] = useState(false);
+//   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+//   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
+//   const [errors, setErrors] = useState<Record<string, string>>({});
+//   const [passwordStrength, setPasswordStrength] = useState(0);
+
+//   // Réinitialiser le formulaire à l'ouverture
+//   useEffect(() => {
+//     if (profil) {
+//       // Mode édition
+//       const today = new Date().toISOString().split('T')[0];
+//       setFormData({
+//         new_username: '',
+//         new_email: '',
+//         new_password: '',
+//         new_password_confirm: '',
+//         new_first_name: '',
+//         new_last_name: '',
+//         existing_user_id: profil.user?.id || null,
+//         departement: profil.departement || '',
+//         telephone: profil.telephone || '',
+//         date_embauche: profil.date_embauche ? 
+//           new Date(profil.date_embauche).toISOString().split('T')[0] : 
+//           today,
+//         role: profil.role || 'user'
+//       });
+      
+//       if (profil.user) {
+//         setSelectedUser(profil.user);
+//         setMode('existing');
+//       }
+//     } else {
+//       // Mode création - par défaut "nouvel utilisateur"
+//       const today = new Date().toISOString().split('T')[0];
+//       setFormData({
+//         new_username: '',
+//         new_email: '',
+//         new_password: '',
+//         new_password_confirm: '',
+//         new_first_name: '',
+//         new_last_name: '',
+//         existing_user_id: null,
+//         departement: '',
+//         telephone: '',
+//         date_embauche: today,
+//         role: 'user'
+//       });
+//       setSelectedUser(null);
+//       setMode('new');
+//     }
+//     setErrors({});
+//   }, [profil, isOpen]);
+
+//   // Vérifier la force du mot de passe
+//   useEffect(() => {
+//     if (formData.new_password) {
+//       let strength = 0;
+//       if (formData.new_password.length >= 8) strength += 1;
+//       if (/[A-Z]/.test(formData.new_password)) strength += 1;
+//       if (/[0-9]/.test(formData.new_password)) strength += 1;
+//       if (/[^A-Za-z0-9]/.test(formData.new_password)) strength += 1;
+//       setPasswordStrength(strength);
+//     } else {
+//       setPasswordStrength(0);
+//     }
+//   }, [formData.new_password]);
+
+//   const validateForm = (): boolean => {
+//     const newErrors: Record<string, string> = {};
+
+//     if (mode === 'new') {
+//       // Validation pour la création d'un nouvel utilisateur
+//       if (!formData.new_username.trim()) {
+//         newErrors.new_username = "Le nom d'utilisateur est requis";
+//       } else if (formData.new_username.length < 3) {
+//         newErrors.new_username = "Minimum 3 caractères";
+//       }
+
+//       if (!formData.new_email.trim()) {
+//         newErrors.new_email = "L'email est requis";
+//       } else if (!/\S+@\S+\.\S+/.test(formData.new_email)) {
+//         newErrors.new_email = "Email invalide";
+//       }
+
+//       if (!formData.new_password) {
+//         newErrors.new_password = "Le mot de passe est requis";
+//       } else if (formData.new_password.length < 6) {
+//         newErrors.new_password = "Minimum 6 caractères";
+//       }
+
+//       if (formData.new_password !== formData.new_password_confirm) {
+//         newErrors.new_password_confirm = "Les mots de passe ne correspondent pas";
+//       }
+//     } else {
+//       // Validation pour la sélection d'un utilisateur existant
+//       if (!formData.existing_user_id) {
+//         newErrors.existing_user_id = 'Un utilisateur doit être sélectionné';
+//       }
+//     }
+    
+//     if (!formData.departement.trim()) {
+//       newErrors.departement = 'Le département est requis';
+//     }
+    
+//     if (!formData.role) {
+//       newErrors.role = 'Le rôle est requis';
+//     }
+
+//     setErrors(newErrors);
+//     return Object.keys(newErrors).length === 0;
+//   };
+
+//   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+//     const { name, value } = e.target;
+    
+//     if (name === 'role') {
+//       setFormData(prev => ({ 
+//         ...prev, 
+//         [name]: value as 'user' | 'technician' | 'secretary' | 'director' | 'admin'
+//       }));
+//     } else if (name === 'existing_user_id') {
+//       const userId = value ? parseInt(value) : null;
+//       setFormData(prev => ({ ...prev, [name]: userId }));
+      
+//       if (userId) {
+//         const user = usersWithoutProfile.find(u => u.id === userId);
+//         if (user) {
+//           setSelectedUser(user);
+//           // Pré-remplir les informations de l'utilisateur sélectionné
+//           setFormData(prev => ({
+//             ...prev,
+//             new_first_name: user.first_name || '',
+//             new_last_name: user.last_name || '',
+//             new_email: user.email || '',
+//             telephone: '', // Laissez l'utilisateur remplir le téléphone
+//             departement: prev.departement || ''
+//           }));
+//         }
+//       } else {
+//         setSelectedUser(null);
+//       }
+//     } else {
+//       setFormData(prev => ({ 
+//         ...prev, 
+//         [name]: value 
+//       }));
+//     }
+    
+//     if (errors[name]) {
+//       setErrors(prev => ({ 
+//         ...prev, 
+//         [name]: '' 
+//       }));
+//     }
+//   };
+
+//   const handleSubmit = (e: React.FormEvent) => {
+//     e.preventDefault();
+    
+//     if (!validateForm()) {
+//       return;
+//     }
+
+//     let submitData: any;
+    
+//     if (profil) {
+//       // MODE ÉDITION
+//       submitData = {
+//         user: profil.user?.id,
+//         departement: formData.departement.trim(),
+//         telephone: formData.telephone.trim(),
+//         date_embauche: formData.date_embauche || null,
+//         role: formData.role
+//       };
+//       console.log('📤 Mode ÉDITION - Données:', submitData);
+//     } else if (mode === 'new') {
+//       // MODE CRÉATION D'UN NOUVEL UTILISATEUR
+//       submitData = {
+//         // Données pour créer l'utilisateur
+//         username: formData.new_username.trim(),
+//         email: formData.new_email.trim(),
+//         password: formData.new_password,
+//         password_confirm: formData.new_password_confirm,
+//         name: `${formData.new_first_name.trim()} ${formData.new_last_name.trim()}`.trim(),
+        
+//         // Données pour créer le profil
+//         departement: formData.departement.trim(),
+//         telephone: formData.telephone.trim(),
+//         date_embauche: formData.date_embauche || null,
+//         role: formData.role
+//       };
+//       console.log('📤 Mode CRÉATION NOUVEAU - Données:', submitData);
+//     } else {
+//       // MODE CRÉATION AVEC UTILISATEUR EXISTANT
+//       submitData = {
+//         user: formData.existing_user_id,
+//         departement: formData.departement.trim(),
+//         telephone: formData.telephone.trim(),
+//         date_embauche: formData.date_embauche || null,
+//         role: formData.role
+//       };
+//       console.log('📤 Mode CRÉATION EXISTANT - Données:', submitData);
+//     }
+
+//     onSubmit(submitData);
+//   };
+
+//   const handleClose = () => {
+//     const today = new Date().toISOString().split('T')[0];
+//     setFormData({
+//       new_username: '',
+//       new_email: '',
+//       new_password: '',
+//       new_password_confirm: '',
+//       new_first_name: '',
+//       new_last_name: '',
+//       existing_user_id: null,
+//       departement: '',
+//       telephone: '',
+//       date_embauche: today,
+//       role: 'user'
+//     });
+//     setMode('new');
+//     setSelectedUser(null);
+//     setErrors({});
+//     onClose();
+//   };
+
+//   const getPasswordStrengthColor = () => {
+//     if (passwordStrength === 0) return 'bg-gray-300';
+//     if (passwordStrength === 1) return 'bg-red-500';
+//     if (passwordStrength === 2) return 'bg-yellow-500';
+//     if (passwordStrength === 3) return 'bg-blue-500';
+//     return 'bg-green-500';
+//   };
+
+//   const getPasswordStrengthText = () => {
+//     if (passwordStrength === 0) return 'Non renseigné';
+//     if (passwordStrength === 1) return 'Très faible';
+//     if (passwordStrength === 2) return 'Faible';
+//     if (passwordStrength === 3) return 'Moyen';
+//     return 'Fort';
+//   };
+
+//   if (!isOpen) return null;
+
+//   return (
+//     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+//       <div className="bg-base-100 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+//         <div className="flex justify-between items-center p-6 border-b border-base-300">
+//           <div>
+//             <h2 className="text-xl font-bold text-base-content">
+//               {profil ? '✏️ Modifier le profil' : '👤 Créer un utilisateur et son profil'}
+//             </h2>
+//             <p className="text-base-content opacity-70 text-sm mt-1">
+//               {profil 
+//                 ? `Modification du profil de @${profil.user?.username}`
+//                 : 'Créer un nouvel utilisateur ou utiliser un utilisateur existant'
+//               }
+//             </p>
+//           </div>
+//           <button
+//             onClick={handleClose}
+//             className="btn btn-ghost btn-sm btn-circle"
+//           >
+//             <X className="w-5 h-5" />
+//           </button>
+//         </div>
+
+//         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+//           {!profil && (
+//             <div className="space-y-4">
+//               <div className="flex items-center gap-2 mb-2">
+//                 <User className="h-5 w-5 text-primary" />
+//                 <h3 className="text-base font-semibold text-base-content">
+//                   Type de création
+//                 </h3>
+//               </div>
+
+//               <div className="grid grid-cols-2 gap-4">
+//                 <button
+//                   type="button"
+//                   onClick={() => setMode('new')}
+//                   className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+//                     mode === 'new'
+//                       ? 'border-primary bg-primary/10'
+//                       : 'border-base-300 hover:border-base-400'
+//                   }`}
+//                 >
+//                   <div className="flex flex-col items-center gap-2">
+//                     <div className={`p-2 rounded-full ${
+//                       mode === 'new' ? 'bg-primary text-primary-content' : 'bg-base-300'
+//                     }`}>
+//                       <User className="h-6 w-6" />
+//                     </div>
+//                     <span className="font-semibold">Nouvel utilisateur</span>
+//                     <p className="text-sm text-center text-base-content opacity-70">
+//                       Créer un compte utilisateur complet
+//                     </p>
+//                   </div>
+//                 </button>
+
+//                 <button
+//                   type="button"
+//                   onClick={() => setMode('existing')}
+//                   className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+//                     mode === 'existing'
+//                       ? 'border-primary bg-primary/10'
+//                       : 'border-base-300 hover:border-base-400'
+//                   }`}
+//                 >
+//                   <div className="flex flex-col items-center gap-2">
+//                     <div className={`p-2 rounded-full ${
+//                       mode === 'existing' ? 'bg-primary text-primary-content' : 'bg-base-300'
+//                     }`}>
+//                       <User className="h-6 w-6" />
+//                     </div>
+//                     <span className="font-semibold">Utilisateur existant</span>
+//                     <p className="text-sm text-center text-base-content opacity-70">
+//                       Associer à un compte existant
+//                     </p>
+//                   </div>
+//                 </button>
+//               </div>
+//             </div>
+//           )}
+
+//           {!profil && mode === 'new' && (
+//             <div className="space-y-4">
+//               <div className="flex items-center gap-2 mb-2">
+//                 <User className="h-5 w-5 text-primary" />
+//                 <h3 className="text-base font-semibold text-base-content">
+//                   Informations de connexion
+//                 </h3>
+//               </div>
+
+//               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text font-medium text-base-content">
+//                       Nom d'utilisateur *
+//                     </span>
+//                   </label>
+//                   <input
+//                     type="text"
+//                     name="new_username"
+//                     value={formData.new_username}
+//                     onChange={handleChange}
+//                     className={`input input-bordered w-full bg-base-200 text-base-content ${
+//                       errors.new_username ? 'input-error' : ''
+//                     }`}
+//                     placeholder="john.doe"
+//                   />
+//                   {errors.new_username && (
+//                     <div className="text-error text-sm mt-1">{errors.new_username}</div>
+//                   )}
+//                 </div>
+
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text font-medium text-base-content">
+//                       Email *
+//                     </span>
+//                   </label>
+//                   <div className="relative">
+//                     <Mail className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-70" />
+//                     <input
+//                       type="email"
+//                       name="new_email"
+//                       value={formData.new_email}
+//                       onChange={handleChange}
+//                       className={`input input-bordered w-full pl-10 bg-base-200 text-base-content ${
+//                         errors.new_email ? 'input-error' : ''
+//                       }`}
+//                       placeholder="john@example.com"
+//                     />
+//                   </div>
+//                   {errors.new_email && (
+//                     <div className="text-error text-sm mt-1">{errors.new_email}</div>
+//                   )}
+//                 </div>
+//               </div>
+
+//               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text font-medium text-base-content">
+//                       Prénom
+//                     </span>
+//                   </label>
+//                   <input
+//                     type="text"
+//                     name="new_first_name"
+//                     value={formData.new_first_name}
+//                     onChange={handleChange}
+//                     className="input input-bordered w-full bg-base-200 text-base-content"
+//                     placeholder="John"
+//                   />
+//                 </div>
+
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text font-medium text-base-content">
+//                       Nom
+//                     </span>
+//                   </label>
+//                   <input
+//                     type="text"
+//                     name="new_last_name"
+//                     value={formData.new_last_name}
+//                     onChange={handleChange}
+//                     className="input input-bordered w-full bg-base-200 text-base-content"
+//                     placeholder="Doe"
+//                   />
+//                 </div>
+//               </div>
+
+//               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text font-medium text-base-content">
+//                       Mot de passe *
+//                     </span>
+//                   </label>
+//                   <div className="relative">
+//                     <Lock className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-70" />
+//                     <input
+//                       type={showPassword ? "text" : "password"}
+//                       name="new_password"
+//                       value={formData.new_password}
+//                       onChange={handleChange}
+//                       className={`input input-bordered w-full pl-10 pr-10 bg-base-200 text-base-content ${
+//                         errors.new_password ? 'input-error' : ''
+//                       }`}
+//                       placeholder="••••••••"
+//                     />
+//                     <button
+//                       type="button"
+//                       className="absolute right-3 top-3"
+//                       onClick={() => setShowPassword(!showPassword)}
+//                     >
+//                       {showPassword ? (
+//                         <EyeOff className="h-4 w-4 text-base-content opacity-70" />
+//                       ) : (
+//                         <Eye className="h-4 w-4 text-base-content opacity-70" />
+//                       )}
+//                     </button>
+//                   </div>
+//                   {errors.new_password && (
+//                     <div className="text-error text-sm mt-1">{errors.new_password}</div>
+//                   )}
+                  
+//                   {formData.new_password && (
+//                     <div className="mt-2">
+//                       <div className="flex justify-between items-center mb-1">
+//                         <span className="text-xs font-medium text-base-content">
+//                           Force du mot de passe: {getPasswordStrengthText()}
+//                         </span>
+//                         <span className="text-xs font-bold text-base-content">
+//                           {passwordStrength}/4
+//                         </span>
+//                       </div>
+//                       <div className="flex gap-1">
+//                         {[1, 2, 3, 4].map((level) => (
+//                           <div
+//                             key={level}
+//                             className={`h-2 flex-1 rounded ${
+//                               level <= passwordStrength
+//                                 ? getPasswordStrengthColor()
+//                                 : 'bg-base-300'
+//                             }`}
+//                           />
+//                         ))}
+//                       </div>
+//                       <div className="text-xs text-base-content opacity-70 mt-2">
+//                         Le mot de passe doit contenir au moins 6 caractères
+//                       </div>
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text font-medium text-base-content">
+//                       Confirmer le mot de passe *
+//                     </span>
+//                   </label>
+//                   <div className="relative">
+//                     <Lock className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-70" />
+//                     <input
+//                       type={showConfirmPassword ? "text" : "password"}
+//                       name="new_password_confirm"
+//                       value={formData.new_password_confirm}
+//                       onChange={handleChange}
+//                       className={`input input-bordered w-full pl-10 pr-10 bg-base-200 text-base-content ${
+//                         errors.new_password_confirm ? 'input-error' : ''
+//                       }`}
+//                       placeholder="••••••••"
+//                     />
+//                     <button
+//                       type="button"
+//                       className="absolute right-3 top-3"
+//                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+//                     >
+//                       {showConfirmPassword ? (
+//                         <EyeOff className="h-4 w-4 text-base-content opacity-70" />
+//                       ) : (
+//                         <Eye className="h-4 w-4 text-base-content opacity-70" />
+//                       )}
+//                     </button>
+//                   </div>
+//                   {errors.new_password_confirm && (
+//                     <div className="text-error text-sm mt-1">{errors.new_password_confirm}</div>
+//                   )}
+//                 </div>
+//               </div>
+//             </div>
+//           )}
+
+//           {!profil && mode === 'existing' && (
+//             <div className="space-y-4">
+//               <div className="flex items-center gap-2 mb-2">
+//                 <User className="h-5 w-5 text-primary" />
+//                 <h3 className="text-base font-semibold text-base-content">
+//                   Sélection de l'utilisateur
+//                 </h3>
+//               </div>
+
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-medium text-base-content">
+//                     Utilisateur sans profil *
+//                   </span>
+//                   <span className="badge badge-info badge-sm">
+//                     {usersWithoutProfile.length} disponible(s)
+//                   </span>
+//                 </label>
+//                 <select
+//                   name="existing_user_id"
+//                   value={formData.existing_user_id || ''}
+//                   onChange={handleChange}
+//                   className={`select select-bordered w-full bg-base-200 text-base-content ${
+//                     errors.existing_user_id ? 'select-error' : ''
+//                   }`}
+//                 >
+//                   <option value="">Sélectionnez un utilisateur</option>
+//                   {usersWithoutProfile.map(user => (
+//                     <option key={user.id} value={user.id} className="text-base-content">
+//                       @{user.username} - {user.first_name || ''} {user.last_name || ''} - {user.email || 'Pas d\'email'}
+//                     </option>
+//                   ))}
+//                 </select>
+//                 {errors.existing_user_id && (
+//                   <div className="text-error text-sm mt-1">{errors.existing_user_id}</div>
+//                 )}
+                
+//                 {selectedUser && (
+//                   <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
+//                     <div className="flex items-center gap-3">
+//                       <div className="avatar placeholder">
+//                         <div className="bg-primary text-primary-content rounded-full w-10">
+//                           <span className="text-sm">
+//                             {selectedUser.first_name?.[0]}{selectedUser.last_name?.[0]}
+//                           </span>
+//                         </div>
+//                       </div>
+//                       <div className="flex-1">
+//                         <div className="font-semibold text-primary">
+//                           @{selectedUser.username}
+//                         </div>
+//                         <div className="text-sm text-base-content opacity-70">
+//                           {selectedUser.first_name} {selectedUser.last_name} • {selectedUser.email}
+//                         </div>
+//                       </div>
+//                     </div>
+//                   </div>
+//                 )}
+//               </div>
+//             </div>
+//           )}
+
+//           {/* Section Informations professionnelles */}
+//           <div className="space-y-4">
+//             <div className="flex items-center gap-2 mb-2">
+//               <Briefcase className="h-5 w-5 text-primary" />
+//               <h3 className="text-base font-semibold text-base-content">
+//                 Informations professionnelles
+//               </h3>
+//             </div>
+
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//               {/* Département */}
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-medium text-base-content">
+//                     Département *
+//                   </span>
+//                 </label>
+//                 <div className="relative">
+//                   <Building className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-70" />
+//                   <select
+//                     name="departement"
+//                     value={formData.departement}
+//                     onChange={handleChange}
+//                     className={`select select-bordered w-full pl-10 bg-base-200 text-base-content ${
+//                       errors.departement ? 'select-error' : ''
+//                     }`}
+//                     required
+//                   >
+//                     <option value="">Sélectionnez un département</option>
+//                     {DEPARTEMENTS.map(dept => (
+//                       <option key={dept} value={dept} className="text-base-content">
+//                         {dept}
+//                       </option>
+//                     ))}
+//                   </select>
+//                 </div>
+//                 {errors.departement && (
+//                   <div className="text-error text-sm mt-1">{errors.departement}</div>
+//                 )}
+//               </div>
+
+//               {/* Rôle */}
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-medium text-base-content">
+//                     Rôle *
+//                   </span>
+//                 </label>
+//                 <div className="relative">
+//                   <Shield className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-70" />
+//                   <select
+//                     name="role"
+//                     value={formData.role}
+//                     onChange={handleChange}
+//                     className={`select select-bordered w-full pl-10 bg-base-200 text-base-content ${
+//                       errors.role ? 'select-error' : ''
+//                     }`}
+//                     required
+//                   >
+//                     <option value="">Sélectionnez un rôle</option>
+//                     <option value="user" className="text-base-content">Utilisateur standard</option>
+//                     <option value="technician" className="text-base-content">Technicien</option>
+//                     <option value="secretary" className="text-base-content">Secrétaire</option>
+//                     <option value="director" className="text-base-content">Directeur</option>
+//                     <option value="admin" className="text-base-content">Administrateur</option>
+//                   </select>
+//                 </div>
+//                 {formData.role && (
+//                   <div className="mt-2 p-2 bg-primary/10 rounded-lg border border-primary/20">
+//                     <div className="flex items-center text-sm">
+//                       <div className="p-1 rounded bg-base-300 mr-2">
+//                         <Shield className="h-3 w-3 text-base-content" />
+//                       </div>
+//                       <span className="font-medium text-base-content">
+//                         {ROLE_DESCRIPTIONS[formData.role]}
+//                       </span>
+//                     </div>
+//                   </div>
+//                 )}
+//                 {errors.role && (
+//                   <div className="text-error text-sm mt-1">{errors.role}</div>
+//                 )}
+//               </div>
+//             </div>
+
+//             {/* Téléphone */}
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text font-medium text-base-content">
+//                   Téléphone
+//                 </span>
+//               </label>
+//               <div className="relative">
+//                 <Phone className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-70" />
+//                 <input
+//                   type="tel"
+//                   name="telephone"
+//                   value={formData.telephone}
+//                   onChange={handleChange}
+//                   className="input input-bordered w-full pl-10 bg-base-200 text-base-content"
+//                   placeholder="Ex: +261 32 12 345 67"
+//                 />
+//               </div>
+//             </div>
+
+//             {/* Date d'embauche */}
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text font-medium text-base-content">
+//                   Date d'embauche
+//                 </span>
+//               </label>
+//               <div className="relative">
+//                 <Calendar className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-70" />
+//                 <input
+//                   type="date"
+//                   name="date_embauche"
+//                   value={formData.date_embauche}
+//                   onChange={handleChange}
+//                   className="input input-bordered w-full pl-10 bg-base-200 text-base-content"
+//                 />
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* Aperçu */}
+//           <div className="card bg-base-200 border border-base-300">
+//             <div className="card-body p-4">
+//               <div className="flex items-center gap-2 mb-3">
+//                 <div className="p-1 rounded bg-base-300">
+//                   <User className="h-4 w-4 text-base-content" />
+//                 </div>
+//                 <h3 className="card-title text-sm font-semibold text-base-content">
+//                   Aperçu du profil
+//                 </h3>
+//               </div>
+              
+//               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mt-2">
+//                 <div className="flex justify-between items-center p-2 bg-base-100 rounded border border-base-300">
+//                   <span className="font-medium text-base-content">Type:</span>
+//                   <span className="font-semibold text-primary">
+//                     {profil ? 'Édition' : mode === 'new' ? 'Nouvel utilisateur' : 'Utilisateur existant'}
+//                   </span>
+//                 </div>
+                
+//                 {mode === 'new' && !profil && (
+//                   <>
+//                     <div className="flex justify-between items-center p-2 bg-base-100 rounded border border-base-300">
+//                       <span className="font-medium text-base-content">Username:</span>
+//                       <span className="font-semibold text-primary">
+//                         {formData.new_username || 'Non défini'}
+//                       </span>
+//                     </div>
+//                     <div className="flex justify-between items-center p-2 bg-base-100 rounded border border-base-300">
+//                       <span className="font-medium text-base-content">Email:</span>
+//                       <span className="font-semibold text-primary">
+//                         {formData.new_email || 'Non défini'}
+//                       </span>
+//                     </div>
+//                   </>
+//                 )}
+                
+//                 <div className="flex justify-between items-center p-2 bg-base-100 rounded border border-base-300">
+//                   <span className="font-medium text-base-content">Département:</span>
+//                   <span className="badge badge-primary">
+//                     {formData.departement || 'Non sélectionné'}
+//                   </span>
+//                 </div>
+                
+//                 <div className="flex justify-between items-center p-2 bg-base-100 rounded border border-base-300">
+//                   <span className="font-medium text-base-content">Rôle:</span>
+//                   <span className={`badge ${
+//                     formData.role === 'admin' ? 'badge-error' :
+//                     formData.role === 'director' ? 'badge-warning' :
+//                     formData.role === 'technician' ? 'badge-primary' :
+//                     formData.role === 'secretary' ? 'badge-info' :
+//                     'badge-neutral'
+//                   }`}>
+//                     {formData.role === 'user' ? 'Utilisateur' :
+//                      formData.role === 'technician' ? 'Technicien' :
+//                      formData.role === 'secretary' ? 'Secrétaire' :
+//                      formData.role === 'director' ? 'Directeur' : 'Administrateur'}
+//                   </span>
+//                 </div>
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* Actions */}
+//           <div className="flex gap-3 pt-4 border-t border-base-300">
+//             <button
+//               type="button"
+//               onClick={handleClose}
+//               className="btn btn-ghost flex-1 gap-2 text-base-content"
+//             >
+//               <X className="h-4 w-4" />
+//               Annuler
+//             </button>
+//             <button
+//               type="submit"
+//               className="btn btn-primary flex-1 gap-2"
+//               disabled={
+//                 (!profil && mode === 'new' && (!formData.new_username || !formData.new_email || !formData.new_password || formData.new_password !== formData.new_password_confirm)) ||
+//                 (!profil && mode === 'existing' && !formData.existing_user_id) ||
+//                 !formData.departement ||
+//                 !formData.role
+//               }
+//             >
+//               {profil ? 'Modifier le profil' : 'Créer utilisateur et profil'}
+//             </button>
+//           </div>
+//         </form>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default ProfilUtilisateurForm;
+
+
+
+
+
+
+
+
+
+import React, { useState, useEffect } from 'react';
+import { 
+  X, User, Phone, Building, Calendar, Shield, Settings, 
+  Briefcase, Mail, Lock, Eye, EyeOff, UserPlus, MapPin,
+  Monitor, AlertCircle, CheckCircle, BriefcaseIcon
+} from 'lucide-react';
+import { ProfilUtilisateur, User as UserType } from '../types';
+
+interface ProfilUtilisateurFormData {
+  // Informations de base
+  username: string;
+  email: string;
+  password: string;
+  password_confirm: string;
+  first_name: string;
+  last_name: string;
+  name: string;
+  
+  // Informations du profil
+  departement: string;
+  telephone: string;
+  date_embauche: string;
+  role: 'user' | 'technician' | 'secretary' | 'director' | 'admin';
+}
+
+interface ProfilUtilisateurFormProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (profilData: any) => void;
+  profil?: ProfilUtilisateur;
+  usersWithoutProfile?: UserType[];
+}
+
+const ProfilUtilisateurForm: React.FC<ProfilUtilisateurFormProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  profil,
+  usersWithoutProfile = []
+}) => {
+  const DEPARTEMENTS = [
+    'Direction',
+    'Comptabilité',
+    'Ressources Humaines',
+    'Informatique',
+    'Secrétariat',
+    'Archives',
+    'À définir'
+  ];
+
+  const ROLE_DESCRIPTIONS = {
+    user: 'Accès basique - Consultation et signalement',
+    technician: 'Gestion technique - Réparations et installations',
+    secretary: 'Gestion administrative - Fournisseurs et documents',
+    director: 'Vue globale - Tableaux de bord et rapports',
+    admin: 'Accès complet - Administration du système'
+  };
+
+  const [formData, setFormData] = useState<ProfilUtilisateurFormData>({
+    username: '',
+    email: '',
+    password: '',
+    password_confirm: '',
+    first_name: '',
+    last_name: '',
+    name: '',
+    departement: '',
+    telephone: '',
+    date_embauche: new Date().toISOString().split('T')[0],
+    role: 'user'
+  });
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [isNewUserMode, setIsNewUserMode] = useState(true); // true = création, false = utilisation existant
+
+  // Réinitialiser le formulaire à l'ouverture
+  useEffect(() => {
+    if (profil) {
+      // Mode édition
+      const today = new Date().toISOString().split('T')[0];
+      const user = profil.user;
+      
+      // Extraire prénom et nom depuis le nom complet
+      const nameParts = user?.first_name ? user.first_name.split(' ') : [];
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      
+      setFormData({
+        username: user?.username || '',
+        email: user?.email || '',
+        password: '', // Pas de mot de passe en édition
+        password_confirm: '',
+        first_name: firstName,
+        last_name: lastName,
+        name: fullName,
+        departement: profil.departement || '',
+        telephone: profil.telephone || '',
+        date_embauche: profil.date_embauche ? 
+          new Date(profil.date_embauche).toISOString().split('T')[0] : 
+          today,
+        role: profil.role || 'user'
+      });
+      
+      setIsNewUserMode(false); // Mode édition = pas de création de nouvel utilisateur
+    } else {
+      // Mode création
+      const today = new Date().toISOString().split('T')[0];
+      setFormData({
+        username: '',
+        email: '',
+        password: '',
+        password_confirm: '',
+        first_name: '',
+        last_name: '',
+        name: '',
+        departement: '',
+        telephone: '',
+        date_embauche: today,
+        role: 'user'
+      });
+      setIsNewUserMode(true);
+    }
+    setErrors({});
+  }, [profil, isOpen]);
+
+  // Mettre à jour le nom complet quand prénom ou nom change
+  useEffect(() => {
+    if (!profil) { // Seulement en mode création
+      const fullName = `${formData.first_name} ${formData.last_name}`.trim();
+      setFormData(prev => ({
+        ...prev,
+        name: fullName
+      }));
+    }
+  }, [formData.first_name, formData.last_name, profil]);
+
+  // Vérifier la force du mot de passe (seulement en création)
+  useEffect(() => {
+    if (formData.password && isNewUserMode && !profil) {
+      let strength = 0;
+      if (formData.password.length >= 8) strength += 1;
+      if (/[A-Z]/.test(formData.password)) strength += 1;
+      if (/[0-9]/.test(formData.password)) strength += 1;
+      if (/[^A-Za-z0-9]/.test(formData.password)) strength += 1;
+      setPasswordStrength(strength);
+    } else {
+      setPasswordStrength(0);
+    }
+  }, [formData.password, isNewUserMode, profil]);
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (isNewUserMode && !profil) {
+      // Validation pour la création d'un nouvel utilisateur
+      if (!formData.username.trim()) {
+        newErrors.username = "Le nom d'utilisateur est requis";
+      } else if (formData.username.length < 3) {
+        newErrors.username = "Minimum 3 caractères";
+      }
+
+      if (!formData.email.trim()) {
+        newErrors.email = "L'email est requis";
+      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+        newErrors.email = "Email invalide";
+      }
+
+      if (!formData.password) {
+        newErrors.password = "Le mot de passe est requis";
+      } else if (formData.password.length < 6) {
+        newErrors.password = "Minimum 6 caractères";
+      }
+
+      if (formData.password !== formData.password_confirm) {
+        newErrors.password_confirm = "Les mots de passe ne correspondent pas";
+      }
+
+      if (!formData.name.trim()) {
+        newErrors.name = "Le nom complet est requis";
+      } else if (formData.name.length < 2) {
+        newErrors.name = "Minimum 2 caractères";
+      }
+    } else {
+      // Validation pour l'édition ou l'utilisation d'un utilisateur existant
+      if (!profil && !isNewUserMode) {
+        // Si mode "utilisateur existant" en création
+        // Rien à valider ici car le select sera géré
+      }
+    }
+    
+    if (!formData.departement.trim()) {
+      newErrors.departement = 'Le département est requis';
+    }
+    
+    if (!formData.role) {
+      newErrors.role = 'Le rôle est requis';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    
+    if (name === 'role') {
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: value as 'user' | 'technician' | 'secretary' | 'director' | 'admin'
+      }));
+    } else if (name === 'name' && !profil) {
+      // Découper le nom complet en prénom et nom
+      const nameParts = value.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: value,
+        first_name: firstName,
+        last_name: lastName
+      }));
+    } else {
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: value 
+      }));
+    }
+    
+    if (errors[name]) {
+      setErrors(prev => ({ 
+        ...prev, 
+        [name]: '' 
+      }));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    let submitData: any;
+    
+    if (profil) {
+      // MODE ÉDITION
+      submitData = {
+        user: profil.user?.id,
+        departement: formData.departement.trim(),
+        telephone: formData.telephone.trim(),
+        date_embauche: formData.date_embauche || null,
+        role: formData.role,
+        // En édition, on peut aussi mettre à jour certaines infos utilisateur
+        first_name: formData.first_name.trim(),
+        last_name: formData.last_name.trim(),
+        email: formData.email.trim()
+      };
+      console.log('📤 Mode ÉDITION - Données:', submitData);
+    } else if (isNewUserMode) {
+      // MODE CRÉATION D'UN NOUVEL UTILISATEUR
+      submitData = {
+        username: formData.username.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        password_confirm: formData.password_confirm,
+        name: formData.name.trim(),
+        departement: formData.departement.trim(),
+        telephone: formData.telephone.trim(),
+        date_embauche: formData.date_embauche || null,
+        role: formData.role
+      };
+      console.log('📤 Mode CRÉATION NOUVEAU - Données:', submitData);
+    } else {
+      // MODE AVEC UTILISATEUR EXISTANT (vous pouvez ajouter une liste déroulante si nécessaire)
+      // Pour l'instant, on reste en mode création complet
+      submitData = {
+        username: formData.username.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        password_confirm: formData.password_confirm,
+        name: formData.name.trim(),
+        departement: formData.departement.trim(),
+        telephone: formData.telephone.trim(),
+        date_embauche: formData.date_embauche || null,
+        role: formData.role
+      };
+      console.log('📤 Mode CRÉATION - Données:', submitData);
+    }
+
+    onSubmit(submitData);
+  };
+
+  const handleClose = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setFormData({
+      username: '',
+      email: '',
+      password: '',
+      password_confirm: '',
+      first_name: '',
+      last_name: '',
+      name: '',
+      departement: '',
+      telephone: '',
+      date_embauche: today,
+      role: 'user'
+    });
+    setErrors({});
+    onClose();
+  };
+
+  const getPasswordStrengthColor = () => {
+    if (passwordStrength === 0) return 'bg-gray-300';
+    if (passwordStrength === 1) return 'bg-red-500';
+    if (passwordStrength === 2) return 'bg-yellow-500';
+    if (passwordStrength === 3) return 'bg-blue-500';
+    return 'bg-green-500';
+  };
+
+  const getPasswordStrengthText = () => {
+    if (passwordStrength === 0) return 'Non renseigné';
+    if (passwordStrength === 1) return 'Très faible';
+    if (passwordStrength === 2) return 'Faible';
+    if (passwordStrength === 3) return 'Moyen';
+    return 'Fort';
+  };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'admin': return <Shield className="h-4 w-4" />;
+      case 'technician': return <Settings className="h-4 w-4" />;
+      case 'director': return <Briefcase className="h-4 w-4" />;
+      case 'secretary': return <User className="h-4 w-4" />;
+      default: return <User className="h-4 w-4" />;
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-base-100 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        {/* En-tête avec logo DREN */}
+        <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white rounded-t-xl p-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="bg-white p-2 rounded-full">
+                  <UserPlus className="h-8 w-8 text-blue-600" />
+                </div>
+                <div>
+                  <div className="flex items-center text-sm font-medium text-blue-200">
+                    <MapPin className="h-4 w-4 mr-1" />
+                    Toliara, Madagascar
+                  </div>
+                  <h2 className="text-2xl font-bold mt-1">
+                    DREN Antsimo Andrefana
+                  </h2>
+                </div>
+              </div>
+              <p className="text-blue-200 text-sm">
+                {profil 
+                  ? `✏️ Modification du profil de @${profil.user?.username}`
+                  : '👤 Création d\'un nouvel utilisateur et profil'}
+              </p>
+            </div>
+            <button
+              onClick={handleClose}
+              className="btn btn-ghost btn-circle text-white hover:bg-white/20"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Informations personnelles */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <User className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-semibold text-base-content">
+                Informations personnelles
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium text-base-content">
+                    Nom complet *
+                  </span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-5 w-5 text-base-content opacity-70" />
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className={`input input-bordered w-full pl-10 bg-base-200 text-base-content ${
+                      errors.name ? 'input-error' : ''
+                    }`}
+                    placeholder="Ex: Jean Dupont"
+                    disabled={!!profil} // En édition, on ne modifie pas le nom complet
+                  />
+                </div>
+                {errors.name && (
+                  <div className="text-error text-sm mt-1">{errors.name}</div>
+                )}
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium text-base-content">
+                    Nom d'utilisateur *
+                  </span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-5 w-5 text-base-content opacity-70" />
+                  <input
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                    className={`input input-bordered w-full pl-10 bg-base-200 text-base-content ${
+                      errors.username ? 'input-error' : ''
+                    }`}
+                    placeholder="Ex: j.dupont"
+                    disabled={!!profil} // En édition, on ne modifie pas le username
+                  />
+                </div>
+                {errors.username && (
+                  <div className="text-error text-sm mt-1">{errors.username}</div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium text-base-content">
+                    Email *
+                  </span>
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-5 w-5 text-base-content opacity-70" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={`input input-bordered w-full pl-10 bg-base-200 text-base-content ${
+                      errors.email ? 'input-error' : ''
+                    }`}
+                    placeholder="Ex: jean.dupont@dren.gov.mg"
+                  />
+                </div>
+                {errors.email && (
+                  <div className="text-error text-sm mt-1">{errors.email}</div>
+                )}
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium text-base-content">
+                    Téléphone
+                  </span>
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-3 h-5 w-5 text-base-content opacity-70" />
+                  <input
+                    type="tel"
+                    name="telephone"
+                    value={formData.telephone}
+                    onChange={handleChange}
+                    className="input input-bordered w-full pl-10 bg-base-200 text-base-content"
+                    placeholder="Ex: +261 32 12 345 67"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Mot de passe (seulement pour les nouveaux utilisateurs) */}
+            {!profil && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium text-base-content">
+                      Mot de passe *
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-5 w-5 text-base-content opacity-70" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className={`input input-bordered w-full pl-10 pr-10 bg-base-200 text-base-content ${
+                        errors.password ? 'input-error' : ''
+                      }`}
+                      placeholder="Minimum 6 caractères"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-3"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5 text-base-content opacity-70" />
+                      ) : (
+                        <Eye className="h-5 w-5 text-base-content opacity-70" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <div className="text-error text-sm mt-1">{errors.password}</div>
+                  )}
+                  
+                  {formData.password && (
+                    <div className="mt-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium text-base-content">
+                          Force du mot de passe: {getPasswordStrengthText()}
+                        </span>
+                        <span className="text-xs font-bold text-base-content">
+                          {passwordStrength}/4
+                        </span>
+                      </div>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4].map((level) => (
+                          <div
+                            key={level}
+                            className={`h-2 flex-1 rounded ${
+                              level <= passwordStrength
+                                ? getPasswordStrengthColor()
+                                : 'bg-base-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium text-base-content">
+                      Confirmer le mot de passe *
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-5 w-5 text-base-content opacity-70" />
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="password_confirm"
+                      value={formData.password_confirm}
+                      onChange={handleChange}
+                      className={`input input-bordered w-full pl-10 pr-10 bg-base-200 text-base-content ${
+                        errors.password_confirm ? 'input-error' : ''
+                      }`}
+                      placeholder="Retapez votre mot de passe"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-3"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-5 w-5 text-base-content opacity-70" />
+                      ) : (
+                        <Eye className="h-5 w-5 text-base-content opacity-70" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.password_confirm && (
+                    <div className="text-error text-sm mt-1">{errors.password_confirm}</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Informations professionnelles */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Briefcase className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-semibold text-base-content">
+                Informations professionnelles
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Département */}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium text-base-content">
+                    Département *
+                  </span>
+                </label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-3 h-5 w-5 text-base-content opacity-70" />
+                  <select
+                    name="departement"
+                    value={formData.departement}
+                    onChange={handleChange}
+                    className={`select select-bordered w-full pl-10 bg-base-200 text-base-content ${
+                      errors.departement ? 'select-error' : ''
+                    }`}
+                    required
+                  >
+                    <option value="">Sélectionnez un département</option>
+                    {DEPARTEMENTS.map(dept => (
+                      <option key={dept} value={dept} className="text-base-content">
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {errors.departement && (
+                  <div className="text-error text-sm mt-1">{errors.departement}</div>
+                )}
+              </div>
+
+              {/* Rôle */}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium text-base-content">
+                    Rôle *
+                  </span>
+                </label>
+                <div className="relative">
+                  <Shield className="absolute left-3 top-3 h-5 w-5 text-base-content opacity-70" />
+                  <select
+                    name="role"
+                    value={formData.role}
+                    onChange={handleChange}
+                    className={`select select-bordered w-full pl-10 bg-base-200 text-base-content ${
+                      errors.role ? 'select-error' : ''
+                    }`}
+                    required
+                  >
+                    <option value="">Sélectionnez un rôle</option>
+                    <option value="user" className="text-base-content">Utilisateur standard</option>
+                    <option value="technician" className="text-base-content">Technicien</option>
+                    <option value="secretary" className="text-base-content">Secrétaire</option>
+                    <option value="director" className="text-base-content">Directeur</option>
+                    <option value="admin" className="text-base-content">Administrateur</option>
+                  </select>
+                </div>
+                {formData.role && (
+                  <div className="mt-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                    <div className="flex items-center text-sm">
+                      <div className="p-1 rounded bg-primary/20 mr-2">
+                        {getRoleIcon(formData.role)}
+                      </div>
+                      <span className="font-medium text-primary">
+                        {ROLE_DESCRIPTIONS[formData.role]}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {errors.role && (
+                  <div className="text-error text-sm mt-1">{errors.role}</div>
+                )}
+              </div>
+            </div>
+
+            {/* Date d'embauche */}
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text font-medium text-base-content">
+                  Date d'embauche
+                </span>
+              </label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-3 h-5 w-5 text-base-content opacity-70" />
+                <input
+                  type="date"
+                  name="date_embauche"
+                  value={formData.date_embauche}
+                  onChange={handleChange}
+                  className="input input-bordered w-full pl-10 bg-base-200 text-base-content"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Aperçu du profil */}
+          <div className="card bg-base-200 border-2 border-base-300">
+            <div className="card-body p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1 rounded bg-primary/20">
+                  <User className="h-5 w-5 text-primary" />
+                </div>
+                <h3 className="card-title text-base font-semibold text-base-content">
+                  Aperçu du profil
+                </h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                <div className="flex justify-between items-center p-3 bg-base-100 rounded-lg border border-base-300">
+                  <span className="font-medium text-base-content">Type:</span>
+                  <span className="font-semibold text-primary">
+                    {profil ? 'Édition' : 'Nouvel utilisateur'}
+                  </span>
+                </div>
+                
+                {!profil && (
+                  <>
+                    <div className="flex justify-between items-center p-3 bg-base-100 rounded-lg border border-base-300">
+                      <span className="font-medium text-base-content">Username:</span>
+                      <span className="font-semibold text-primary">
+                        {formData.username || 'Non défini'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-base-100 rounded-lg border border-base-300">
+                      <span className="font-medium text-base-content">Email:</span>
+                      <span className="font-semibold text-primary">
+                        {formData.email || 'Non défini'}
+                      </span>
+                    </div>
+                  </>
+                )}
+                
+                <div className="flex justify-between items-center p-3 bg-base-100 rounded-lg border border-base-300">
+                  <span className="font-medium text-base-content">Département:</span>
+                  <span className="badge badge-primary badge-lg">
+                    {formData.departement || 'Non sélectionné'}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center p-3 bg-base-100 rounded-lg border border-base-300">
+                  <span className="font-medium text-base-content">Rôle:</span>
+                  <span className={`badge ${
+                    formData.role === 'admin' ? 'badge-error' :
+                    formData.role === 'director' ? 'badge-warning' :
+                    formData.role === 'technician' ? 'badge-primary' :
+                    formData.role === 'secretary' ? 'badge-info' :
+                    'badge-neutral'
+                  } badge-lg`}>
+                    {formData.role === 'user' ? 'Utilisateur' :
+                     formData.role === 'technician' ? 'Technicien' :
+                     formData.role === 'secretary' ? 'Secrétaire' :
+                     formData.role === 'director' ? 'Directeur' : 'Administrateur'}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center p-3 bg-base-100 rounded-lg border border-base-300 md:col-span-2 lg:col-span-1">
+                  <span className="font-medium text-base-content">Nom complet:</span>
+                  <span className="font-semibold text-primary">
+                    {formData.name || 'Non défini'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Informations sur les rôles */}
+          <div className="bg-base-200 rounded-lg p-4 border border-base-300">
+            <h3 className="text-base font-semibold text-base-content mb-3">📋 Informations sur les rôles</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                <div className="flex items-center font-semibold text-blue-700 mb-1">
+                  <User className="h-4 w-4 mr-2" />
+                  Utilisateur Standard
+                </div>
+                <p className="text-blue-600">Consultation et signalement d'incidents</p>
+              </div>
+              <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+                <div className="flex items-center font-semibold text-green-700 mb-1">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Technicien
+                </div>
+                <p className="text-green-600">Gestion technique et réparations</p>
+              </div>
+              <div className="bg-purple-50 p-3 rounded-lg border border-purple-100">
+                <div className="flex items-center font-semibold text-purple-700 mb-1">
+                  <Briefcase className="h-4 w-4 mr-2" />
+                  Directeur
+                </div>
+                <p className="text-purple-600">Tableaux de bord et rapports</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-4 border-t border-base-300">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="btn btn-outline flex-1 gap-2 text-base-content hover:bg-base-300"
+            >
+              <X className="h-4 w-4" />
+              Annuler
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary flex-1 gap-2 text-white"
+              disabled={
+                (!profil && 
+                  (!formData.username || 
+                   !formData.email || 
+                   !formData.password || 
+                   formData.password !== formData.password_confirm ||
+                   !formData.name ||
+                   !formData.departement ||
+                   !formData.role)) ||
+                (!!profil && 
+                  (!formData.departement || 
+                   !formData.role))
+              }
+            >
+              {profil ? (
+                <>
+                  <CheckCircle className="h-4 w-4" />
+                  Modifier le profil
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4" />
+                  Créer l'utilisateur et le profil
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default ProfilUtilisateurForm;

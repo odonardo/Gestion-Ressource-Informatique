@@ -1,0 +1,64 @@
+🎯 Nom recommandé :
+"Système de Gestion des Ressources Informatiques - DREN AA"
+
+🔍 Justification basée sur votre code :
+Votre backend gère précisément :
+
+✅ Ressources matérielles (Materiel)
+Inventaire des équipements
+
+État et suivi
+
+Attribution aux services/utilisateurs
+
+✅ Ressources logicielles (Logiciel)
+Catalogue des logiciels
+
+Gestion des licences et versions
+
+Installations sur le matériel
+
+✅ Configurations réseau (Reseau)
+Informations IP et configuration
+
+Statut de connectivité
+
+Inventaire des équipements réseau
+
+✅ Gestion des incidents (Incident)
+Suivi des problèmes
+
+Priorités et résolution
+
+✅ Maintenance (Reparation)
+Historique des interventions
+
+Coûts et types de réparation
+
+✅ Fournisseurs (Fournisseur)
+Relations avec les partenaires
+
+Catalogue des fournisseurs
+
+✅ Utilisateurs et rôles (ProfilUtilisateur)
+Gestion des accès
+
+Profils métier
+
+📋 Titre complet recommandé :
+text
+DREN Antsimo Andrefana
+Système de Gestion des Ressources Informatiques
+🏷️ Nom technique :
+GestionRessourcesIT-DREN-AA
+
+💡 Pourquoi ce nom est parfait :
+"Ressources Informatiques" = Matériels + Logiciels + Réseau
+
+"Gestion" = CRUD + suivi + incidents + maintenance
+
+"Système" = Application complète avec plusieurs modules
+
+"DREN AA" = Identification de l'organisation
+
+C'est exact, précis et reflète parfaitement ce que votre application fait réellement !
