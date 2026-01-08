@@ -878,7 +878,7 @@ const AlerteForm: React.FC<AlerteFormProps> = ({
               type="submit"
               className="btn btn-primary"
             >
-              {alerte ? 'Modifier' : 'Créer'} l'alertesss
+              {alerte ? 'Modifier' : 'Créer'} l'alerte
             </button>
           </div>
         </form>
