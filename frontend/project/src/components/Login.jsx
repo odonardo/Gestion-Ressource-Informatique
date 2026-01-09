@@ -64,7 +64,7 @@ const Login = () => {
       }
     } catch (err) {
       console.error('❌ Erreur de connexion:', err);
-      setError('Erreur de connexion au serveur. Vérifiez que le serveur est démarré sur http://localhost:8000');
+      setError('Erreur de connexion au serveur. Vérifiez que le serveur est démarré sur https://gestion-ressources-informatiques.onrender.com');
     } finally {
       setIsLoading(false);
     }
@@ -238,7 +238,7 @@ const Login = () => {
               <div className="ml-3">
                 <h4 className="text-sm font-medium text-yellow-800">Information importante</h4>
                 <p className="text-xs text-yellow-700 mt-1">
-                  Assurez-vous que le serveur Django est démarré sur <strong>http://localhost:8000</strong>
+                  Assurez-vous que le serveur Django est démarré sur <strong>https://gestion-ressources-informatiques.onrender.com</strong>
                 </p>
                 <p className="text-xs text-yellow-700 mt-1">
                   Pour tester, utilisez un compte démo: <strong>admin.dren</strong> / <strong>admin2024</strong>

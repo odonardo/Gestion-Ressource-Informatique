@@ -121,6 +121,8 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://gestion-ressources-informatiques-dren-aa.onrender.com",  # TON FRONTEND
+    "https://gestion-ressources-informatiques.onrender.com",  # TON BACKEND
 ]
 
 CORS_ALLOW_CREDENTIALS = True

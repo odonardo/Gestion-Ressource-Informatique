@@ -46,7 +46,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://gestion-ressources-informatiques.onrender.com';
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -175,7 +175,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(true);
     
     try {
-      // ✅ CORRECTION : Utiliser la bonne URL http://localhost:8000/register/
+      // ✅ CORRECTION : Utiliser la bonne URL https://gestion-ressources-informatiques.onrender.com/register/
       const response = await fetch(`${API_BASE_URL}/register/`, {
         method: 'POST',
         headers: {
