@@ -1263,370 +1263,8 @@
 
 
 
-// };import React, { useState } from 'react'; // IMPORT CORRIGÉ - useState doit être importé de React
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { 
-  Monitor, 
-  AlertTriangle, 
-  Wrench, 
-  BarChart3, 
-  LogOut, 
-  User,
-  Menu,
-  X,
-  Users,
-  Network,
-  Bell,
-  Package,
-  Cpu,
-  MapPin,
-  Phone,
-  Mail,
-  Shield,
-  Settings,
-  Briefcase,
-  FileText
-} from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-
-// Import de l'image JPEG depuis le dossier src
-import logoDren from '../assets/images/logo-dren.jpeg';
-
-const Layout = ({ children }) => {
-  const { user, logout } = useAuth();
-  const location = useLocation();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
-  const [logoError, setLogoError] = React.useState(false);
-
-  // Configuration des tailles d'image
-  const logoConfig = {
-    header: {
-      container: 'h-[70px] w-[160px]',
-      image: 'w-full h-full',
-    },
-    footer: {
-      container: 'h-[120px] w-[160px]',
-      image: 'w-full h-full',
-    }
-  };
-
-  // Navigation de base accessible à tous les utilisateurs connectés
-  const baseNavigation = [
-    { name: 'Tableau de bord', href: '/dashboard', icon: BarChart3 },
-    { name: 'Matériels', href: '/materiels', icon: Monitor },
-    { name: 'Logiciels', href: '/logiciels', icon: Package },
-    { name: 'Incidents', href: '/incidents', icon: AlertTriangle },
-    { name: 'Profils Utilisateurs', href: '/profils-utilisateurs', icon: User },
-  ];
-
-  // Navigation pour les secrétaires et au-dessus
-  const secretaryNavigation = [
-    { name: 'Fournisseurs', href: '/fournisseurs', icon: Users },
-    { name: 'Rapports', href: '/rapports', icon: FileText },
-  ];
-
-  // Navigation pour les techniciens et au-dessus
-  const technicianNavigation = [
-    { name: 'Réparations', href: '/reparations', icon: Wrench },
-    { name: 'Alertes', href: '/alertes', icon: Bell },
-    { name: 'Installations Logiciels', href: '/installations-logiciels', icon: Cpu },
-    { name: 'Configuration Réseau', href: '/configuration-reseau', icon: Network },
-  ];
-
-  // Navigation pour les administrateurs et directeurs
-  const adminNavigation = [
-    // { name: 'Utilisateurs', href: '/users', icon: Users },
-  ];
-
-  // Fonction pour vérifier les permissions
-  const hasPermission = (requiredRole) => {
-    const roleHierarchy = {
-      'user': 1,
-      'secretary': 2,
-      'technician': 3,
-      'director': 4,
-      'admin': 5
-    };
-    const userRole = user?.role || 'user';
-    return roleHierarchy[userRole] >= roleHierarchy[requiredRole];
-  };
-
-  // Combiner la navigation en fonction du rôle
-  const getNavigation = () => {
-    let navigation = [...baseNavigation];
-    
-    if (hasPermission('secretary')) {
-      navigation = [...navigation, ...secretaryNavigation];
-    }
-    
-    if (hasPermission('technician')) {
-      navigation = [...navigation, ...technicianNavigation];
-    }
-    
-    if (hasPermission('director')) {
-      navigation = [...navigation, ...adminNavigation];
-    }
-    
-    return navigation;
-  };
-
-  const navigation = getNavigation();
-
-  const isActive = (path) => location.pathname === path;
-
-  const getRoleBadgeColor = (role) => {
-    switch (role) {
-      case 'admin': return 'badge-error bg-red-500 text-white';
-      case 'director': return 'badge-warning bg-orange-500 text-white';
-      case 'technician': return 'badge-info bg-blue-500 text-white';
-      case 'secretary': return 'badge-success bg-green-500 text-white';
-      case 'user': return 'badge-neutral bg-gray-500 text-white';
-      default: return 'badge-neutral bg-gray-400 text-white';
-    }
-  };
-
-  const getRoleText = (role) => {
-    switch (role) {
-      case 'admin': return 'Administrateur';
-      case 'director': return 'Directeur';
-      case 'technician': return 'Technicien';
-      case 'secretary': return 'Secrétaire';
-      case 'user': return 'Utilisateur';
-      default: return role;
-    }
-  };
-
-  const getRoleIcon = (role) => {
-    switch (role) {
-      case 'admin': return <Shield className="w-4 h-4" />;
-      case 'director': return <Briefcase className="w-4 h-4" />;
-      case 'technician': return <Settings className="w-4 h-4" />;
-      case 'secretary': return <User className="w-4 h-4" />;
-      default: return <User className="w-4 h-4" />;
-    }
-  };
-
-  const handleLogout = () => {
-    if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-      logout();
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-base-100 flex flex-col">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-green-800 to-green-900 shadow-lg border-b border-green-700 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              {/* Logo DREN avec fallback */}
-              <div className={`bg-white p-1 rounded-lg mr-3 flex items-center justify-center ${logoConfig.header.container}`}>
-                {!logoError ? (
-                  <img 
-                    src={logoDren}
-                    alt="Logo DREN Antsimo Andrefana" 
-                    className={`object-contain ${logoConfig.header.image}`}
-                    onError={() => setLogoError(true)}
-                  />
-                ) : (
-                  <Monitor className="h-6 w-6 text-green-600" />
-                )}
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white">
-                  DREN Antsimo A
-                </h1>
-                <p className="text-xs text-green-200">Gestion des Ressources IT</p>
-              </div>
-            </div>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex space-x-1">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive(item.href)
-                        ? 'bg-green-700 text-white shadow-inner'
-                        : 'text-green-100 hover:bg-green-700 hover:text-white'
-                    }`}
-                    title={item.name}
-                  >
-                    <Icon className="w-4 h-4 mr-2" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            {/* User Menu */}
-            <div className="flex items-center space-x-3">
-              <div className="hidden md:flex items-center space-x-3 text-sm text-white">
-                <div className="flex items-center space-x-2 bg-green-700/50 px-3 py-1 rounded-full">
-                  {getRoleIcon(user?.role)}
-                  <div className="flex flex-col items-start">
-                    <span className="font-medium text-xs">{user?.name || user?.username}</span>
-                    <span className={`badge ${getRoleBadgeColor(user?.role)} badge-xs`}>
-                      {getRoleText(user?.role)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <button
-                onClick={handleLogout}
-                className="flex items-center text-green-100 hover:text-white transition-colors p-2 rounded-md hover:bg-green-700 group"
-                title="Se déconnecter"
-              >
-                <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              </button>
-
-              {/* Mobile menu button */}
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden p-2 rounded-md text-green-100 hover:bg-green-700"
-              >
-                {isMobileMenuOpen ? (
-                  <X className="w-5 h-5" />
-                ) : (
-                  <Menu className="w-5 h-5" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Navigation */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-green-700 bg-green-800">
-            <div className="px-2 pt-2 pb-3 space-y-1">
-              {/* Informations utilisateur dans le menu mobile */}
-              <div className="px-3 py-2 border-b border-green-700 mb-2">
-                <div className="flex items-center space-x-2 text-white">
-                  <User className="w-4 h-4" />
-                  <div>
-                    <div className="font-medium text-sm">{user?.name || user?.username}</div>
-                    <div className={`badge ${getRoleBadgeColor(user?.role)} badge-xs mt-1`}>
-                      {getRoleText(user?.role)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center px-3 py-2 rounded-md text-base font-medium ${
-                      isActive(item.href)
-                        ? 'bg-green-700 text-white'
-                        : 'text-green-100 hover:bg-green-700 hover:text-white'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5 mr-3" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 w-full">
-        {/* Indicateur de rôle en haut de page (optionnel) */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <span>Connecté en tant que :</span>
-            <span className={`badge ${getRoleBadgeColor(user?.role)}`}>
-              {getRoleText(user?.role)}
-            </span>
-          </div>
-          {user?.departement && (
-            <div className="text-sm text-gray-500">
-              Département : <span className="font-medium">{user.departement}</span>
-            </div>
-          )}
-        </div>
-        
-        {children}
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-gradient-to-r from-green-800 to-green-900 text-white mt-12">
-        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="flex items-start">
-              {/* Logo DREN - TAILLE FOOTER */}
-              <div className={`bg-white rounded p-1 mr-3 flex items-center justify-center ${logoConfig.footer.container}`}>
-                <img 
-                  src={logoDren}
-                  alt="Logo DREN" 
-                  className={`object-contain ${logoConfig.footer.image}`}
-                />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2">DREN Antsimo Andrefana</h3>
-                <p className="text-green-200 text-sm">
-                  Direction Régionale de l'Éducation Nationale
-                </p>
-                <p className="text-green-200 text-sm">
-                  Région Atsimo Andrefana, Madagascar
-                </p>
-              </div>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Contact</h3>
-              <div className="space-y-2 text-sm text-green-200">
-                <div className="flex items-center">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  <span>Toliara, Madagascar</span>
-                </div>
-                <div className="flex items-center">
-                  <Phone className="w-4 h-4 mr-2" />
-                  <span>+261 94 xxx xx xx</span>
-                </div>
-                <div className="flex items-center">
-                  <Mail className="w-4 h-4 mr-2" />
-                  <span>contact@dren-antsimo-andrefana.mg</span>
-                </div>
-              </div>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Système</h3>
-              <p className="text-green-200 text-sm mb-2">
-                Gestion des Ressources Informatiques
-              </p>
-              <div className="flex items-center space-x-2 text-green-300 text-xs">
-                <span>Utilisateur :</span>
-                <span className={`badge ${getRoleBadgeColor(user?.role)} badge-sm`}>
-                  {getRoleText(user?.role)}
-                </span>
-              </div>
-              <p className="text-green-300 text-xs mt-2">Version 1.0</p>
-            </div>
-          </div>
-          <div className="border-t border-green-700 mt-8 pt-4 text-center text-sm text-green-300">
-            <p>&copy; 2025 DREN Antsimo Andrefana. Tous droits réservés.</p>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-};
-
-export default Layout;
-
-
-// import React, { useState } from 'react'; // ✅ Importez useState
+// // };import React, { useState } from 'react'; // IMPORT CORRIGÉ - useState doit être importé de React
+// import React, { useState } from 'react';
 // import { Link, useLocation } from 'react-router-dom';
 // import { 
 //   Monitor, 
@@ -1644,7 +1282,11 @@ export default Layout;
 //   Cpu,
 //   MapPin,
 //   Phone,
-//   Mail
+//   Mail,
+//   Shield,
+//   Settings,
+//   Briefcase,
+//   FileText
 // } from 'lucide-react';
 // import { useAuth } from '../context/AuthContext';
 
@@ -1654,8 +1296,8 @@ export default Layout;
 // const Layout = ({ children }) => {
 //   const { user, logout } = useAuth();
 //   const location = useLocation();
-//   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-//   const [logoError, setLogoError] = useState(false);
+//   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+//   const [logoError, setLogoError] = React.useState(false);
 
 //   // Configuration des tailles d'image
 //   const logoConfig = {
@@ -1669,49 +1311,112 @@ export default Layout;
 //     }
 //   };
 
-//   const navigation = [
+//   // Navigation de base accessible à tous les utilisateurs connectés
+//   const baseNavigation = [
 //     { name: 'Tableau de bord', href: '/dashboard', icon: BarChart3 },
-//     { name: 'Fournisseurs', href: '/fournisseurs', icon: Users },
 //     { name: 'Matériels', href: '/materiels', icon: Monitor },
 //     { name: 'Logiciels', href: '/logiciels', icon: Package },
-//     { name: 'Installations Logiciels', href: '/installations-logiciels', icon: Cpu },
-//     { name: 'Configuration Réseau', href: '/configuration-reseau', icon: Network },
 //     { name: 'Incidents', href: '/incidents', icon: AlertTriangle },
-//     { name: 'Alertes', href: '/alertes', icon: Bell },
-//     { name: 'Réparations', href: '/reparations', icon: Wrench },
-//     // { name: 'Rapports', href: '/rapports', icon: FileText },
-
 //     { name: 'Profils Utilisateurs', href: '/profils-utilisateurs', icon: User },
 //   ];
 
-//   if (user?.role === 'admin') {
-//     // navigation.push({ name: 'Utilisateurs', href: '/users', icon: Users });
-//   }
+//   // Navigation pour les secrétaires et au-dessus
+//   const secretaryNavigation = [
+//     { name: 'Fournisseurs', href: '/fournisseurs', icon: Users },
+//     { name: 'Rapports', href: '/rapports', icon: FileText },
+//   ];
+
+//   // Navigation pour les techniciens et au-dessus
+//   const technicianNavigation = [
+//     { name: 'Réparations', href: '/reparations', icon: Wrench },
+//     { name: 'Alertes', href: '/alertes', icon: Bell },
+//     { name: 'Installations Logiciels', href: '/installations-logiciels', icon: Cpu },
+//     { name: 'Configuration Réseau', href: '/configuration-reseau', icon: Network },
+//   ];
+
+//   // Navigation pour les administrateurs et directeurs
+//   const adminNavigation = [
+//     // { name: 'Utilisateurs', href: '/users', icon: Users },
+//   ];
+
+//   // Fonction pour vérifier les permissions
+//   const hasPermission = (requiredRole) => {
+//     const roleHierarchy = {
+//       'user': 1,
+//       'secretary': 2,
+//       'technician': 3,
+//       'director': 4,
+//       'admin': 5
+//     };
+//     const userRole = user?.role || 'user';
+//     return roleHierarchy[userRole] >= roleHierarchy[requiredRole];
+//   };
+
+//   // Combiner la navigation en fonction du rôle
+//   const getNavigation = () => {
+//     let navigation = [...baseNavigation];
+    
+//     if (hasPermission('secretary')) {
+//       navigation = [...navigation, ...secretaryNavigation];
+//     }
+    
+//     if (hasPermission('technician')) {
+//       navigation = [...navigation, ...technicianNavigation];
+//     }
+    
+//     if (hasPermission('director')) {
+//       navigation = [...navigation, ...adminNavigation];
+//     }
+    
+//     return navigation;
+//   };
+
+//   const navigation = getNavigation();
 
 //   const isActive = (path) => location.pathname === path;
 
 //   const getRoleBadgeColor = (role) => {
 //     switch (role) {
-//       case 'admin': return 'badge-error';
-//       case 'technicien': return 'badge-warning';
-//       case 'utilisateur': return 'badge-info';
-//       default: return 'badge-neutral';
+//       case 'admin': return 'badge-error bg-red-500 text-white';
+//       case 'director': return 'badge-warning bg-orange-500 text-white';
+//       case 'technician': return 'badge-info bg-blue-500 text-white';
+//       case 'secretary': return 'badge-success bg-green-500 text-white';
+//       case 'user': return 'badge-neutral bg-gray-500 text-white';
+//       default: return 'badge-neutral bg-gray-400 text-white';
 //     }
 //   };
 
 //   const getRoleText = (role) => {
 //     switch (role) {
 //       case 'admin': return 'Administrateur';
-//       case 'technicien': return 'Technicien IT';
-//       case 'utilisateur': return 'Utilisateur';
+//       case 'director': return 'Directeur';
+//       case 'technician': return 'Technicien';
+//       case 'secretary': return 'Secrétaire';
+//       case 'user': return 'Utilisateur';
 //       default: return role;
 //     }
 //   };
 
+//   const getRoleIcon = (role) => {
+//     switch (role) {
+//       case 'admin': return <Shield className="w-4 h-4" />;
+//       case 'director': return <Briefcase className="w-4 h-4" />;
+//       case 'technician': return <Settings className="w-4 h-4" />;
+//       case 'secretary': return <User className="w-4 h-4" />;
+//       default: return <User className="w-4 h-4" />;
+//     }
+//   };
+
+//   const handleLogout = () => {
+//     if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+//       logout();
+//     }
+//   };
+
 //   return (
-//     <div className="min-h-screen bg-base-100">
+//     <div className="min-h-screen bg-base-100 flex flex-col">
 //       {/* Header */}
-//       <header className="bg-gradient-to-r from-green-800 to-green-900 shadow-lg border-b border-green-700">
+//       <header className="bg-gradient-to-r from-green-800 to-green-900 shadow-lg border-b border-green-700 sticky top-0 z-50">
 //         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 //           <div className="flex justify-between items-center h-16">
 //             <div className="flex items-center">
@@ -1737,7 +1442,7 @@ export default Layout;
 //             </div>
 
 //             {/* Desktop Navigation */}
-//             <nav className="hidden md:flex space-x-2">
+//             <nav className="hidden md:flex space-x-1">
 //               {navigation.map((item) => {
 //                 const Icon = item.icon;
 //                 return (
@@ -1746,9 +1451,10 @@ export default Layout;
 //                     to={item.href}
 //                     className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
 //                       isActive(item.href)
-//                         ? 'bg-green-700 text-white'
+//                         ? 'bg-green-700 text-white shadow-inner'
 //                         : 'text-green-100 hover:bg-green-700 hover:text-white'
 //                     }`}
+//                     title={item.name}
 //                   >
 //                     <Icon className="w-4 h-4 mr-2" />
 //                     {item.name}
@@ -1758,23 +1464,25 @@ export default Layout;
 //             </nav>
 
 //             {/* User Menu */}
-//             <div className="flex items-center space-x-4">
-//               <div className="hidden md:flex items-center text-sm text-white">
-//                 <User className="w-4 h-4 mr-2" />
-//                 <div className="flex flex-col items-end">
-//                   <span className="font-medium">{user?.nom_complet || user?.username}</span>
-//                   <span className="text-xs text-green-200">{user?.service}</span>
-//                 </div>
-//                 <div className={`ml-2 badge ${getRoleBadgeColor(user?.role)} badge-sm`}>
-//                   {getRoleText(user?.role)}
+//             <div className="flex items-center space-x-3">
+//               <div className="hidden md:flex items-center space-x-3 text-sm text-white">
+//                 <div className="flex items-center space-x-2 bg-green-700/50 px-3 py-1 rounded-full">
+//                   {getRoleIcon(user?.role)}
+//                   <div className="flex flex-col items-start">
+//                     <span className="font-medium text-xs">{user?.name || user?.username}</span>
+//                     <span className={`badge ${getRoleBadgeColor(user?.role)} badge-xs`}>
+//                       {getRoleText(user?.role)}
+//                     </span>
+//                   </div>
 //                 </div>
 //               </div>
+              
 //               <button
-//                 onClick={logout}
-//                 className="flex items-center text-green-100 hover:text-white transition-colors p-2 rounded-md hover:bg-green-700"
+//                 onClick={handleLogout}
+//                 className="flex items-center text-green-100 hover:text-white transition-colors p-2 rounded-md hover:bg-green-700 group"
 //                 title="Se déconnecter"
 //               >
-//                 <LogOut className="w-4 h-4" />
+//                 <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
 //               </button>
 
 //               {/* Mobile menu button */}
@@ -1796,6 +1504,19 @@ export default Layout;
 //         {isMobileMenuOpen && (
 //           <div className="md:hidden border-t border-green-700 bg-green-800">
 //             <div className="px-2 pt-2 pb-3 space-y-1">
+//               {/* Informations utilisateur dans le menu mobile */}
+//               <div className="px-3 py-2 border-b border-green-700 mb-2">
+//                 <div className="flex items-center space-x-2 text-white">
+//                   <User className="w-4 h-4" />
+//                   <div>
+//                     <div className="font-medium text-sm">{user?.name || user?.username}</div>
+//                     <div className={`badge ${getRoleBadgeColor(user?.role)} badge-xs mt-1`}>
+//                       {getRoleText(user?.role)}
+//                     </div>
+//                   </div>
+//                 </div>
+//               </div>
+
 //               {navigation.map((item) => {
 //                 const Icon = item.icon;
 //                 return (
@@ -1820,7 +1541,22 @@ export default Layout;
 //       </header>
 
 //       {/* Main Content */}
-//       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+//       <main className="flex-1 max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 w-full">
+//         {/* Indicateur de rôle en haut de page (optionnel) */}
+//         <div className="flex justify-between items-center mb-6">
+//           <div className="flex items-center space-x-2 text-sm text-gray-600">
+//             <span>Connecté en tant que :</span>
+//             <span className={`badge ${getRoleBadgeColor(user?.role)}`}>
+//               {getRoleText(user?.role)}
+//             </span>
+//           </div>
+//           {user?.departement && (
+//             <div className="text-sm text-gray-500">
+//               Département : <span className="font-medium">{user.departement}</span>
+//             </div>
+//           )}
+//         </div>
+        
 //         {children}
 //       </main>
 
@@ -1860,18 +1596,22 @@ export default Layout;
 //                 </div>
 //                 <div className="flex items-center">
 //                   <Mail className="w-4 h-4 mr-2" />
-//                   <span>drenetp@gmail.com</span>
+//                   <span>contact@dren-antsimo-andrefana.mg</span>
 //                 </div>
 //               </div>
 //             </div>
 //             <div>
 //               <h3 className="text-lg font-semibold mb-4">Système</h3>
-//               <p className="text-green-200 text-sm">
-//                 Système de Gestion des Ressources Informatiques
+//               <p className="text-green-200 text-sm mb-2">
+//                 Gestion des Ressources Informatiques
 //               </p>
-//               <p className="text-green-200 text-sm">
-
-//               </p>
+//               <div className="flex items-center space-x-2 text-green-300 text-xs">
+//                 <span>Utilisateur :</span>
+//                 <span className={`badge ${getRoleBadgeColor(user?.role)} badge-sm`}>
+//                   {getRoleText(user?.role)}
+//                 </span>
+//               </div>
+//               <p className="text-green-300 text-xs mt-2">Version 1.0</p>
 //             </div>
 //           </div>
 //           <div className="border-t border-green-700 mt-8 pt-4 text-center text-sm text-green-300">
@@ -1884,3 +1624,263 @@ export default Layout;
 // };
 
 // export default Layout;
+
+
+import React, { useState } from 'react'; // ✅ Importez useState
+import { Link, useLocation } from 'react-router-dom';
+import { 
+  Monitor, 
+  AlertTriangle, 
+  Wrench, 
+  BarChart3, 
+  LogOut, 
+  User,
+  Menu,
+  X,
+  Users,
+  Network,
+  Bell,
+  Package,
+  Cpu,
+  MapPin,
+  Phone,
+  Mail
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+
+// Import de l'image JPEG depuis le dossier src
+import logoDren from '../assets/images/logo-dren.jpeg';
+
+const Layout = ({ children }) => {
+  const { user, logout } = useAuth();
+  const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+
+  // Configuration des tailles d'image
+  const logoConfig = {
+    header: {
+      container: 'h-[70px] w-[160px]',
+      image: 'w-full h-full',
+    },
+    footer: {
+      container: 'h-[120px] w-[160px]',
+      image: 'w-full h-full',
+    }
+  };
+
+  const navigation = [
+    { name: 'Tableau de bord', href: '/dashboard', icon: BarChart3 },
+    { name: 'Fournisseurs', href: '/fournisseurs', icon: Users },
+    { name: 'Matériels', href: '/materiels', icon: Monitor },
+    { name: 'Logiciels', href: '/logiciels', icon: Package },
+    { name: 'Installations Logiciels', href: '/installations-logiciels', icon: Cpu },
+    { name: 'Configuration Réseau', href: '/configuration-reseau', icon: Network },
+    { name: 'Incidents', href: '/incidents', icon: AlertTriangle },
+    { name: 'Alertes', href: '/alertes', icon: Bell },
+    { name: 'Réparations', href: '/reparations', icon: Wrench },
+    // { name: 'Rapports', href: '/rapports', icon: FileText },
+
+    { name: 'Profils Utilisateurs', href: '/profils-utilisateurs', icon: User },
+  ];
+
+  if (user?.role === 'admin') {
+    // navigation.push({ name: 'Utilisateurs', href: '/users', icon: Users });
+  }
+
+  const isActive = (path) => location.pathname === path;
+
+  const getRoleBadgeColor = (role) => {
+    switch (role) {
+      case 'admin': return 'badge-error';
+      case 'technicien': return 'badge-warning';
+      case 'utilisateur': return 'badge-info';
+      default: return 'badge-neutral';
+    }
+  };
+
+  const getRoleText = (role) => {
+    switch (role) {
+      case 'admin': return 'Administrateur';
+      case 'technicien': return 'Technicien IT';
+      case 'utilisateur': return 'Utilisateur';
+      default: return role;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-base-100">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-green-800 to-green-900 shadow-lg border-b border-green-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              {/* Logo DREN avec fallback */}
+              <div className={`bg-white p-1 rounded-lg mr-3 flex items-center justify-center ${logoConfig.header.container}`}>
+                {!logoError ? (
+                  <img 
+                    src={logoDren}
+                    alt="Logo DREN Antsimo Andrefana" 
+                    className={`object-contain ${logoConfig.header.image}`}
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <Monitor className="h-6 w-6 text-green-600" />
+                )}
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-white">
+                  DREN Antsimo A
+                </h1>
+                <p className="text-xs text-green-200">Gestion des Ressources IT</p>
+              </div>
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex space-x-2">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive(item.href)
+                        ? 'bg-green-700 text-white'
+                        : 'text-green-100 hover:bg-green-700 hover:text-white'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 mr-2" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* User Menu */}
+            <div className="flex items-center space-x-4">
+              <div className="hidden md:flex items-center text-sm text-white">
+                <User className="w-4 h-4 mr-2" />
+                <div className="flex flex-col items-end">
+                  <span className="font-medium">{user?.nom_complet || user?.username}</span>
+                  <span className="text-xs text-green-200">{user?.service}</span>
+                </div>
+                <div className={`ml-2 badge ${getRoleBadgeColor(user?.role)} badge-sm`}>
+                  {getRoleText(user?.role)}
+                </div>
+              </div>
+              <button
+                onClick={logout}
+                className="flex items-center text-green-100 hover:text-white transition-colors p-2 rounded-md hover:bg-green-700"
+                title="Se déconnecter"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+
+              {/* Mobile menu button */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden p-2 rounded-md text-green-100 hover:bg-green-700"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="w-5 h-5" />
+                ) : (
+                  <Menu className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-green-700 bg-green-800">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center px-3 py-2 rounded-md text-base font-medium ${
+                      isActive(item.href)
+                        ? 'bg-green-700 text-white'
+                        : 'text-green-100 hover:bg-green-700 hover:text-white'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 mr-3" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {children}
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-gradient-to-r from-green-800 to-green-900 text-white mt-12">
+        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="flex items-start">
+              {/* Logo DREN - TAILLE FOOTER */}
+              <div className={`bg-white rounded p-1 mr-3 flex items-center justify-center ${logoConfig.footer.container}`}>
+                <img 
+                  src={logoDren}
+                  alt="Logo DREN" 
+                  className={`object-contain ${logoConfig.footer.image}`}
+                />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold mb-2">DREN Antsimo Andrefana</h3>
+                <p className="text-green-200 text-sm">
+                  Direction Régionale de l'Éducation Nationale
+                </p>
+                <p className="text-green-200 text-sm">
+                  Région Atsimo Andrefana, Madagascar
+                </p>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Contact</h3>
+              <div className="space-y-2 text-sm text-green-200">
+                <div className="flex items-center">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  <span>Toliara, Madagascar</span>
+                </div>
+                <div className="flex items-center">
+                  <Phone className="w-4 h-4 mr-2" />
+                  <span>+261 94 xxx xx xx</span>
+                </div>
+                <div className="flex items-center">
+                  <Mail className="w-4 h-4 mr-2" />
+                  <span>drenetp@gmail.com</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Système</h3>
+              <p className="text-green-200 text-sm">
+                Système de Gestion des Ressources Informatiques
+              </p>
+              <p className="text-green-200 text-sm">
+
+              </p>
+            </div>
+          </div>
+          <div className="border-t border-green-700 mt-8 pt-4 text-center text-sm text-green-300">
+            <p>&copy; 2025 DREN Antsimo Andrefana. Tous droits réservés.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default Layout;
