@@ -1,9 +1,12 @@
 import os
 from pathlib import Path
+from decouple import config
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-votre-cle-secrete-ici-1234567890abcdef'
+# SECRET_KEY = 'django-insecure-votre-cle-secrete-ici-1234567890abcdef'
+SECRET_KEY = config('SECRET_KEY') 
 
 DEBUG = True
 
@@ -61,25 +64,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'gestion_parc_project.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 # pour postgresql
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'gestion_db',
-#         'USER': 'gestion_user',
-#         'PASSWORD': 'odaar0024',
-#         'HOST': 'localhost',
-#         'PORT': '5432',
-#     }
-# }
+DATABASES = {
+    'default': dj_database_url.parse(config('DATABASE_URL'))
+    
+}
 
 
 AUTH_PASSWORD_VALIDATORS = [
