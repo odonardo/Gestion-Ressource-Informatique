@@ -46,7 +46,15 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const API_BASE_URL = 'https://gestion-ressources-informatiques.onrender.com';
+// const API_BASE_URL = 'https://gestion-ressources-informatiques.onrender.com';
+
+
+
+// BON (après remplacement) :
+// const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+// OU si tu veux un fallback :
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gestion-ressources-informatiques.onrender.com';
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
