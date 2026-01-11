@@ -443,6 +443,412 @@
 
 
 
+// // AuthContext.tsx - VERSION FINALE CORRIGÉE
+// import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+// import axios from 'axios';
+
+// // Types
+// interface User {
+//   id: string | number;
+//   username: string;
+//   email: string;
+//   // name: string;
+//   first_name: string;
+//   last_name: string;
+//   full_name: string;
+//   role: string;
+//   departement?: string;
+//   telephone?: string;
+// }
+
+// interface AuthContextType {
+//   isAuthenticated: boolean;
+//   user: User | null;
+//   login: (username: string, password: string) => Promise<{ success: boolean; message?: string }>;
+//   register: (userData: RegisterData) => Promise<{ success: boolean; message: string }>;
+//   logout: () => void;
+//   isLoading: boolean;
+//   error: string | null;
+//   clearError: () => void;
+// }
+
+// interface RegisterData {
+//   username: string;
+//   email: string;
+//   password: string;
+//   name?: string;
+//   first_name?: string;
+//   last_name?: string;
+//   role?: string;
+//   password_confirm?: string;
+//   departement?: string;
+//   telephone?: string;
+// }
+
+// // Configuration
+// const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gestion-ressource-informatique.onrender.com';
+
+// const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// interface AuthProviderProps {
+//   children: ReactNode;
+// }
+
+// export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+//   const initRef = useRef(false);
+  
+//   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+//     return !!localStorage.getItem('auth_token');
+//   });
+  
+//   const [user, setUser] = useState<User | null>(() => {
+//     try {
+//       const stored = localStorage.getItem('user_data');
+//       return stored ? JSON.parse(stored) : null;
+//     } catch {
+//       return null;
+//     }
+//   });
+  
+//   const [isLoading, setIsLoading] = useState<boolean>(false);
+//   const [error, setError] = useState<string | null>(null);
+
+//   const clearError = () => setError(null);
+
+//   // Initialisation UNE SEULE FOIS
+//   useEffect(() => {
+//     if (initRef.current) return;
+//     initRef.current = true;
+    
+//     console.log('🔄 AuthContext initialisé - URL:', API_BASE_URL);
+    
+//     const token = localStorage.getItem('auth_token');
+//     if (token && !user) {
+//       setIsLoading(true);
+//       verifyToken(token)
+//         .then(() => {
+//           console.log('✅ Session restaurée');
+//         })
+//         .catch(() => {
+//           console.warn('⚠️ Session expirée');
+//           localStorage.removeItem('auth_token');
+//           localStorage.removeItem('user_data');
+//           setIsAuthenticated(false);
+//         })
+//         .finally(() => {
+//           setIsLoading(false);
+//         });
+//     } else {
+//       setIsLoading(false);
+//     }
+//   }, []);
+
+//   const verifyToken = async (token: string): Promise<void> => {
+//     try {
+//       const response = await axios.get(`${API_BASE_URL}/users/me/`, {
+//         headers: { Authorization: `Token ${token}` }
+//       });
+      
+//       const userData = response.data;
+//       const formattedUser: User = {
+//         id: userData.id,
+//         username: userData.username,
+//         email: userData.email,
+//         name: userData.name || '',
+//         first_name: userData.first_name || '',
+//         last_name: userData.last_name || '',
+//         full_name: userData.full_name || userData.name || userData.username,
+//         role: userData.role || 'user',
+//         departement: userData.departement,
+//         telephone: userData.telephone
+//       };
+      
+//       setUser(formattedUser);
+//       setIsAuthenticated(true);
+//       localStorage.setItem('user_data', JSON.stringify(formattedUser));
+      
+//     } catch (error) {
+//       throw new Error('Token invalide');
+//     }
+//   };
+
+//   const login = async (username: string, password: string): Promise<{ success: boolean; message?: string }> => {
+//     setIsLoading(true);
+//     clearError();
+    
+//     try {
+//       console.log('🔐 Tentative de connexion...');
+      
+//       const response = await axios.post(
+//         `${API_BASE_URL}/login/`,
+//         { username, password },
+//         { timeout: 10000 }
+//       );
+
+//       console.log('✅ Réponse login:', response.data);
+
+//       const token = response.data.token || response.data.access || response.data.key;
+//       if (!token) {
+//         return {
+//           success: false,
+//           message: 'Token manquant dans la réponse'
+//         };
+//       }
+
+//       localStorage.setItem('auth_token', token);
+
+//       let userData = response.data.user;
+//       if (!userData) {
+//         try {
+//           const userResponse = await axios.get(`${API_BASE_URL}/users/me/`, {
+//             headers: { Authorization: `Token ${token}` }
+//           });
+//           userData = userResponse.data;
+//         } catch {
+//           userData = {
+//             id: Date.now(),
+//             username,
+//             email: '',
+//             name: username,
+//             role: 'user'
+//           };
+//         }
+//       }
+
+//       const formattedUser: User = {
+//         id: userData.id || Date.now(),
+//         username: userData.username || username,
+//         email: userData.email || '',
+//         // name: userData.name || username,
+//         first_name: userData.first_name || '',
+//         last_name: userData.last_name || '',
+//         full_name: userData.full_name || userData.name || username,
+//         role: userData.role || 'user',
+//         departement: userData.departement,
+//         telephone: userData.telephone
+//       };
+
+//       localStorage.setItem('user_data', JSON.stringify(formattedUser));
+//       setUser(formattedUser);
+//       setIsAuthenticated(true);
+      
+//       return { success: true, message: 'Connexion réussie' };
+
+//     } catch (error: any) {
+//       console.error('❌ Erreur login:', error);
+      
+//       let errorMessage = 'Erreur de connexion';
+      
+//       if (error.response) {
+//         const { status, data } = error.response;
+        
+//         if (status === 400 || status === 401) {
+//           errorMessage = data?.detail || data?.non_field_errors?.[0] || 'Identifiants incorrects';
+//         }
+//       }
+      
+//       setError(errorMessage);
+//       return { success: false, message: errorMessage };
+      
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
+
+//   // FONCTION D'INSCRIPTION CORRIGÉE SELON LES ERREURS DU BACKEND
+//   const register = async (userData: RegisterData): Promise<{ success: boolean; message: string }> => {
+//     setIsLoading(true);
+//     clearError();
+    
+//     try {
+//       console.log('📝 =========== TENTATIVE D\'INSCRIPTION ===========');
+//       console.log('📤 URL:', `${API_BASE_URL}/register/`);
+      
+//       // CORRECTION: Basé sur les erreurs reçues, le backend attend:
+//       // 1. "name" au lieu de "first_name"/"last_name"
+//       // 2. "password" et "password_confirm" (pas password1/password2)
+      
+//       const registrationData = {
+//         username: userData.username.trim(),
+//         email: userData.email.trim(),
+//         password: userData.password,
+//         password_confirm: userData.password_confirm || userData.password,
+//         name: userData.name || userData.first_name || userData.username,
+//         role: userData.role || 'user',
+//         departement: userData.departement || '',
+//         telephone: userData.telephone || ''
+//       };
+      
+//       console.log('📤 Données envoyées (CORRIGÉES):', registrationData);
+      
+//       const response = await axios.post(
+//         `${API_BASE_URL}/register/`,
+//         registrationData,
+//         { 
+//           timeout: 10000,
+//           headers: {
+//             'Content-Type': 'application/json'
+//           }
+//         }
+//       );
+      
+//       console.log('✅ Réponse du serveur:', response.data);
+      
+//       if (response.status >= 200 && response.status < 300) {
+//         // Vérifier si la réponse contient un token
+//         const token = response.data.token || response.data.access;
+        
+//         if (token) {
+//           localStorage.setItem('auth_token', token);
+          
+//           const userDataResponse = response.data.user || {
+//             id: Date.now(),
+//             username: registrationData.username,
+//             email: registrationData.email,
+//             name: registrationData.name,
+//             role: registrationData.role
+//           };
+          
+//           const formattedUser: User = {
+//             id: userDataResponse.id,
+//             username: userDataResponse.username,
+//             email: userDataResponse.email,
+//             name: userDataResponse.name || registrationData.name,
+//             first_name: userDataResponse.first_name || '',
+//             last_name: userDataResponse.last_name || '',
+//             full_name: userDataResponse.full_name || userDataResponse.name || registrationData.name,
+//             role: userDataResponse.role || registrationData.role,
+//             departement: userDataResponse.departement,
+//             telephone: userDataResponse.telephone
+//           };
+          
+//           localStorage.setItem('user_data', JSON.stringify(formattedUser));
+//           setUser(formattedUser);
+//           setIsAuthenticated(true);
+          
+//           return {
+//             success: true,
+//             message: response.data.message || 'Compte créé avec succès!'
+//           };
+//         } else {
+//           // Si pas de token, essayer de se connecter automatiquement
+//           const loginResult = await login(userData.username, userData.password);
+          
+//           if (loginResult.success) {
+//             return {
+//               success: true,
+//               message: response.data.message || 'Compte créé avec succès!'
+//             };
+//           } else {
+//             return {
+//               success: false,
+//               message: 'Compte créé mais connexion échouée'
+//             };
+//           }
+//         }
+//       }
+      
+//       return {
+//         success: false,
+//         message: 'Réponse inattendue du serveur'
+//       };
+      
+//     } catch (error: any) {
+//       console.error('❌ Erreur inscription:', error);
+      
+//       let errorMessage = 'Erreur lors de l\'inscription';
+//       let errorDetails = '';
+      
+//       if (error.response) {
+//         const { status, data } = error.response;
+//         console.error('📋 Détails erreur:', { status, data });
+        
+//         if (status === 400) {
+//           // Analyser les erreurs spécifiques
+//           if (data.errors) {
+//             const errors = data.errors;
+//             const errorMessages: string[] = [];
+            
+//             if (errors.password && Array.isArray(errors.password) && errors.password.length > 0) {
+//               errorMessages.push(`Mot de passe: ${errors.password[0]}`);
+//             }
+            
+//             if (errors.password_confirm && Array.isArray(errors.password_confirm) && errors.password_confirm.length > 0) {
+//               errorMessages.push(`Confirmation: ${errors.password_confirm[0]}`);
+//             }
+            
+//             if (errors.name && Array.isArray(errors.name) && errors.name.length > 0) {
+//               errorMessages.push(`Nom: ${errors.name[0]}`);
+//             }
+            
+//             if (errors.username && Array.isArray(errors.username) && errors.username.length > 0) {
+//               errorMessages.push(`Nom d'utilisateur: ${errors.username[0]}`);
+//             }
+            
+//             if (errors.email && Array.isArray(errors.email) && errors.email.length > 0) {
+//               errorMessages.push(`Email: ${errors.email[0]}`);
+//             }
+            
+//             if (errorMessages.length > 0) {
+//               errorDetails = errorMessages.join(', ');
+//             }
+//           }
+          
+//           errorMessage = data.message || 'Données invalides';
+//           if (errorDetails) {
+//             errorMessage += ' - ' + errorDetails;
+//           }
+//         } else if (status === 409) {
+//           errorMessage = 'Nom d\'utilisateur ou email déjà utilisé';
+//         }
+//       }
+      
+//       console.error('❌ Message d\'erreur final:', errorMessage);
+//       setError(errorMessage);
+//       return { success: false, message: errorMessage };
+      
+//     } finally {
+//       setIsLoading(false);
+//       console.log('📝 =========== FIN TENTATIVE D\'INSCRIPTION ===========\n');
+//     }
+//   };
+
+//   const logout = () => {
+//     localStorage.removeItem('auth_token');
+//     localStorage.removeItem('user_data');
+//     setIsAuthenticated(false);
+//     setUser(null);
+//     clearError();
+    
+//     console.log('✅ Déconnexion');
+//     window.location.href = '/login';
+//   };
+
+//   const value: AuthContextType = {
+//     isAuthenticated,
+//     user,
+//     login,
+//     register,
+//     logout,
+//     isLoading,
+//     error,
+//     clearError
+//   };
+
+//   return (
+//     <AuthContext.Provider value={value}>
+//       {children}
+//     </AuthContext.Provider>
+//   );
+// };
+
+// export const useAuth = (): AuthContextType => {
+//   const context = useContext(AuthContext);
+//   if (context === undefined) {
+//     throw new Error('useAuth doit être dans un AuthProvider');
+//   }
+//   return context;
+// };
 
 
 
@@ -454,50 +860,16 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// AuthContext.tsx - VERSION CORRIGÉE COMPLÈTE
-
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+// AuthContext.tsx - VERSION FINALE CORRIGÉE
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import axios from 'axios';
 
+// Types
 interface User {
-  id: string;
+  id: string | number;
   username: string;
   email: string;
+  name: string;
   first_name: string;
   last_name: string;
   full_name: string;
@@ -509,23 +881,29 @@ interface User {
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<{ success: boolean; message?: string }>;
   register: (userData: RegisterData) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   isLoading: boolean;
-  refreshUserInfo: () => Promise<void>;
+  error: string | null;
+  clearError: () => void;
 }
 
 interface RegisterData {
   username: string;
   email: string;
   password: string;
-  name: string;
-  role: string;
-  password_confirm: string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+  password_confirm?: string;
   departement?: string;
   telephone?: string;
 }
+
+// Configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gestion-ressource-informatique.onrender.com';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -533,270 +911,358 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// const API_BASE_URL = 'https://gestion-ressources-informatiques.onrender.com';
-
-
-
-// BON (après remplacement) :
-// const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-// OU si tu veux un fallback :
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gestion-ressource-informatique.onrender.com';
-
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const initRef = useRef(false);
+  
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return !!localStorage.getItem('auth_token');
+  });
+  
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const stored = localStorage.getItem('user_data');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
+  const clearError = () => setError(null);
+
+  // Initialisation UNE SEULE FOIS
   useEffect(() => {
-    checkAuthStatus();
+    if (initRef.current) return;
+    initRef.current = true;
+    
+    console.log('🔄 AuthContext initialisé - URL:', API_BASE_URL);
+    
+    const token = localStorage.getItem('auth_token');
+    if (token && !user) {
+      setIsLoading(true);
+      verifyToken(token)
+        .then(() => {
+          console.log('✅ Session restaurée');
+        })
+        .catch(() => {
+          console.warn('⚠️ Session expirée');
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user_data');
+          setIsAuthenticated(false);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+    }
   }, []);
 
-  const checkAuthStatus = async () => {
-    const token = localStorage.getItem('auth_token');
-    const storedUserData = localStorage.getItem('user_data');
-    
-    if (token && storedUserData) {
-      try {
-        const userData = JSON.parse(storedUserData);
-        
-        // Vérifier que le token est encore valide
-        try {
-          const response = await axios.get(`${API_BASE_URL}/get-user-role/`, {
-            headers: {
-              'Authorization': `Token ${token}`,
-            },
-          });
-          
-          // Mettre à jour avec les données fraîches
-          const freshUserData = {
-            ...userData,
-            ...response.data
-          };
-          
-          localStorage.setItem('user_data', JSON.stringify(freshUserData));
-          setUser(freshUserData);
-          setIsAuthenticated(true);
-          console.log('✅ Session restaurée avec rôle:', freshUserData.role);
-          
-        } catch (error: any) {
-          console.warn('Token invalide ou expiré:', error.message);
-          logout();
-        }
-      } catch (error) {
-        console.error('Erreur de parsing des données utilisateur:', error);
-        logout();
-      }
-    }
-    setIsLoading(false);
-  };
-
-  // Fonction pour rafraîchir les infos utilisateur
-  const refreshUserInfo = async (): Promise<void> => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) return;
-    
+  const verifyToken = async (token: string): Promise<void> => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/get-user-role/`, {
-        headers: {
-          'Authorization': `Token ${token}`,
-        },
+      const response = await axios.get(`${API_BASE_URL}/users/me/`, {
+        headers: { Authorization: `Token ${token}` }
       });
       
-      const currentUserData = localStorage.getItem('user_data');
-      if (currentUserData) {
-        const userData = JSON.parse(currentUserData);
-        const updatedUserData = {
-          ...userData,
-          ...response.data
-        };
-        
-        localStorage.setItem('user_data', JSON.stringify(updatedUserData));
-        setUser(updatedUserData);
-        console.log('✅ User info refreshed with role:', updatedUserData.role);
-      }
-    } catch (error) {
-      console.error('Could not refresh user info:', error);
-    }
-  };
-
-  const login = async (username: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
-    
-    try {
-      console.log('🔐 Tentative de connexion avec:', username);
+      const userData = response.data;
+      const formattedUser: User = {
+        id: userData.id,
+        username: userData.username,
+        email: userData.email,
+        name: userData.name || '',
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
+        full_name: userData.full_name || userData.name || userData.username,
+        role: userData.role || 'user',
+        departement: userData.departement,
+        telephone: userData.telephone
+      };
       
-      // IMPORTANT: Utilisez /login/ (SANS api/)
-      const response = await axios.post(`${API_BASE_URL}/login/`, {
-        username,
-        password,
-      });
-
-      console.log('✅ Réponse du serveur:', response.data);
-
-      if (response.status !== 200 || !response.data.token) {
-        console.error('Login failed - no token:', response.data);
-        return false;
-      }
-
-      const { token, user: userData } = response.data;
-      
-      // Stocker les données
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('user_data', JSON.stringify(userData));
-      
-      // Mettre à jour l'état
+      setUser(formattedUser);
       setIsAuthenticated(true);
-      setUser(userData);
+      localStorage.setItem('user_data', JSON.stringify(formattedUser));
       
-      console.log('✅ Login successful! Role:', userData.role);
-      console.log('✅ User data:', userData);
+    } catch (error) {
+      throw new Error('Token invalide');
+    }
+  };
+
+  const login = async (username: string, password: string): Promise<{ success: boolean; message?: string }> => {
+    setIsLoading(true);
+    clearError();
+    
+    try {
+      console.log('🔐 Tentative de connexion...');
       
-      return true;
+      const response = await axios.post(
+        `${API_BASE_URL}/login/`,
+        { username, password },
+        { timeout: 10000 }
+      );
+
+      console.log('✅ Réponse login:', response.data);
+
+      const token = response.data.token || response.data.access || response.data.key;
+      if (!token) {
+        return {
+          success: false,
+          message: 'Token manquant dans la réponse'
+        };
+      }
+
+      localStorage.setItem('auth_token', token);
+
+      let userData = response.data.user;
+      if (!userData) {
+        try {
+          const userResponse = await axios.get(`${API_BASE_URL}/users/me/`, {
+            headers: { Authorization: `Token ${token}` }
+          });
+          userData = userResponse.data;
+        } catch {
+          userData = {
+            id: Date.now(),
+            username,
+            email: '',
+            name: username,
+            role: 'user'
+          };
+        }
+      }
+
+      const formattedUser: User = {
+        id: userData.id || Date.now(),
+        username: userData.username || username,
+        email: userData.email || '',
+        name: userData.name || username,
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
+        full_name: userData.full_name || userData.name || username,
+        role: userData.role || 'user',
+        departement: userData.departement,
+        telephone: userData.telephone
+      };
+
+      localStorage.setItem('user_data', JSON.stringify(formattedUser));
+      setUser(formattedUser);
+      setIsAuthenticated(true);
+      
+      return { success: true, message: 'Connexion réussie' };
 
     } catch (error: any) {
-      console.error('❌ Login error:', error);
+      console.error('❌ Erreur login:', error);
+      
+      let errorMessage = 'Erreur de connexion';
+      
       if (error.response) {
-        console.error('❌ Server response:', error.response.data);
-        console.error('❌ Status:', error.response.status);
+        const { status, data } = error.response;
+        
+        if (status === 400 || status === 401) {
+          errorMessage = data?.detail || data?.non_field_errors?.[0] || 'Identifiants incorrects';
+        }
       }
-      return false;
+      
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+      
     } finally {
       setIsLoading(false);
     }
   };
 
+  // FONCTION D'INSCRIPTION CORRIGÉE SELON LES ERREURS DU BACKEND
   const register = async (userData: RegisterData): Promise<{ success: boolean; message: string }> => {
     setIsLoading(true);
+    clearError();
     
     try {
-      // ✅ CORRECTION : Utiliser la bonne URL https://gestion-ressources-informatiques.onrender.com/register/
-      const response = await fetch(`${API_BASE_URL}/register/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
-
-      // Vérifier si la réponse est JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const textResponse = await response.text();
-        console.error('Server returned non-JSON response:', textResponse.substring(0, 200));
-        return {
-          success: false,
-          message: 'Erreur serveur: réponse non valide'
-        };
-      }
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Gérer les erreurs de validation Django
-        console.error('Registration failed:', data);
-        
-        let errorMessage = 'Erreur lors de l\'inscription';
-        
-        if (data.errors) {
-          // Si c'est un objet d'erreurs Django
-          const errorFields = Object.keys(data.errors);
-          errorMessage = `Erreur: ${data.errors[errorFields[0]][0]}`;
-        } else if (data.message) {
-          // Si c'est un message d'erreur simple
-          errorMessage = data.message;
-        } else if (typeof data === 'object') {
-          // Si c'est un objet avec des erreurs par champ
-          const firstError = Object.values(data)[0];
-          if (Array.isArray(firstError)) {
-            errorMessage = firstError[0];
+      console.log('📝 =========== TENTATIVE D\'INSCRIPTION ===========');
+      console.log('📤 URL:', `${API_BASE_URL}/register/`);
+      
+      // CORRECTION: Basé sur les erreurs reçues, le backend attend:
+      // 1. "name" au lieu de "first_name"/"last_name"
+      // 2. "password" et "password_confirm" (pas password1/password2)
+      
+      const registrationData = {
+        username: userData.username.trim(),
+        email: userData.email.trim(),
+        password: userData.password,
+        password_confirm: userData.password_confirm || userData.password,
+        name: userData.name || userData.first_name || userData.username,
+        role: userData.role || 'user',
+        departement: userData.departement || '',
+        telephone: userData.telephone || ''
+      };
+      
+      console.log('📤 Données envoyées (CORRIGÉES):', registrationData);
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/register/`,
+        registrationData,
+        { 
+          timeout: 10000,
+          headers: {
+            'Content-Type': 'application/json'
           }
         }
+      );
+      
+      console.log('✅ Réponse du serveur:', response.data);
+      
+      if (response.status >= 200 && response.status < 300) {
+        // Vérifier si la réponse contient un token
+        const token = response.data.token || response.data.access;
         
-        return {
-          success: false,
-          message: errorMessage
-        };
+        if (token) {
+          localStorage.setItem('auth_token', token);
+          
+          const userDataResponse = response.data.user || {
+            id: Date.now(),
+            username: registrationData.username,
+            email: registrationData.email,
+            name: registrationData.name,
+            role: registrationData.role
+          };
+          
+          const formattedUser: User = {
+            id: userDataResponse.id,
+            username: userDataResponse.username,
+            email: userDataResponse.email,
+            name: userDataResponse.name || registrationData.name,
+            first_name: userDataResponse.first_name || '',
+            last_name: userDataResponse.last_name || '',
+            full_name: userDataResponse.full_name || userDataResponse.name || registrationData.name,
+            role: userDataResponse.role || registrationData.role,
+            departement: userDataResponse.departement,
+            telephone: userDataResponse.telephone
+          };
+          
+          localStorage.setItem('user_data', JSON.stringify(formattedUser));
+          setUser(formattedUser);
+          setIsAuthenticated(true);
+          
+          return {
+            success: true,
+            message: response.data.message || 'Compte créé avec succès!'
+          };
+        } else {
+          // Si pas de token, essayer de se connecter automatiquement
+          const loginResult = await login(userData.username, userData.password);
+          
+          if (loginResult.success) {
+            return {
+              success: true,
+              message: response.data.message || 'Compte créé avec succès!'
+            };
+          } else {
+            return {
+              success: false,
+              message: 'Compte créé mais connexion échouée'
+            };
+          }
+        }
       }
-
-      // ✅ SUCCESS - Traitement de la réponse
-      const token = data.token;
       
-      if (!token) {
-        console.error('No token in registration response:', data);
-        return {
-          success: false,
-          message: 'Erreur: token manquant dans la réponse'
-        };
-      }
-
-      // Stocker le token
-      localStorage.setItem('access_token', token);
-
-      // Utiliser les données utilisateur du backend
-      const userDataResponse = {
-        id: data.user?.id?.toString() || '1',
-        username: data.user?.username || userData.username,
-        email: data.user?.email || userData.email,
-        name: data.user?.name || userData.name,
-        role: data.user?.role || userData.role || 'user'
-      };
-      
-      localStorage.setItem('userData', JSON.stringify(userDataResponse));
-      setIsAuthenticated(true);
-      setUser(userDataResponse);
-      
-      console.log('Registration successful with token:', token);
-      
-      return {
-        success: true,
-        message: data.message || 'Compte créé avec succès! Vous êtes maintenant connecté.'
-      };
-
-    } catch (error) {
-      console.error('Registration error:', error);
       return {
         success: false,
-        message: 'Erreur de connexion au serveur'
+        message: 'Réponse inattendue du serveur'
       };
+      
+    } catch (error: any) {
+      console.error('❌ Erreur inscription:', error);
+      
+      let errorMessage = 'Erreur lors de l\'inscription';
+      let errorDetails = '';
+      
+      if (error.response) {
+        const { status, data } = error.response;
+        console.error('📋 Détails erreur:', { status, data });
+        
+        if (status === 400) {
+          // Analyser les erreurs spécifiques
+          if (data.errors) {
+            const errors = data.errors;
+            const errorMessages: string[] = [];
+            
+            if (errors.password && Array.isArray(errors.password) && errors.password.length > 0) {
+              errorMessages.push(`Mot de passe: ${errors.password[0]}`);
+            }
+            
+            if (errors.password_confirm && Array.isArray(errors.password_confirm) && errors.password_confirm.length > 0) {
+              errorMessages.push(`Confirmation: ${errors.password_confirm[0]}`);
+            }
+            
+            if (errors.name && Array.isArray(errors.name) && errors.name.length > 0) {
+              errorMessages.push(`Nom: ${errors.name[0]}`);
+            }
+            
+            if (errors.username && Array.isArray(errors.username) && errors.username.length > 0) {
+              errorMessages.push(`Nom d'utilisateur: ${errors.username[0]}`);
+            }
+            
+            if (errors.email && Array.isArray(errors.email) && errors.email.length > 0) {
+              errorMessages.push(`Email: ${errors.email[0]}`);
+            }
+            
+            if (errorMessages.length > 0) {
+              errorDetails = errorMessages.join(', ');
+            }
+          }
+          
+          errorMessage = data.message || 'Données invalides';
+          if (errorDetails) {
+            errorMessage += ' - ' + errorDetails;
+          }
+        } else if (status === 409) {
+          errorMessage = 'Nom d\'utilisateur ou email déjà utilisé';
+        }
+      }
+      
+      console.error('❌ Message d\'erreur final:', errorMessage);
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+      
     } finally {
       setIsLoading(false);
+      console.log('📝 =========== FIN TENTATIVE D\'INSCRIPTION ===========\n');
     }
   };
 
   const logout = () => {
-    // Nettoyer toutes les données
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_data');
     setIsAuthenticated(false);
     setUser(null);
+    clearError();
     
-    console.log('✅ Déconnexion réussie');
-    
-    // Rediriger vers la page de login
+    console.log('✅ Déconnexion');
     window.location.href = '/login';
   };
 
+  const value: AuthContextType = {
+    isAuthenticated,
+    user,
+    login,
+    register,
+    logout,
+    isLoading,
+    error,
+    clearError
+  };
+
   return (
-    <AuthContext.Provider value={{ 
-      isAuthenticated, 
-      user, 
-      login, 
-      register, 
-      logout, 
-      isLoading,
-      refreshUserInfo
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth doit être dans un AuthProvider');
   }
   return context;
 };
-
