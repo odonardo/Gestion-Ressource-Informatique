@@ -26,6 +26,7 @@ export default defineConfig({
       },
       '/csrf': {
         target: 'https://gestion-ressource-informatique.onrender.com',
+        
         changeOrigin: true,
         secure: false
       }
