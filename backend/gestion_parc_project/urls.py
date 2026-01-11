@@ -20,6 +20,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('gestion_parc.urls')),  # Supprimé le préfixe 'gestion_parc/'
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),
+    path('', include('gestion_parc.urls')),  # Inclut TOUTES les routes
     
 ]
 

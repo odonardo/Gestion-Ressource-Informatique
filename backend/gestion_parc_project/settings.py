@@ -157,3 +157,13 @@ CORS_ALLOW_METHODS = [
 PORT = os.environ.get('PORT', 8000)
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    '.onrender.com',
+    'gestion-ressource-informatique.onrender.com',  # VOTRE BACKEND
+    '*'
+]
