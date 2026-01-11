@@ -2,328 +2,13 @@
 
 
 
-// // AuthContext.tsx - VERSION CORRIGÉE COMPLÈTE
+// AuthContext.tsx - VERSION CORRIGÉE COMPLÈTE
 
-// import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-// import axios from 'axios';
-
-// interface User {
-//   id: string;
-//   username: string;
-//   email: string;
-//   first_name: string;
-//   last_name: string;
-//   full_name: string;
-//   role: string;
-//   departement?: string;
-//   telephone?: string;
-// }
-
-// interface AuthContextType {
-//   isAuthenticated: boolean;
-//   user: User | null;
-//   login: (username: string, password: string) => Promise<boolean>;
-//   register: (userData: RegisterData) => Promise<{ success: boolean; message: string }>;
-//   logout: () => void;
-//   isLoading: boolean;
-//   refreshUserInfo: () => Promise<void>;
-// }
-
-// interface RegisterData {
-//   username: string;
-//   email: string;
-//   password: string;
-//   name: string;
-//   role: string;
-//   password_confirm: string;
-//   departement?: string;
-//   telephone?: string;
-// }
-
-// const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// interface AuthProviderProps {
-//   children: ReactNode;
-// }
-
-// // const API_BASE_URL = 'https://gestion-ressources-informatiques.onrender.com';
-
-
-
-// // BON (après remplacement) :
-// // const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-// // OU si tu veux un fallback :
-// const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gestion-ressources-informatiques.onrender.com';
-
-// export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-//   const [isAuthenticated, setIsAuthenticated] = useState(false);
-//   const [user, setUser] = useState<User | null>(null);
-//   const [isLoading, setIsLoading] = useState(true);
-
-//   useEffect(() => {
-//     checkAuthStatus();
-//   }, []);
-
-//   const checkAuthStatus = async () => {
-//     const token = localStorage.getItem('auth_token');
-//     const storedUserData = localStorage.getItem('user_data');
-    
-//     if (token && storedUserData) {
-//       try {
-//         const userData = JSON.parse(storedUserData);
-        
-//         // Vérifier que le token est encore valide
-//         try {
-//           const response = await axios.get(`${API_BASE_URL}/get-user-role/`, {
-//             headers: {
-//               'Authorization': `Token ${token}`,
-//             },
-//           });
-          
-//           // Mettre à jour avec les données fraîches
-//           const freshUserData = {
-//             ...userData,
-//             ...response.data
-//           };
-          
-//           localStorage.setItem('user_data', JSON.stringify(freshUserData));
-//           setUser(freshUserData);
-//           setIsAuthenticated(true);
-//           console.log('✅ Session restaurée avec rôle:', freshUserData.role);
-          
-//         } catch (error: any) {
-//           console.warn('Token invalide ou expiré:', error.message);
-//           logout();
-//         }
-//       } catch (error) {
-//         console.error('Erreur de parsing des données utilisateur:', error);
-//         logout();
-//       }
-//     }
-//     setIsLoading(false);
-//   };
-
-//   // Fonction pour rafraîchir les infos utilisateur
-//   const refreshUserInfo = async (): Promise<void> => {
-//     const token = localStorage.getItem('auth_token');
-//     if (!token) return;
-    
-//     try {
-//       const response = await axios.get(`${API_BASE_URL}/get-user-role/`, {
-//         headers: {
-//           'Authorization': `Token ${token}`,
-//         },
-//       });
-      
-//       const currentUserData = localStorage.getItem('user_data');
-//       if (currentUserData) {
-//         const userData = JSON.parse(currentUserData);
-//         const updatedUserData = {
-//           ...userData,
-//           ...response.data
-//         };
-        
-//         localStorage.setItem('user_data', JSON.stringify(updatedUserData));
-//         setUser(updatedUserData);
-//         console.log('✅ User info refreshed with role:', updatedUserData.role);
-//       }
-//     } catch (error) {
-//       console.error('Could not refresh user info:', error);
-//     }
-//   };
-
-//   const login = async (username: string, password: string): Promise<boolean> => {
-//     setIsLoading(true);
-    
-//     try {
-//       console.log('🔐 Tentative de connexion avec:', username);
-      
-//       // IMPORTANT: Utilisez /login/ (SANS api/)
-//       const response = await axios.post(`${API_BASE_URL}/login/`, {
-//         username,
-//         password,
-//       });
-
-//       console.log('✅ Réponse du serveur:', response.data);
-
-//       if (response.status !== 200 || !response.data.token) {
-//         console.error('Login failed - no token:', response.data);
-//         return false;
-//       }
-
-//       const { token, user: userData } = response.data;
-      
-//       // Stocker les données
-//       localStorage.setItem('auth_token', token);
-//       localStorage.setItem('user_data', JSON.stringify(userData));
-      
-//       // Mettre à jour l'état
-//       setIsAuthenticated(true);
-//       setUser(userData);
-      
-//       console.log('✅ Login successful! Role:', userData.role);
-//       console.log('✅ User data:', userData);
-      
-//       return true;
-
-//     } catch (error: any) {
-//       console.error('❌ Login error:', error);
-//       if (error.response) {
-//         console.error('❌ Server response:', error.response.data);
-//         console.error('❌ Status:', error.response.status);
-//       }
-//       return false;
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
-
-//   const register = async (userData: RegisterData): Promise<{ success: boolean; message: string }> => {
-//     setIsLoading(true);
-    
-//     try {
-//       // ✅ CORRECTION : Utiliser la bonne URL https://gestion-ressources-informatiques.onrender.com/register/
-//       const response = await fetch(`${API_BASE_URL}/register/`, {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify(userData),
-//       });
-
-//       // Vérifier si la réponse est JSON
-//       const contentType = response.headers.get('content-type');
-//       if (!contentType || !contentType.includes('application/json')) {
-//         const textResponse = await response.text();
-//         console.error('Server returned non-JSON response:', textResponse.substring(0, 200));
-//         return {
-//           success: false,
-//           message: 'Erreur serveur: réponse non valide'
-//         };
-//       }
-
-//       const data = await response.json();
-
-//       if (!response.ok) {
-//         // Gérer les erreurs de validation Django
-//         console.error('Registration failed:', data);
-        
-//         let errorMessage = 'Erreur lors de l\'inscription';
-        
-//         if (data.errors) {
-//           // Si c'est un objet d'erreurs Django
-//           const errorFields = Object.keys(data.errors);
-//           errorMessage = `Erreur: ${data.errors[errorFields[0]][0]}`;
-//         } else if (data.message) {
-//           // Si c'est un message d'erreur simple
-//           errorMessage = data.message;
-//         } else if (typeof data === 'object') {
-//           // Si c'est un objet avec des erreurs par champ
-//           const firstError = Object.values(data)[0];
-//           if (Array.isArray(firstError)) {
-//             errorMessage = firstError[0];
-//           }
-//         }
-        
-//         return {
-//           success: false,
-//           message: errorMessage
-//         };
-//       }
-
-//       // ✅ SUCCESS - Traitement de la réponse
-//       const token = data.token;
-      
-//       if (!token) {
-//         console.error('No token in registration response:', data);
-//         return {
-//           success: false,
-//           message: 'Erreur: token manquant dans la réponse'
-//         };
-//       }
-
-//       // Stocker le token
-//       localStorage.setItem('access_token', token);
-
-//       // Utiliser les données utilisateur du backend
-//       const userDataResponse = {
-//         id: data.user?.id?.toString() || '1',
-//         username: data.user?.username || userData.username,
-//         email: data.user?.email || userData.email,
-//         name: data.user?.name || userData.name,
-//         role: data.user?.role || userData.role || 'user'
-//       };
-      
-//       localStorage.setItem('userData', JSON.stringify(userDataResponse));
-//       setIsAuthenticated(true);
-//       setUser(userDataResponse);
-      
-//       console.log('Registration successful with token:', token);
-      
-//       return {
-//         success: true,
-//         message: data.message || 'Compte créé avec succès! Vous êtes maintenant connecté.'
-//       };
-
-//     } catch (error) {
-//       console.error('Registration error:', error);
-//       return {
-//         success: false,
-//         message: 'Erreur de connexion au serveur'
-//       };
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
-
-//   const logout = () => {
-//     // Nettoyer toutes les données
-//     localStorage.removeItem('auth_token');
-//     localStorage.removeItem('user_data');
-//     setIsAuthenticated(false);
-//     setUser(null);
-    
-//     console.log('✅ Déconnexion réussie');
-    
-//     // Rediriger vers la page de login
-//     window.location.href = '/login';
-//   };
-
-//   return (
-//     <AuthContext.Provider value={{ 
-//       isAuthenticated, 
-//       user, 
-//       login, 
-//       register, 
-//       logout, 
-//       isLoading,
-//       refreshUserInfo
-//     }}>
-//       {children}
-//     </AuthContext.Provider>
-//   );
-// };
-
-// export const useAuth = () => {
-//   const context = useContext(AuthContext);
-//   if (context === undefined) {
-//     throw new Error('useAuth must be used within an AuthProvider');
-//   }
-//   return context;
-// };
-
-
-
-
-
-// AuthContext.tsx - VERSION CORRIGÉE ET OPTIMISÉE
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 
-// Types
 interface User {
-  id: string | number;
+  id: string;
   username: string;
   email: string;
   first_name: string;
@@ -332,57 +17,28 @@ interface User {
   role: string;
   departement?: string;
   telephone?: string;
-  is_active?: boolean;
-  date_joined?: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (username: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  login: (username: string, password: string) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<{ success: boolean; message: string }>;
-  logout: () => Promise<void>;
+  logout: () => void;
   isLoading: boolean;
   refreshUserInfo: () => Promise<void>;
-  error: string | null;
 }
 
 interface RegisterData {
   username: string;
   email: string;
   password: string;
-  first_name?: string;
-  last_name?: string;
-  role?: string;
-  password_confirm?: string;
+  name: string;
+  role: string;
+  password_confirm: string;
   departement?: string;
   telephone?: string;
 }
-
-// Configuration
-// const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gestion-ressource-informatique.onrender.com';
-const API_BASE_URL = 'https://gestion-ressource-informatique.onrender.com';
-
-// Créer une instance axios configurée
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Intercepteur pour ajouter le token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      config.headers.Authorization = `Token ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -390,325 +46,260 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// const API_BASE_URL = 'https://gestion-ressources-informatiques.onrender.com';
+
+
+
+// BON (après remplacement) :
+// const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+// OU si tu veux un fallback :
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gestion-ressources-informatiques.onrender.com';
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Initialisation - vérifier l'authentification au chargement
   useEffect(() => {
-    console.log('🔄 Initialisation AuthContext');
-    console.log('🔧 API Base URL:', API_BASE_URL);
-    
-    const initAuth = async () => {
-      const token = localStorage.getItem('auth_token');
-      const storedUser = localStorage.getItem('user_data');
-      
-      if (token && storedUser) {
-        try {
-          // Vérifier si le token est toujours valide
-          await refreshUserInfo();
-          setIsAuthenticated(true);
-          console.log('✅ Session restaurée');
-        } catch (error) {
-          console.warn('⚠️ Session expirée ou invalide');
-          await logout();
-        }
-      }
-      setIsLoading(false);
-    };
-    
-    initAuth();
+    checkAuthStatus();
   }, []);
 
-  // Rafraîchir les infos utilisateur
+  const checkAuthStatus = async () => {
+    const token = localStorage.getItem('auth_token');
+    const storedUserData = localStorage.getItem('user_data');
+    
+    if (token && storedUserData) {
+      try {
+        const userData = JSON.parse(storedUserData);
+        
+        // Vérifier que le token est encore valide
+        try {
+          const response = await axios.get(`${API_BASE_URL}/get-user-role/`, {
+            headers: {
+              'Authorization': `Token ${token}`,
+            },
+          });
+          
+          // Mettre à jour avec les données fraîches
+          const freshUserData = {
+            ...userData,
+            ...response.data
+          };
+          
+          localStorage.setItem('user_data', JSON.stringify(freshUserData));
+          setUser(freshUserData);
+          setIsAuthenticated(true);
+          console.log('✅ Session restaurée avec rôle:', freshUserData.role);
+          
+        } catch (error: any) {
+          console.warn('Token invalide ou expiré:', error.message);
+          logout();
+        }
+      } catch (error) {
+        console.error('Erreur de parsing des données utilisateur:', error);
+        logout();
+      }
+    }
+    setIsLoading(false);
+  };
+
+  // Fonction pour rafraîchir les infos utilisateur
   const refreshUserInfo = async (): Promise<void> => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    
     try {
-      const response = await api.get('/users/me/');
-      const userData = response.data;
+      const response = await axios.get(`${API_BASE_URL}/get-user-role/`, {
+        headers: {
+          'Authorization': `Token ${token}`,
+        },
+      });
       
-      // Formater l'utilisateur
-      const formattedUser: User = {
-        id: userData.id,
-        username: userData.username,
-        email: userData.email,
-        first_name: userData.first_name || '',
-        last_name: userData.last_name || '',
-        full_name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.username,
-        role: userData.role || userData.groups?.[0] || 'user',
-        departement: userData.departement,
-        telephone: userData.telephone,
-        is_active: userData.is_active,
-        date_joined: userData.date_joined
-      };
-      
-      localStorage.setItem('user_data', JSON.stringify(formattedUser));
-      setUser(formattedUser);
-      setError(null);
-      
-      console.log('✅ User info refreshed:', formattedUser.role);
-      
-    } catch (error: any) {
-      console.error('❌ Could not refresh user info:', error.message);
-      throw error;
+      const currentUserData = localStorage.getItem('user_data');
+      if (currentUserData) {
+        const userData = JSON.parse(currentUserData);
+        const updatedUserData = {
+          ...userData,
+          ...response.data
+        };
+        
+        localStorage.setItem('user_data', JSON.stringify(updatedUserData));
+        setUser(updatedUserData);
+        console.log('✅ User info refreshed with role:', updatedUserData.role);
+      }
+    } catch (error) {
+      console.error('Could not refresh user info:', error);
     }
   };
 
-  // Connexion
-  const login = async (username: string, password: string): Promise<{ success: boolean; message?: string }> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     setIsLoading(true);
-    setError(null);
     
     try {
       console.log('🔐 Tentative de connexion avec:', username);
-      console.log('📤 URL:', `${API_BASE_URL}/login/`);
       
-      // Essayer plusieurs endpoints possibles
-      const endpoints = [
-        '/login/',
-        '/api/login/',
-        '/api-token-auth/',
-        '/auth/login/',
-        '/api/auth/login/',
-        '/token/'
-      ];
-      
-      let lastError = null;
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`🔍 Essai endpoint: ${endpoint}`);
-          
-          const response = await api.post(endpoint, { username, password });
-          console.log(`✅ Réponse ${endpoint}:`, response.data);
-          
-          // Gestion des différents formats de réponse
-          let token = null;
-          let userData = null;
-          
-          if (response.data.token) {
-            token = response.data.token;
-            userData = response.data.user;
-          } else if (response.data.access) {
-            token = response.data.access;
-            userData = response.data.user || response.data;
-          } else if (response.data.key) {
-            token = response.data.key;
-            userData = response.data.user;
-          } else if (response.data.auth_token) {
-            token = response.data.auth_token;
-            userData = response.data.user;
-          }
-          
-          if (!token) {
-            console.warn(`⚠️ ${endpoint}: Pas de token dans la réponse`);
-            continue;
-          }
-          
-          // Stocker le token
-          localStorage.setItem('auth_token', token);
-          
-          // Si pas de données utilisateur, essayer de les récupérer
-          if (!userData) {
-            try {
-              const userResponse = await api.get('/users/me/', {
-                headers: { Authorization: `Token ${token}` }
-              });
-              userData = userResponse.data;
-            } catch (userError) {
-              console.warn('⚠️ Impossible de récupérer les infos utilisateur');
-              userData = { username, role: 'user' };
-            }
-          }
-          
-          // Formater l'utilisateur
-          const formattedUser: User = {
-            id: userData.id || Date.now(),
-            username: userData.username || username,
-            email: userData.email || '',
-            first_name: userData.first_name || '',
-            last_name: userData.last_name || '',
-            full_name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || username,
-            role: userData.role || userData.groups?.[0] || 'user',
-            departement: userData.departement,
-            telephone: userData.telephone
-          };
-          
-          localStorage.setItem('user_data', JSON.stringify(formattedUser));
-          setUser(formattedUser);
-          setIsAuthenticated(true);
-          
-          console.log('✅ Login successful! Role:', formattedUser.role);
-          return { success: true };
-          
-        } catch (error: any) {
-          lastError = error;
-          const status = error.response?.status;
-          
-          if (status === 404) {
-            console.log(`➡️ ${endpoint} non trouvé, essai suivant...`);
-            continue;
-          } else if (status === 401) {
-            console.log(`❌ ${endpoint}: Identifiants incorrects`);
-            return { 
-              success: false, 
-              message: 'Nom d\'utilisateur ou mot de passe incorrect' 
-            };
-          } else {
-            console.log(`⚠️ ${endpoint}: Erreur ${status || error.message}`);
-            continue;
-          }
-        }
+      // IMPORTANT: Utilisez /login/ (SANS api/)
+      const response = await axios.post(`${API_BASE_URL}/login/`, {
+        username,
+        password,
+      });
+
+      console.log('✅ Réponse du serveur:', response.data);
+
+      if (response.status !== 200 || !response.data.token) {
+        console.error('Login failed - no token:', response.data);
+        return false;
       }
+
+      const { token, user: userData } = response.data;
       
-      // Tous les endpoints ont échoué
-      console.error('❌ Tous les endpoints de login ont échoué');
-      setError('Impossible de se connecter au serveur');
-      return { 
-        success: false, 
-        message: 'Service de connexion indisponible' 
-      };
+      // Stocker les données
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('user_data', JSON.stringify(userData));
       
+      // Mettre à jour l'état
+      setIsAuthenticated(true);
+      setUser(userData);
+      
+      console.log('✅ Login successful! Role:', userData.role);
+      console.log('✅ User data:', userData);
+      
+      return true;
+
     } catch (error: any) {
       console.error('❌ Login error:', error);
-      setError(error.message);
-      return { 
-        success: false, 
-        message: 'Erreur de connexion: ' + (error.message || 'Serveur inaccessible') 
-      };
+      if (error.response) {
+        console.error('❌ Server response:', error.response.data);
+        console.error('❌ Status:', error.response.status);
+      }
+      return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Inscription
   const register = async (userData: RegisterData): Promise<{ success: boolean; message: string }> => {
     setIsLoading(true);
-    setError(null);
     
     try {
-      console.log('📝 Tentative d\'inscription:', userData.username);
-      
-      // Préparer les données pour Django
-      const registrationData = {
-        username: userData.username,
-        email: userData.email,
-        password: userData.password,
-        password2: userData.password_confirm || userData.password,
-        first_name: userData.first_name || '',
-        last_name: userData.last_name || ''
-      };
-      
-      // Essayer différents endpoints
-      const endpoints = ['/register/', '/api/register/', '/auth/register/', '/users/'];
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`🔍 Essai inscription: ${endpoint}`);
-          
-          const response = await api.post(endpoint, registrationData);
-          console.log(`✅ Inscription ${endpoint}:`, response.data);
-          
-          // Si l'inscription réussit, connecter automatiquement
-          if (response.data.token || response.data.access) {
-            const loginResult = await login(userData.username, userData.password);
-            
-            if (loginResult.success) {
-              return { 
-                success: true, 
-                message: response.data.message || 'Compte créé avec succès!' 
-              };
-            }
-          }
-          
-          return { 
-            success: true, 
-            message: response.data.detail || 'Inscription réussie!' 
-          };
-          
-        } catch (error: any) {
-          const status = error.response?.status;
-          
-          if (status === 404) {
-            continue; // Essayer le prochain endpoint
-          } else if (status === 400) {
-            // Erreurs de validation Django
-            const errors = error.response.data;
-            let errorMessage = 'Erreur de validation';
-            
-            if (typeof errors === 'object') {
-              for (const [field, messages] of Object.entries(errors)) {
-                if (Array.isArray(messages)) {
-                  errorMessage = `${field}: ${messages[0]}`;
-                  break;
-                }
-              }
-            } else if (typeof errors === 'string') {
-              errorMessage = errors;
-            }
-            
-            return { success: false, message: errorMessage };
-          }
-          
-          console.log(`⚠️ ${endpoint}: Erreur ${status || error.message}`);
-        }
+      // ✅ CORRECTION : Utiliser la bonne URL https://gestion-ressources-informatiques.onrender.com/register/
+      const response = await fetch(`${API_BASE_URL}/register/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      // Vérifier si la réponse est JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('Server returned non-JSON response:', textResponse.substring(0, 200));
+        return {
+          success: false,
+          message: 'Erreur serveur: réponse non valide'
+        };
       }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Gérer les erreurs de validation Django
+        console.error('Registration failed:', data);
+        
+        let errorMessage = 'Erreur lors de l\'inscription';
+        
+        if (data.errors) {
+          // Si c'est un objet d'erreurs Django
+          const errorFields = Object.keys(data.errors);
+          errorMessage = `Erreur: ${data.errors[errorFields[0]][0]}`;
+        } else if (data.message) {
+          // Si c'est un message d'erreur simple
+          errorMessage = data.message;
+        } else if (typeof data === 'object') {
+          // Si c'est un objet avec des erreurs par champ
+          const firstError = Object.values(data)[0];
+          if (Array.isArray(firstError)) {
+            errorMessage = firstError[0];
+          }
+        }
+        
+        return {
+          success: false,
+          message: errorMessage
+        };
+      }
+
+      // ✅ SUCCESS - Traitement de la réponse
+      const token = data.token;
       
-      return { 
-        success: false, 
-        message: 'Aucun endpoint d\'inscription disponible' 
+      if (!token) {
+        console.error('No token in registration response:', data);
+        return {
+          success: false,
+          message: 'Erreur: token manquant dans la réponse'
+        };
+      }
+
+      // Stocker le token
+      localStorage.setItem('access_token', token);
+
+      // Utiliser les données utilisateur du backend
+      const userDataResponse = {
+        id: data.user?.id?.toString() || '1',
+        username: data.user?.username || userData.username,
+        email: data.user?.email || userData.email,
+        name: data.user?.name || userData.name,
+        role: data.user?.role || userData.role || 'user'
       };
       
-    } catch (error: any) {
-      console.error('❌ Registration error:', error);
-      setError(error.message);
-      return { 
-        success: false, 
-        message: 'Erreur serveur: ' + (error.message || 'Impossible de créer le compte') 
+      localStorage.setItem('userData', JSON.stringify(userDataResponse));
+      setIsAuthenticated(true);
+      setUser(userDataResponse);
+      
+      console.log('Registration successful with token:', token);
+      
+      return {
+        success: true,
+        message: data.message || 'Compte créé avec succès! Vous êtes maintenant connecté.'
+      };
+
+    } catch (error) {
+      console.error('Registration error:', error);
+      return {
+        success: false,
+        message: 'Erreur de connexion au serveur'
       };
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Déconnexion
-  const logout = async (): Promise<void> => {
-    try {
-      // Appeler l'endpoint logout si disponible
-      await api.post('/logout/');
-    } catch (error) {
-      console.warn('⚠️ Logout endpoint non disponible, déconnexion locale uniquement');
-    } finally {
-      // Nettoyer le localStorage
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user_data');
-      
-      // Réinitialiser l'état
-      setIsAuthenticated(false);
-      setUser(null);
-      setError(null);
-      
-      console.log('✅ Déconnexion réussie');
-      
-      // Rediriger vers la page de login
-      window.location.href = '/login';
-    }
-  };
-
-  const value = {
-    isAuthenticated,
-    user,
-    login,
-    register,
-    logout,
-    isLoading,
-    refreshUserInfo,
-    error
+  const logout = () => {
+    // Nettoyer toutes les données
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_data');
+    setIsAuthenticated(false);
+    setUser(null);
+    
+    console.log('✅ Déconnexion réussie');
+    
+    // Rediriger vers la page de login
+    window.location.href = '/login';
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      user, 
+      login, 
+      register, 
+      logout, 
+      isLoading,
+      refreshUserInfo
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -717,20 +308,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth doit être utilisé à l\'intérieur d\'un AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
 
-// Hook utilitaire pour la protection des routes
-export const useRequireAuth = () => {
-  const { isAuthenticated, isLoading } = useAuth();
-  
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      window.location.href = '/login';
-    }
-  }, [isAuthenticated, isLoading]);
-  
-  return { isAuthenticated, isLoading };
-};
+
+
