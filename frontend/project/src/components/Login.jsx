@@ -341,7 +341,7 @@ const Login = () => {
     setIsLoading(true);
     setTestResults([]);
     
-    const API_BASE = import.meta.env.VITE_API_URL || 'https://gestion-ressources-informatiques.onrender.com';
+    const API_BASE = import.meta.env.VITE_API_URL || 'https://gestion-ressource-informatique.onrender.com';
     const endpoints = [
       { path: '/api-token-auth/', method: 'POST', name: 'Django REST Token' },
       { path: '/login/', method: 'POST', name: 'Login standard' },
@@ -430,7 +430,7 @@ ${results.map(r => `  ${r.success ? '✅' : '❌'} ${r.name}: ${r.message}`).joi
     setDebugInfo('🧪 Test de login direct en cours...');
     
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'https://gestion-ressources-informatiques.onrender.com';
+      const API_BASE = import.meta.env.VITE_API_URL || 'https://gestion-ressource-informatique.onrender.com';
       const testUsername = username || 'admin';
       const testPassword = password || 'admin2024';
       

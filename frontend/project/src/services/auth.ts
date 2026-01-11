@@ -40,7 +40,7 @@
 import { LoginCredentials, User } from '../types';
 
 // Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gestion-ressources-informatiques.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gestion-ressource-informatique.onrender.com';
 
 export const loginUser = async (credentials: LoginCredentials): Promise<{ token: string; user: User }> => {
   try {
