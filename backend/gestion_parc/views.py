@@ -1506,3 +1506,7 @@ def debug_request(request):
         'user': str(request.user) if request.user.is_authenticated else 'Anonymous',
         'query_params': dict(request.query_params)
     })
+    
+    
+    
+    
