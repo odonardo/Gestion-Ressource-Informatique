@@ -1325,3 +1325,184 @@ def test_page(request):
     </html>
     """
     return HttpResponse(html)
+
+
+
+
+# AJOUTEZ CETTE FONCTION À VOTRE views.py
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth.models import User
+from rest_framework.authtoken.models import Token
+from .serializers import RegisterSerializer
+import json
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_user(request):
+    """
+    Inscription utilisateur simple
+    POST /register/ ou /api/register/
+    """
+    try:
+        print("📝 Tentative d'inscription...")
+        
+        # Accepter JSON ou form data
+        if hasattr(request, 'data'):
+            data = request.data
+        else:
+            try:
+                data = json.loads(request.body.decode('utf-8'))
+            except:
+                data = request.POST
+        
+        username = data.get('username', '').strip()
+        email = data.get('email', '').strip()
+        password = data.get('password', '').strip()
+        password_confirm = data.get('password_confirm', data.get('password2', '').strip())
+        first_name = data.get('first_name', data.get('name', '').strip())
+        last_name = data.get('last_name', '')
+        
+        print(f"Données reçues: username={username}, email={email}")
+        
+        # Validation simple
+        if not username:
+            return Response({
+                'success': False,
+                'message': 'Le nom d\'utilisateur est requis'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not password:
+            return Response({
+                'success': False,
+                'message': 'Le mot de passe est requis'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if password != password_confirm:
+            return Response({
+                'success': False,
+                'message': 'Les mots de passe ne correspondent pas'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Vérifier si l'utilisateur existe déjà
+        if User.objects.filter(username=username).exists():
+            return Response({
+                'success': False,
+                'message': f"Le nom d'utilisateur '{username}' est déjà pris"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if email and User.objects.filter(email=email).exists():
+            return Response({
+                'success': False,
+                'message': f"L'email '{email}' est déjà utilisé"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Créer l'utilisateur
+        try:
+            user = User.objects.create_user(
+                username=username,
+                email=email if email else f"{username}@example.com",
+                password=password,
+                first_name=first_name,
+                last_name=last_name
+            )
+            
+            print(f"✅ Utilisateur créé: {user.username}")
+            
+            # Créer le token
+            token, created = Token.objects.get_or_create(user=user)
+            
+            # Créer automatiquement un profil
+            try:
+                from .models import ProfilUtilisateur
+                profil = ProfilUtilisateur.objects.create(
+                    user=user,
+                    departement=data.get('departement', 'À définir'),
+                    role='user',
+                    telephone=data.get('telephone', '')
+                )
+                role = profil.role
+            except:
+                role = 'user'
+            
+            return Response({
+                'success': True,
+                'message': 'Compte créé avec succès',
+                'token': token.key,
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                    'role': role
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            print(f"❌ Erreur création utilisateur: {e}")
+            return Response({
+                'success': False,
+                'message': f'Erreur lors de la création du compte: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    except Exception as e:
+        print(f"❌ Erreur inscription: {e}")
+        return Response({
+            'success': False,
+            'message': f'Erreur serveur: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
+        
+# AJOUTEZ CES VUES À views.py
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def api_info(request):
+    """Informations sur l'API"""
+    return Response({
+        'api_name': 'Gestion Parc Informatique API',
+        'version': '1.0',
+        'endpoints': {
+            'login': {
+                'url': '/login/',
+                'method': 'POST',
+                'description': 'Connexion utilisateur'
+            },
+            'register': {
+                'url': '/register/',
+                'method': 'POST',
+                'description': 'Inscription utilisateur'
+            },
+            'health': {
+                'url': '/health/',
+                'method': 'GET',
+                'description': 'Vérification santé'
+            },
+            'users': {
+                'url': '/api/users/',
+                'method': 'GET',
+                'description': 'Liste des utilisateurs'
+            }
+        },
+        'backend_url': 'https://gestion-ressource-informatique.onrender.com',
+        'status': 'online'
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def debug_request(request):
+    """Debug: Affiche les informations de la requête"""
+    return Response({
+        'method': request.method,
+        'path': request.path,
+        'headers': dict(request.headers),
+        'data': request.data if hasattr(request, 'data') else 'No data',
+        'user': str(request.user) if request.user.is_authenticated else 'Anonymous',
+        'query_params': dict(request.query_params)
+    })

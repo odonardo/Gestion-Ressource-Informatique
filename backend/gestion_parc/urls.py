@@ -31,10 +31,16 @@ urlpatterns = [
     path('get-user-role/', views.get_user_role, name='get_user_role'),  # Nouveau
     path('login/', views.simple_login, name='login'),  # IMPORTANT: Route racine
     path('api/login/', views.simple_login, name='api-login'),
-    # path('login', views.simple_login),  # Sans slash aussi
+    
+    
+    # Register (Nouveau - route racine et api/)
+    path('register/', views.register_user, name='register'),
+    path('api/register/', views.register_user, name='api-register'),
+
     
     
     path('api/', include(router.urls)),  # Inclure avec préfixe 'api/'
+    path('api/register/', views.custom_register, name='register-old'),  # Garder l'ancien pour compatibilité
 ]
 
 
