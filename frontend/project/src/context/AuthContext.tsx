@@ -360,7 +360,7 @@ interface RegisterData {
 }
 
 // Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gestion-ressources-informatiques.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://gestion-ressource-informatique.onrender.com';
 
 // Créer une instance axios configurée
 const api = axios.create({
