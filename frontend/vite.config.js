@@ -8,25 +8,24 @@ export default defineConfig({
     proxy: {
       // Proxy TOUTES les requêtes API
       '/api': {
-        target: 'https://gestion-ressource-informatique.onrender.com',
+        target: 'https://gestion-ressources-informatiques.onrender.com',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, '/api')
       },
       // Proxy pour login, logout, csrf
       '/login': {
-        target: 'https://gestion-ressource-informatique.onrender.com',
+        target: 'https://gestion-ressources-informatiques.onrender.com',
         changeOrigin: true,
         secure: false
       },
       '/logout': {
-        target: 'https://gestion-ressource-informatique.onrender.com',
+        target: 'https://gestion-ressources-informatiques.onrender.com',
         changeOrigin: true,
         secure: false
       },
       '/csrf': {
-        target: 'https://gestion-ressource-informatique.onrender.com',
-        
+        target: 'https://gestion-ressources-informatiques.onrender.com',
         changeOrigin: true,
         secure: false
       }
