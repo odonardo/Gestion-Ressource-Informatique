@@ -30,11 +30,24 @@ urlpatterns = [
     path('api/incident-users/', incident_users_list, name='api-incident-users'),
     path('get-user-role/', views.get_user_role, name='get_user_role'),  # Nouveau
     path('login/', views.simple_login, name='login'),  # IMPORTANT: Route racine
+    path('api/login/', views.simple_login, name='api-login'),
+    # path('login', views.simple_login),  # Sans slash aussi
     
     
     path('api/', include(router.urls)),  # Inclure avec préfixe 'api/'
 ]
 
+
+# Routes racine supplémentaires
+root_urlpatterns = [
+    path('', views.test_page),  # Page d'accueil
+    path('login', views.simple_login),  # Sans slash aussi
+]
+
+# root_urlpatterns = [
+#     path('', views.test_page),  # Page d'accueil
+#     path('login', views.simple_login),  # Sans slash aussi
+# ]
 
 
 # # gestion_parc/urls.py

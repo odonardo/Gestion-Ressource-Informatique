@@ -1230,3 +1230,98 @@ def cors_test(request):
         'message': 'CORS devrait fonctionner',
         'timestamp': timezone.now().isoformat()
     })
+    
+    
+    
+    
+# AJOUTEZ CETTE FONCTION À LA FIN DE VOTRE views.py
+
+from django.http import HttpResponse
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def test_page(request):
+    """Page de test simple pour vérifier que Django fonctionne"""
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>✅ Django Backend Fonctionnel</title>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 40px; }
+            .success { color: green; font-weight: bold; }
+            .box { border: 1px solid #ccc; padding: 20px; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <h1 class="success">✅ Backend Django est en ligne !</h1>
+        <p>URL : <strong>https://gestion-ressource-informatique.onrender.com</strong></p>
+        
+        <div class="box">
+            <h2>📊 Endpoints disponibles :</h2>
+            <ul>
+                <li><a href="/health/">/health/</a> - Vérification santé</li>
+                <li><a href="/cors-test/">/cors-test/</a> - Test CORS</li>
+                <li><a href="/login/">/login/</a> - Connexion (POST)</li>
+                <li><a href="/admin/">/admin/</a> - Interface administrateur</li>
+                <li><a href="/api/users/">/api/users/</a> - Liste utilisateurs</li>
+            </ul>
+        </div>
+        
+        <div class="box">
+            <h2>🔧 Test CORS :</h2>
+            <button onclick="testCors()">Tester CORS</button>
+            <div id="cors-result"></div>
+        </div>
+        
+        <div class="box">
+            <h2>🔐 Test Login (simulation) :</h2>
+            <button onclick="testLogin()">Tester Login</button>
+            <div id="login-result"></div>
+        </div>
+        
+        <script>
+            async function testCors() {
+                try {
+                    const response = await fetch('/cors-test/');
+                    const data = await response.json();
+                    document.getElementById('cors-result').innerHTML = 
+                        '<p class="success">✅ CORS fonctionne : ' + JSON.stringify(data) + '</p>';
+                } catch (error) {
+                    document.getElementById('cors-result').innerHTML = 
+                        '<p style="color:red">❌ Erreur CORS : ' + error + '</p>';
+                }
+            }
+            
+            async function testLogin() {
+                try {
+                    const response = await fetch('/login/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({username: 'test', password: 'test'})
+                    });
+                    const data = await response.json();
+                    document.getElementById('login-result').innerHTML = 
+                        '<p class="success">✅ Login simulation : Token reçu</p>' +
+                        '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                } catch (error) {
+                    document.getElementById('login-result').innerHTML = 
+                        '<p style="color:red">❌ Erreur login : ' + error + '</p>';
+                }
+            }
+            
+            // Test automatique au chargement
+            window.onload = function() {
+                fetch('/health/')
+                    .then(r => r.json())
+                    .then(data => {
+                        console.log('Health check:', data);
+                    });
+            };
+        </script>
+    </body>
+    </html>
+    """
+    return HttpResponse(html)
