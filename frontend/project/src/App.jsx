@@ -390,9 +390,9 @@ const routePermissions = {
   '/users': 'director', // Seulement directeurs et admin
   '/alertes': 'technician',
   '/fournisseurs': 'secretary',
-  '/installations-logiciels': 'technician',
+  '/installations-logiciels': 'user',
   '/profils-utilisateurs': 'user',
-  '/configuration-reseau': 'technician'
+  '/configuration-reseau': 'user'
 };
 
 const AppRoutes = () => {

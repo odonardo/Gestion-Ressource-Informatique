@@ -19,7 +19,7 @@ interface ProfilUtilisateurFormData {
   // Informations du profil
   departement: string;
   telephone: string;
-  role: 'user' | 'technician' | 'secretary' | 'director' | 'admin';
+  role: 'user' | 'technician' | 'secretary' | 'directeur' | 'admin';
 }
 
 interface ProfilUtilisateurFormProps {

@@ -3878,18 +3878,18 @@ const Layout = ({ children }) => {
       admin: allNavigation.map(item => item.href),
       
       // Directeur pour rapport + dashboard
-      directeur: ['/dashboard', '/rapports'],
+      director: ['/dashboard', '/rapports','/profils-utilisateurs'],
       
       // Secrétaire pour fournisseur + rapport + matériels
-      secretary: ['/dashboard', '/fournisseurs', '/materiels', '/rapports'],
+      secretary: ['/dashboard', '/fournisseurs', '/rapports','/profils-utilisateurs'],
       
       // Technicien pour alerte, reparation, incidents, configuration réseau
-      technicien: [
+      technician: [
         '/dashboard', 
         '/alertes', 
         '/reparations', 
-        '/incidents', 
-        '/configuration-reseau'
+        '/profils-utilisateurs'
+        // '/configuration-reseau'
       ],
       
       // Utilisateur pour materiel, logiciel, installation logiciel, configuration reseau et incident
@@ -3899,7 +3899,8 @@ const Layout = ({ children }) => {
         '/logiciels',
         '/installations-logiciels',
         '/configuration-reseau',
-        '/incidents'
+        '/incidents',
+        '/profils-utilisateurs'
       ]
     };
 
@@ -3935,8 +3936,8 @@ const Layout = ({ children }) => {
   const getRoleBadgeColor = (role) => {
     switch (role?.toLowerCase()) {
       case 'admin': return 'badge-error bg-red-600';
-      case 'directeur': return 'badge-primary bg-blue-600';
-      case 'technicien': return 'badge-warning bg-yellow-600';
+      case 'director': return 'badge-primary bg-blue-600';
+      case 'technician': return 'badge-warning bg-yellow-600';
       case 'secretary': return 'badge-success bg-green-600';
       case 'user': return 'badge-info bg-blue-400';
       default: return 'badge-neutral bg-gray-600';
@@ -3946,8 +3947,8 @@ const Layout = ({ children }) => {
   const getRoleText = (role) => {
     switch (role?.toLowerCase()) {
       case 'admin': return 'Administrateur';
-      case 'directeur': return 'Directeur';
-      case 'technicien': return 'Technicien IT';
+      case 'director': return 'Directeur';
+      case 'technician': return 'Technicien IT';
       case 'secretary': return 'Secrétaire';
       case 'user': return 'Utilisateur';
       default: return role || 'Utilisateur';
@@ -3966,18 +3967,18 @@ const Layout = ({ children }) => {
 
   // Vérifier les permissions pour la page actuelle
   React.useEffect(() => {
-    if (user && !hasPermission(location.pathname) && location.pathname !== '/') {
-      // Rediriger vers le dashboard si pas de permission
-      navigate('/dashboard');
-      alert(`🚫 ACCÈS REFUSÉ\n\nVotre rôle (${getRoleText(user.role)}) ne vous permet pas d'accéder à cette page.\n\nPour y accéder, contactez votre administrateur.`);
-    }
+    // if (user && !hasPermission(location.pathname) && location.pathname !== '/') {
+    //   // Rediriger vers le dashboard si pas de permission
+    //   navigate('/dashboard');
+    //   alert(`🚫 ACCÈS REFUSÉ\n\nVotre rôle (${getRoleText(user.role)}) ne vous permet pas d'accéder à cette page.\n\nPour y accéder, contactez votre administrateur.`);
+    // }
   }, [location.pathname, user, navigate]);
 
   return (
     <div className="min-h-screen bg-base-100">
       {/* Header - SANS BORDURES BLANCHES */}
       <header className="bg-gradient-to-r from-green-800 to-green-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-9xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               {/* Logo DREN sans bordure blanche */}
@@ -3995,9 +3996,9 @@ const Layout = ({ children }) => {
               </div>
               <div>
                 <h1 className="text-lg font-bold text-white">
-                  DREN Antsimo A
+                  DREN Antsimo Andrefana
                 </h1>
-                <p className="text-xs text-green-200">Gestion des Ressources IT</p>
+                <p className="text-xs text-green-200">Gestion des Ressources Informatiques</p>
               </div>
             </div>
 
@@ -4250,16 +4251,16 @@ const Layout = ({ children }) => {
 // Fonction utilitaire pour déterminer quels rôles ont accès à une page
 const getAllowedRolesForPage = (pagePath) => {
   const pagePermissions = {
-    '/dashboard': ['admin', 'directeur', 'technicien', 'secretary', 'user'],
+    '/dashboard': ['admin', 'director', 'technician', 'secretary', 'user'],
     '/fournisseurs': ['admin', 'secretary'],
     '/materiels': ['admin', 'secretary', 'user'],
     '/logiciels': ['admin', 'user'],
     '/installations-logiciels': ['admin', 'user'],
-    '/configuration-reseau': ['admin', 'technicien', 'user'],
-    '/incidents': ['admin', 'technicien', 'user'],
-    '/alertes': ['admin', 'technicien'],
-    '/reparations': ['admin', 'technicien'],
-    '/rapports': ['admin', 'directeur', 'secretary'],
+    '/configuration-reseau': ['admin', 'user'],
+    '/incidents': ['admin', 'user'],
+    '/alertes': ['admin', 'technician'],
+    '/reparations': ['admin', 'technician'],
+    '/rapports': ['admin', 'director', 'secretary'],
     '/profils-utilisateurs': ['admin']
   };
   
@@ -4267,8 +4268,8 @@ const getAllowedRolesForPage = (pagePath) => {
   return roles.map(role => {
     switch(role) {
       case 'admin': return 'Admin';
-      case 'directeur': return 'Directeur';
-      case 'technicien': return 'Technicien';
+      case 'director': return 'Directeur';
+      case 'technician': return 'Technician';
       case 'secretary': return 'Secrétaire';
       case 'user': return 'Utilisateur';
       default: return role;

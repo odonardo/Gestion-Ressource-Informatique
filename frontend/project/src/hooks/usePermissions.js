@@ -67,7 +67,7 @@ export const usePermissions = () => {
     isSecretary: user?.role === 'secretary',
     
     // Technicien: gestion technique
-    isTechnicien: user?.role === 'technicien',
+    isTechnicien: user?.role === 'technician',
     
     // Utilisateur standard: consultation basique
     isUser: user?.role === 'user',
@@ -76,9 +76,9 @@ export const usePermissions = () => {
     hasAccess: (requiredRole) => {
       const roleHierarchy = {
         'user': 1,
-        'technicien': 2,
+        'technician': 2,
         'secretary': 3,
-        'directeur': 4,
+        'director': 4,
         'admin': 5
       };
       const userRole = user?.role?.toLowerCase();
@@ -89,14 +89,14 @@ export const usePermissions = () => {
     // Vérifier des permissions spécifiques
     canManageUsers: () => ['admin'].includes(user?.role),
     canManageFournisseurs: () => ['admin', 'secretary'].includes(user?.role),
-    canManageMateriels: () => ['admin', 'secretary', 'user', 'technicien', 'directeur'].includes(user?.role),
-    canManageLogiciels: () => ['admin', 'user', 'technicien'].includes(user?.role),
-    canManageInstallations: () => ['admin', 'user', 'technicien'].includes(user?.role),
-    canManageReseau: () => ['admin', 'technicien', 'user'].includes(user?.role),
-    canManageIncidents: () => ['admin', 'technicien', 'user', 'directeur'].includes(user?.role),
-    canManageAlertes: () => ['admin', 'technicien', 'directeur'].includes(user?.role),
-    canManageReparations: () => ['admin', 'technicien'].includes(user?.role),
-    canViewReports: () => ['admin', 'directeur', 'secretary'].includes(user?.role),
+    canManageMateriels: () => ['admin', 'user',].includes(user?.role),
+    canManageLogiciels: () => ['admin', 'user'].includes(user?.role),
+    canManageInstallations: () => ['admin', 'user'].includes(user?.role),
+    canManageReseau: () => ['admin', 'user'].includes(user?.role),
+    canManageIncidents: () => ['admin', 'user'].includes(user?.role),
+    canManageAlertes: () => ['admin', 'technician',].includes(user?.role),
+    canManageReparations: () => ['admin', 'technician'].includes(user?.role),
+    canViewReports: () => ['admin', 'director', 'secretary'].includes(user?.role),
     canManageProfils: () => ['admin'].includes(user?.role),
     
     // Vérifier l'accès à une page spécifique
@@ -105,16 +105,16 @@ export const usePermissions = () => {
       if (user.role === 'admin') return true;
       
       const pagePermissions = {
-        '/dashboard': ['admin', 'directeur', 'technicien', 'secretary', 'user'],
+        '/dashboard': ['admin', 'director', 'technicien', 'secretary', 'user'],
         '/fournisseurs': ['admin', 'secretary'],
-        '/materiels': ['admin', 'secretary', 'user', 'technicien', 'directeur'],
-        '/logiciels': ['admin', 'user', 'technicien'],
-        '/installations-logiciels': ['admin', 'user', 'technicien'],
-        '/configuration-reseau': ['admin', 'technicien', 'user'],
-        '/incidents': ['admin', 'technicien', 'user', 'directeur'],
-        '/alertes': ['admin', 'technicien', 'directeur'],
-        '/reparations': ['admin', 'technicien'],
-        '/rapports': ['admin', 'directeur', 'secretary'],
+        '/materiels': ['admin','user',],
+        '/logiciels': ['admin', 'user',],
+        '/installations-logiciels': ['admin', 'user',],
+        '/configuration-reseau': ['admin', 'user'],
+        '/incidents': ['admin', 'user',],
+        '/alertes': ['admin', 'technician',],
+        '/reparations': ['admin', 'technician'],
+        '/rapports': ['admin', 'directorr', 'secretary'],
         '/profils-utilisateurs': ['admin']
       };
       
