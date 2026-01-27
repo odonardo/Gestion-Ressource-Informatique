@@ -1,0 +1,1189 @@
+
+
+// import React, { useState, useEffect } from 'react';
+// import { 
+//   Plus, Search, Eye, Filter, Download, Edit, Trash2, 
+//   CheckSquare, Square, X, BarChart3, Cpu, HardDrive, 
+//   Clock, User, CheckCircle, AlertTriangle, RefreshCw,
+//   TrendingUp, Battery, BatteryFull, BatteryLow, BatteryMedium,
+//   Server, Wrench, Zap, Shield, Package, Database, ArrowLeft,
+//   Calendar, History, RotateCcw, CalendarDays, Bell, Info
+// } from 'lucide-react';
+// import { Materiel, Fournisseur, Reparation } from '../types';
+// import MaterielForm from '../components/MaterielForm';
+// import { materielsAPI, fournisseursAPI, reparationsAPI } from '../services/api';
+
+// // Fonctions helper pour la sécurité des tableaux
+// const safeArray = (data: any): Materiel[] => {
+//   return Array.isArray(data) ? data : [];
+// };
+
+// const safeFilter = (array: any[], condition: (item: any) => boolean): Materiel[] => {
+//   if (!Array.isArray(array)) return [];
+//   return array.filter(condition);
+// };
+
+// const extractDataFromResponse = (response: any): any[] => {
+//   if (!response || !response.data) {
+//     return [];
+//   }
+  
+//   if (Array.isArray(response.data)) {
+//     return response.data;
+//   }
+  
+//   if (response.data.results && Array.isArray(response.data.results)) {
+//     return response.data.results;
+//   }
+  
+//   if (response.data.data && Array.isArray(response.data.data)) {
+//     return response.data.data;
+//   }
+  
+//   if (typeof response.data === 'object' && !Array.isArray(response.data)) {
+//     return [response.data];
+//   }
+  
+//   return [];
+// };
+
+// // Système de notification simple
+// const showNotification = (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => {
+//   // Créer l'élément de notification
+//   const notification = document.createElement('div');
+//   notification.className = `fixed top-4 right-4 z-50 max-w-sm w-full p-4 rounded-lg shadow-lg transform transition-all duration-300 animate-slideInRight ${
+//     type === 'success' ? 'bg-green-500 text-white' :
+//     type === 'error' ? 'bg-red-500 text-white' :
+//     type === 'warning' ? 'bg-yellow-500 text-white' :
+//     'bg-blue-500 text-white'
+//   }`;
+  
+//   // Ajouter le style d'animation
+//   const style = document.createElement('style');
+//   style.textContent = `
+//     @keyframes slideInRight {
+//       from { transform: translateX(100%); opacity: 0; }
+//       to { transform: translateX(0); opacity: 1; }
+//     }
+//     .animate-slideInRight {
+//       animation: slideInRight 0.3s ease-out;
+//     }
+//   `;
+//   document.head.appendChild(style);
+  
+//   // Icône selon le type
+//   const icon = type === 'success' ? '✅' : 
+//                type === 'error' ? '❌' : 
+//                type === 'warning' ? '⚠️' : 'ℹ️';
+  
+//   notification.innerHTML = `
+//     <div class="flex items-start gap-3">
+//       <div class="text-xl">${icon}</div>
+//       <div class="flex-1">
+//         ${title ? `<div class="font-bold mb-1">${title}</div>` : ''}
+//         <div class="text-sm">${message}</div>
+//       </div>
+//       <button onclick="this.parentElement.parentElement.remove()" class="btn btn-ghost btn-xs p-1 hover:bg-white/20">
+//         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+//         </svg>
+//       </button>
+//     </div>
+//   `;
+  
+//   document.body.appendChild(notification);
+  
+//   // Auto-suppression après 5 secondes
+//   setTimeout(() => {
+//     if (notification.parentElement) {
+//       notification.style.transform = 'translateX(100%)';
+//       notification.style.opacity = '0';
+//       setTimeout(() => {
+//         if (notification.parentElement) {
+//           document.body.removeChild(notification);
+//         }
+//       }, 300);
+//     }
+//   }, 5000);
+// };
+
+// // Fonction pour calculer les jours depuis la dernière réparation
+// const getJoursDepuisReparation = (materiel: Materiel, reparations: Reparation[]): number | null => {
+//   if (!materiel.id || !reparations || reparations.length === 0) {
+//     return null;
+//   }
+  
+//   const reparationsMateriel = reparations.filter(rep => 
+//     rep.materiel?.toString() === materiel.id.toString() && 
+//     rep.date_fin
+//   );
+  
+//   if (reparationsMateriel.length === 0) {
+//     return null;
+//   }
+  
+//   const reparationsTriees = reparationsMateriel.sort((a, b) => {
+//     const dateA = new Date(a.date_fin!).getTime();
+//     const dateB = new Date(b.date_fin!).getTime();
+//     return dateB - dateA;
+//   });
+  
+//   const derniereReparation = reparationsTriees[0];
+  
+//   if (!derniereReparation.date_fin) {
+//     return null;
+//   }
+  
+//   const dateFin = new Date(derniereReparation.date_fin);
+//   const aujourdhui = new Date();
+//   const differenceMs = aujourdhui.getTime() - dateFin.getTime();
+//   return Math.floor(differenceMs / (1000 * 60 * 60 * 24));
+// };
+
+// const getJoursTexte = (jours: number | null): string => {
+//   if (jours === null) return 'Jamais réparé';
+//   if (jours === 0) return 'Aujourd\'hui';
+//   if (jours === 1) return 'Hier';
+//   return `Il y a ${jours} jours`;
+// };
+
+// const getJoursCouleur = (jours: number | null): string => {
+//   if (jours === null) return 'text-gray-500';
+//   if (jours < 7) return 'text-green-500';
+//   if (jours < 30) return 'text-yellow-500';
+//   if (jours < 90) return 'text-orange-500';
+//   return 'text-red-500';
+// };
+
+// const getJoursBadge = (jours: number | null): string => {
+//   if (jours === null) return 'badge-neutral';
+//   if (jours < 7) return 'badge-success';
+//   if (jours < 30) return 'badge-warning';
+//   if (jours < 90) return 'badge-warning';
+//   return 'badge-error';
+// };
+
+// const Materiels: React.FC = () => {
+//   const [materiels, setMateriels] = useState<Materiel[]>([]);
+//   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
+//   const [reparations, setReparations] = useState<Reparation[]>([]);
+//   const [filteredMateriels, setFilteredMateriels] = useState<Materiel[]>([]);
+//   const [loading, setLoading] = useState<boolean>(true);
+//   const [searchTerm, setSearchTerm] = useState<string>('');
+//   const [filterEtat, setFilterEtat] = useState<string>('');
+//   const [filterJours, setFilterJours] = useState<string>('');
+//   const [isFormOpen, setIsFormOpen] = useState(false);
+//   const [editingMateriel, setEditingMateriel] = useState<Materiel | undefined>();
+//   const [selectedMateriels, setSelectedMateriels] = useState<number[]>([]);
+//   const [isSelectAll, setIsSelectAll] = useState<boolean>(false);
+//   const [refreshing, setRefreshing] = useState<boolean>(false);
+  
+//   // États pour la confirmation de suppression
+//   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+//   const [materielToDelete, setMaterielToDelete] = useState<number | null>(null);
+//   const [deleteMultiple, setDeleteMultiple] = useState(false);
+//   const [deleteMessage, setDeleteMessage] = useState('');
+
+//   const [statistiques, setStatistiques] = useState({
+//     total: 0,
+//     fonctionnel: 0,
+//     enPanne: 0,
+//     repare: 0,
+//     obsolete: 0,
+//     enMaintenance: 0,
+//     enAmelioration: 0,
+//     enReparation: 0,
+//     horsService: 0,
+//     nonAttribue: 0,
+//     attribue: 0,
+//     parService: {} as Record<string, number>,
+//     ageMoyen: 0,
+//     tauxPanne: 0,
+//     evolution30j: 12,
+//     parFournisseur: {} as Record<string, number>,
+//     joursDepuisDerniereReparation: 0,
+//     materielsSansReparation: 0,
+//     materielsReparesRecemment: 0,
+//   });
+
+//   useEffect(() => {
+//     fetchMateriels();
+//     fetchFournisseurs();
+//     fetchReparations();
+    
+//     // Afficher une notification de bienvenue
+//     setTimeout(() => {
+//       showNotification('info', 'Chargement des matériels et réparations...', 'Bienvenue');
+//     }, 500);
+//   }, []);
+
+//   useEffect(() => {
+//     filterMateriels();
+//     if (materiels.length > 0) {
+//       calculerStatistiques(materiels);
+//     }
+//   }, [materiels, searchTerm, filterEtat, filterJours, reparations]);
+
+//   useEffect(() => {
+//     if (filteredMateriels.length > 0 && selectedMateriels.length === filteredMateriels.length) {
+//       setIsSelectAll(true);
+//     } else {
+//       setIsSelectAll(false);
+//     }
+//   }, [selectedMateriels, filteredMateriels]);
+
+//   const fetchMateriels = async () => {
+//     try {
+//       setLoading(true);
+//       const response = await materielsAPI.getAll();
+//       const extractedData = extractDataFromResponse(response);
+      
+//       // Vérifier les états venant des réparations
+//       const updatedData = await verifierEtatsMateriels(extractedData);
+      
+//       setMateriels(updatedData);
+//       // showNotification('success', `${updatedData.length} matériels chargés avec succès`, 'Chargement terminé');
+//     } catch (err: any) {
+//       showNotification('error', 'Erreur lors du chargement des matériels', 'Erreur');
+//     } finally {
+//       setLoading(false);
+//       setRefreshing(false);
+//     }
+//   };
+
+//   const fetchFournisseurs = async () => {
+//     try {
+//       const response = await fournisseursAPI.getAll();
+//       setFournisseurs(extractDataFromResponse(response));
+//     } catch (err: any) {
+//       console.error('Erreur chargement fournisseurs:', err);
+//     }
+//   };
+
+//   const fetchReparations = async () => {
+//     try {
+//       const response = await reparationsAPI.getAll();
+//       setReparations(extractDataFromResponse(response));
+//     } catch (err: any) {
+//       console.error('Erreur chargement réparations:', err);
+//     }
+//   };
+
+//   // Vérifier et mettre à jour les états des matériels selon les réparations
+//   const verifierEtatsMateriels = async (materielsData: Materiel[]): Promise<Materiel[]> => {
+//     try {
+//       // Récupérer toutes les réparations en cours (sans date_fin)
+//       const reparationsEnCours = reparations.filter(rep => !rep.date_fin);
+      
+//       return materielsData.map(materiel => {
+//         // Chercher si ce matériel a une réparation en cours
+//         const reparationEnCours = reparationsEnCours.find(rep => 
+//           rep.materiel?.toString() === materiel.id.toString()
+//         );
+        
+//         if (reparationEnCours) {
+//           // Déterminer le nouvel état selon le type de réparation
+//           let nouvelEtat = materiel.etat;
+          
+//           switch(reparationEnCours.type_reparation) {
+//             case 'corrective':
+//               nouvelEtat = 'en_reparation';
+//               break;
+//             case 'preventive':
+//               nouvelEtat = 'en_maintenance';
+//               break;
+//             case 'ameliorative':
+//               nouvelEtat = 'en_amelioration';
+//               break;
+//           }
+          
+//           // Si l'état a changé, afficher une notification
+//           if (nouvelEtat !== materiel.etat) {
+//             showNotification('info', 
+//               `Matériel "${materiel.nom}" est maintenant ${getEtatText(nouvelEtat)}`, 
+//               'État mis à jour'
+//             );
+//           }
+          
+//           return { ...materiel, etat: nouvelEtat };
+//         }
+        
+//         return materiel;
+//       });
+//     } catch (error) {
+//       console.error('Erreur vérification états:', error);
+//       return materielsData;
+//     }
+//   };
+
+//   const calculerStatistiques = (data: Materiel[]) => {
+//     const now = new Date();
+//     let totalAge = 0;
+//     let countWithDate = 0;
+//     const services: Record<string, number> = {};
+//     const fournisseurs: Record<string, number> = {};
+
+//     let totalJoursDepuisReparation = 0;
+//     let countAvecReparation = 0;
+//     let materielsSansReparation = 0;
+//     let materielsReparesRecemment = 0;
+
+//     const etats: Record<string, number> = {
+//       fonctionnel: 0,
+//       en_panne: 0,
+//       repare: 0,
+//       obsolete: 0,
+//       en_maintenance: 0,
+//       en_amelioration: 0,
+//       en_reparation: 0,
+//       hors_service: 0
+//     };
+
+//     data.forEach(materiel => {
+//       if (materiel.date_achat) {
+//         const dateAchat = new Date(materiel.date_achat);
+//         const age = Math.floor((now.getTime() - dateAchat.getTime()) / (1000 * 60 * 60 * 24));
+//         totalAge += age;
+//         countWithDate++;
+//       }
+
+//       if (materiel.service_attribue) {
+//         services[materiel.service_attribue] = (services[materiel.service_attribue] || 0) + 1;
+//       }
+
+//       if (materiel.fournisseur && typeof materiel.fournisseur === 'object' && 'nom' in materiel.fournisseur) {
+//         const nomFournisseur = (materiel.fournisseur as any).nom;
+//         fournisseurs[nomFournisseur] = (fournisseurs[nomFournisseur] || 0) + 1;
+//       }
+
+//       const etat = materiel.etat || 'inconnu';
+//       if (etats.hasOwnProperty(etat)) {
+//         etats[etat]++;
+//       } else {
+//         etats[etat] = 1;
+//       }
+
+//       const joursDepuisRep = getJoursDepuisReparation(materiel, reparations);
+//       if (joursDepuisRep !== null) {
+//         totalJoursDepuisReparation += joursDepuisRep;
+//         countAvecReparation++;
+        
+//         if (joursDepuisRep < 7) {
+//           materielsReparesRecemment++;
+//         }
+//       } else {
+//         materielsSansReparation++;
+//       }
+//     });
+
+//     setStatistiques({
+//       total: data.length,
+//       fonctionnel: etats.fonctionnel,
+//       enPanne: etats.en_panne,
+//       repare: etats.repare,
+//       obsolete: etats.obsolete,
+//       enMaintenance: etats.en_maintenance,
+//       enAmelioration: etats.en_amelioration,
+//       enReparation: etats.en_reparation,
+//       horsService: etats.hors_service,
+//       nonAttribue: data.filter(m => !m.utilisateur_attribue || m.utilisateur_attribue.trim() === '').length,
+//       attribue: data.filter(m => m.utilisateur_attribue && m.utilisateur_attribue.trim() !== '').length,
+//       parService: services,
+//       parFournisseur: fournisseurs,
+//       ageMoyen: countWithDate > 0 ? Math.round(totalAge / countWithDate) : 0,
+//       tauxPanne: data.length > 0 ? Math.round((etats.en_panne / data.length) * 100) : 0,
+//       evolution30j: 12,
+//       joursDepuisDerniereReparation: countAvecReparation > 0 ? Math.round(totalJoursDepuisReparation / countAvecReparation) : 0,
+//       materielsSansReparation: materielsSansReparation,
+//       materielsReparesRecemment: materielsReparesRecemment
+//     });
+//   };
+
+//   const filterMateriels = () => {
+//     let filtered = safeArray(materiels);
+
+//     if (searchTerm) {
+//       filtered = safeFilter(filtered, m => 
+//         m.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+//         m.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+//         (m.utilisateur_attribue && m.utilisateur_attribue.toLowerCase().includes(searchTerm.toLowerCase())) ||
+//         (m.service_attribue && m.service_attribue.toLowerCase().includes(searchTerm.toLowerCase()))
+//       );
+//     }
+
+//     if (filterEtat) {
+//       filtered = safeFilter(filtered, m => m.etat === filterEtat);
+//     }
+
+//     if (filterJours) {
+//       filtered = safeFilter(filtered, m => {
+//         const jours = getJoursDepuisReparation(m, reparations);
+        
+//         switch(filterJours) {
+//           case 'jamais':
+//             return jours === null;
+//           case 'moins7':
+//             return jours !== null && jours < 7;
+//           case '7a30':
+//             return jours !== null && jours >= 7 && jours < 30;
+//           case '30a90':
+//             return jours !== null && jours >= 30 && jours < 90;
+//           case 'plus90':
+//             return jours !== null && jours >= 90;
+//           case 'avec':
+//             return jours !== null;
+//           default:
+//             return true;
+//         }
+//       });
+//     }
+
+//     setFilteredMateriels(filtered);
+//     setSelectedMateriels([]);
+//   };
+
+//   const handleSubmit = async (materielData: Omit<Materiel, 'id'>) => {
+//     try {
+//       const apiData: any = {
+//         nom: materielData.nom?.trim() || '',
+//         reference: materielData.reference?.trim() || '',
+//         date_achat: materielData.date_achat,
+//         etat: materielData.etat || 'fonctionnel',
+//         service_attribue: materielData.service_attribue || '',
+//         utilisateur_attribue: materielData.utilisateur_attribue?.trim() || ''
+//       };
+
+//       if (materielData.fournisseur) {
+//         apiData.fournisseur = materielData.fournisseur;
+//       }
+      
+//       let actionMessage = '';
+      
+//       if (editingMateriel) {
+//         await materielsAPI.update(editingMateriel.id, apiData);
+//         actionMessage = `Matériel "${materielData.nom}" modifié avec succès`;
+//         showNotification('success', actionMessage, 'Modification réussie');
+//       } else {
+//         await materielsAPI.create(apiData);
+//         actionMessage = `Matériel "${materielData.nom}" créé avec succès`;
+//         showNotification('success', actionMessage, 'Création réussie');
+//       }
+      
+//       fetchMateriels();
+//       setIsFormOpen(false);
+//       setEditingMateriel(undefined);
+      
+//     } catch (error: any) {
+//       const errorMessage = error.response?.data?.message || 'Erreur lors de l\'enregistrement';
+//       showNotification('error', errorMessage, 'Erreur');
+//     }
+//   };
+
+//   const toggleSelectMateriel = (id: number) => {
+//     setSelectedMateriels(prev => 
+//       prev.includes(id) 
+//         ? prev.filter(item => item !== id)
+//         : [...prev, id]
+//     );
+//   };
+
+//   const toggleSelectAll = () => {
+//     if (isSelectAll) {
+//       setSelectedMateriels([]);
+//       showNotification('info', 'Sélection annulée', 'Information');
+//     } else {
+//       const allIds = filteredMateriels.map(m => m.id);
+//       setSelectedMateriels(allIds);
+//       showNotification('success', `${allIds.length} matériels sélectionnés`, 'Sélection');
+//     }
+//   };
+
+//   const handleRefresh = async () => {
+//     setRefreshing(true);
+//     await fetchMateriels();
+//     await fetchReparations();
+//     showNotification('success', 'Données rafraîchies avec succès', 'Rafraîchissement');
+//   };
+
+//   const confirmDelete = async () => {
+//     try {
+//       if (deleteMultiple) {
+//         for (const id of selectedMateriels) {
+//           await materielsAPI.delete(id);
+//         }
+        
+//         showNotification('success', `${selectedMateriels.length} matériel(s) supprimé(s)`, 'Suppression réussie');
+//         setSelectedMateriels([]);
+//       } else if (materielToDelete) {
+//         await materielsAPI.delete(materielToDelete);
+//         showNotification('success', 'Matériel supprimé avec succès', 'Suppression réussie');
+//       }
+      
+//       await fetchMateriels();
+//     } catch (error) {
+//       showNotification('error', 'Erreur lors de la suppression', 'Erreur');
+//     } finally {
+//       setShowDeleteConfirm(false);
+//       setMaterielToDelete(null);
+//       setDeleteMultiple(false);
+//       setDeleteMessage('');
+//     }
+//   };
+
+//   const handleDeleteSelected = () => {
+//     if (selectedMateriels.length === 0) {
+//       showNotification('error', 'Aucun matériel sélectionné', 'Erreur');
+//       return;
+//     }
+
+//     setDeleteMultiple(true);
+//     setDeleteMessage(`Êtes-vous sûr de vouloir supprimer ${selectedMateriels.length} matériel(s) ? Cette action est irréversible.`);
+//     setShowDeleteConfirm(true);
+//   };
+
+//   const handleDelete = (id: number) => {
+//     const materiel = materiels.find(m => m.id === id);
+//     setMaterielToDelete(id);
+//     setDeleteMultiple(false);
+//     setDeleteMessage(`Êtes-vous sûr de vouloir supprimer le matériel "${materiel?.nom}" ? Cette action est irréversible.`);
+//     setShowDeleteConfirm(true);
+//   };
+
+//   const handleEditSelected = () => {
+//     if (selectedMateriels.length === 0) {
+//       showNotification('error', 'Aucun matériel sélectionné', 'Erreur');
+//       return;
+//     }
+
+//     if (selectedMateriels.length === 1) {
+//       const materiel = materiels.find(m => m.id === selectedMateriels[0]);
+//       if (materiel) {
+//         handleEdit(materiel);
+//       }
+//     } else {
+//       showNotification('info', `Édition multiple de ${selectedMateriels.length} matériels`, 'Information');
+//     }
+//   };
+
+//   const handleEdit = (materiel: Materiel) => {
+//     setEditingMateriel(materiel);
+//     setIsFormOpen(true);
+//   };
+
+//   const handleAddNew = () => {
+//     setEditingMateriel(undefined);
+//     setIsFormOpen(true);
+//   };
+
+//   const handleExport = () => {
+//     try {
+//       const dataToExport = filteredMateriels.map(m => ({
+//         Nom: m.nom,
+//         Référence: m.reference,
+//         État: getEtatText(m.etat),
+//         'Jours dernière réparation': getJoursTexte(getJoursDepuisReparation(m, reparations)),
+//         Service: m.service_attribue,
+//         Utilisateur: m.utilisateur_attribue || 'Non attribué',
+//         'Date d\'achat': m.date_achat ? new Date(m.date_achat).toLocaleDateString('fr-FR') : 'Non spécifiée',
+//         Fournisseur: m.fournisseur && typeof m.fournisseur === 'object' && 'nom' in m.fournisseur 
+//           ? (m.fournisseur as any).nom 
+//           : 'Non spécifié'
+//       }));
+
+//       const csvContent = [
+//         Object.keys(dataToExport[0] || {}).join(','),
+//         ...dataToExport.map(row => Object.values(row).map(field => `"${field}"`).join(','))
+//       ].join('\n');
+
+//       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+//       const link = document.createElement('a');
+//       const url = URL.createObjectURL(blob);
+//       link.setAttribute('href', url);
+//       link.setAttribute('download', `materiels_${new Date().toISOString().split('T')[0]}.csv`);
+//       link.style.visibility = 'hidden';
+//       document.body.appendChild(link);
+//       link.click();
+//       document.body.removeChild(link);
+
+//       showNotification('success', 'Export CSV réussi !', 'Export');
+//     } catch (error) {
+//       showNotification('error', 'Erreur lors de l\'export', 'Erreur');
+//     }
+//   };
+
+//   const resetFilters = () => {
+//     setSearchTerm('');
+//     setFilterEtat('');
+//     setFilterJours('');
+//     setSelectedMateriels([]);
+//     showNotification('info', 'Filtres réinitialisés', 'Information');
+//   };
+
+//   const getEtatBadge = (etat: string) => {
+//     const badges = {
+//       fonctionnel: 'badge-success',
+//       en_panne: 'badge-error',
+//       repare: 'badge-warning',
+//       obsolete: 'badge-neutral',
+//       en_maintenance: 'badge-info',
+//       en_amelioration: 'badge-primary',
+//       en_reparation: 'badge-warning',
+//       hors_service: 'badge-error'
+//     };
+//     return badges[etat as keyof typeof badges] || 'badge-neutral';
+//   };
+
+//   const getEtatText = (etat: string) => {
+//     const texts = {
+//       fonctionnel: 'Fonctionnel',
+//       en_panne: 'En panne',
+//       repare: 'Réparé',
+//       obsolete: 'Obsolète',
+//       en_maintenance: 'En maintenance',
+//       en_amelioration: 'En amélioration',
+//       en_reparation: 'En réparation',
+//       hors_service: 'Hors service'
+//     };
+//     return texts[etat as keyof typeof texts] || etat;
+//   };
+
+//   const getEtatIcon = (etat: string) => {
+//     switch (etat) {
+//       case 'fonctionnel': return <CheckCircle className="h-4 w-4" />;
+//       case 'en_panne': return <AlertTriangle className="h-4 w-4" />;
+//       case 'repare': return <Wrench className="h-4 w-4" />;
+//       case 'obsolete': return <Package className="h-4 w-4" />;
+//       case 'en_maintenance': return <Wrench className="h-4 w-4" />;
+//       case 'en_amelioration': return <Zap className="h-4 w-4" />;
+//       case 'en_reparation': return <Wrench className="h-4 w-4" />;
+//       case 'hors_service': return <X className="h-4 w-4" />;
+//       default: return <HardDrive className="h-4 w-4" />;
+//     }
+//   };
+
+//   const handleCloseForm = () => {
+//     setIsFormOpen(false);
+//     setEditingMateriel(undefined);
+//   };
+
+//   if (loading && !refreshing) {
+//     return (
+//       <div className="p-6 bg-base-100 min-h-screen flex items-center justify-center">
+//         <div className="flex flex-col items-center gap-4">
+//           <span className="loading loading-spinner loading-lg text-primary"></span>
+//           <p className="text-base-content">Chargement des matériels...</p>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   if (isFormOpen) {
+//     return (
+//       <div className="p-6 bg-base-100 min-h-screen">
+//         <div className="max-w-7xl mx-auto">
+//           <div className="mb-6">
+//             <button
+//               onClick={handleCloseForm}
+//               className="btn btn-ghost mb-4 hover:bg-base-300"
+//             >
+//               <ArrowLeft className="h-4 w-4 mr-2" />
+//               Retour à la liste
+//             </button>
+//             <h1 className="text-3xl font-bold text-base-content flex items-center gap-2">
+//               {editingMateriel ? '✏️ Modifier le matériel' : '➕ Nouveau matériel'}
+//             </h1>
+//             <p className="text-base-content opacity-60 mt-1">
+//               {editingMateriel 
+//                 ? `Modification de "${editingMateriel.nom}"` 
+//                 : 'Ajouter un nouveau matériel à l\'inventaire'
+//               }
+//             </p>
+//           </div>
+
+//           <div className="bg-base-200 rounded-lg shadow-xl">
+//             <MaterielForm
+//               isOpen={true}
+//               onClose={handleCloseForm}
+//               onSubmit={handleSubmit}
+//               materiel={editingMateriel}
+//               fournisseurs={fournisseurs}
+//             />
+//           </div>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="p-6 bg-base-100 min-h-screen">
+//       {/* Modal de confirmation de suppression */}
+//       {showDeleteConfirm && (
+//         <div className="modal modal-open">
+//           <div className="modal-box">
+//             <h3 className="font-bold text-lg flex items-center gap-2">
+//               <AlertTriangle className="h-5 w-5 text-warning" />
+//               Confirmation de suppression
+//             </h3>
+//             <p className="py-4">{deleteMessage}</p>
+//             <div className="modal-action">
+//               <button 
+//                 className="btn btn-ghost"
+//                 onClick={() => {
+//                   setShowDeleteConfirm(false);
+//                   setMaterielToDelete(null);
+//                   setDeleteMultiple(false);
+//                   setDeleteMessage('');
+//                 }}
+//               >
+//                 Annuler
+//               </button>
+//               <button 
+//                 className="btn btn-error"
+//                 onClick={confirmDelete}
+//               >
+//                 <Trash2 className="h-4 w-4 mr-2" />
+//                 Supprimer
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//       )}
+
+//       <div className="flex justify-between items-center mb-6">
+//         <div>
+//           <h1 className="text-3xl font-bold text-base-content flex items-center gap-2">
+//             <Server className="h-8 w-8 text-primary" />
+//             Gestion des Matériels
+//           </h1>
+//           <p className="text-base-content opacity-60 mt-1">
+//             {safeArray(filteredMateriels).length} matériel(s) trouvé(s)
+//             {selectedMateriels.length > 0 && (
+//               <span className="text-primary font-semibold ml-2">
+//                 ({selectedMateriels.length} sélectionné(s))
+//               </span>
+//             )}
+//           </p>
+//         </div>
+//         <div className="flex gap-2">
+//           <button
+//             onClick={handleRefresh}
+//             className="btn btn-outline btn-sm"
+//             title="Rafraîchir"
+//             disabled={refreshing}
+//           >
+//             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+//             Rafraîchir
+//           </button>
+//           <button
+//             onClick={handleExport}
+//             className="btn btn-outline btn-sm"
+//             title="Exporter la liste"
+//           >
+//             <Download className="h-4 w-4 mr-2" />
+//             Exporter
+//           </button>
+//           <button
+//             onClick={handleAddNew}
+//             className="btn btn-primary btn-sm"
+//           >
+//             <Plus className="h-4 w-4 mr-2" />
+//             Nouveau matériel
+//           </button>
+//         </div>
+//       </div>
+
+//       {/* Section Statistiques */}
+//       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+//         <div className="card bg-info/10 shadow-lg">
+//           <div className="card-body p-4 text-center">
+//             <div className="flex justify-center mb-2">
+//               <CalendarDays className="h-8 w-8 text-info" />
+//             </div>
+//             <h3 className="text-2xl font-bold text-info mb-1">
+//               {statistiques.joursDepuisDerniereReparation}
+//             </h3>
+//             <p className="text-sm opacity-60">Jours depuis dernière réparation</p>
+//           </div>
+//         </div>
+
+//         <div className="card bg-success/10 shadow-lg">
+//           <div className="card-body p-4 text-center">
+//             <div className="flex justify-center mb-2">
+//               <RotateCcw className="h-8 w-8 text-success" />
+//             </div>
+//             <h3 className="text-2xl font-bold text-success mb-1">
+//               {statistiques.materielsReparesRecemment}
+//             </h3>
+//             <p className="text-sm opacity-60">Réparés récemment (&lt;7 jours)</p>
+//           </div>
+//         </div>
+
+//         <div className="card bg-warning/10 shadow-lg">
+//           <div className="card-body p-4 text-center">
+//             <div className="flex justify-center mb-2">
+//               <History className="h-8 w-8 text-warning" />
+//             </div>
+//             <h3 className="text-2xl font-bold text-warning mb-1">
+//               {statistiques.materielsSansReparation}
+//             </h3>
+//             <p className="text-sm opacity-60">Jamais réparés</p>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Cartes pour tous les états */}
+//       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+//         <div className="card bg-base-200 shadow-lg">
+//           <div className="card-body p-4 text-center">
+//             <div className="flex justify-center mb-2">
+//               <Server className="h-8 w-8 text-primary" />
+//             </div>
+//             <h3 className="text-3xl font-bold text-primary mb-1">{statistiques.total}</h3>
+//             <p className="text-sm opacity-60">Total matériels</p>
+//           </div>
+//         </div>
+
+//         <div className="card bg-success/10 shadow-lg">
+//           <div className="card-body p-4 text-center">
+//             <div className="flex justify-center mb-2">
+//               <CheckCircle className="h-8 w-8 text-success" />
+//             </div>
+//             <h3 className="text-3xl font-bold text-success mb-1">{statistiques.fonctionnel}</h3>
+//             <p className="text-sm opacity-60">Fonctionnels</p>
+//           </div>
+//         </div>
+
+//         <div className="card bg-error/10 shadow-lg">
+//           <div className="card-body p-4 text-center">
+//             <div className="flex justify-center mb-2">
+//               <AlertTriangle className="h-8 w-8 text-error" />
+//             </div>
+//             <h3 className="text-3xl font-bold text-error mb-1">{statistiques.enPanne}</h3>
+//             <p className="text-sm opacity-60">En panne</p>
+//           </div>
+//         </div>
+
+//         <div className="card bg-warning/10 shadow-lg">
+//           <div className="card-body p-4 text-center">
+//             <div className="flex justify-center mb-2">
+//               <Wrench className="h-8 w-8 text-warning" />
+//             </div>
+//             <h3 className="text-3xl font-bold text-warning mb-1">{statistiques.repare}</h3>
+//             <p className="text-sm opacity-60">Réparés</p>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Autres états */}
+//       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+//         <div className="card bg-info/10 shadow-lg">
+//           <div className="card-body p-4 text-center">
+//             <div className="flex justify-center mb-2">
+//               <Wrench className="h-8 w-8 text-info" />
+//             </div>
+//             <h3 className="text-2xl font-bold text-info mb-1">{statistiques.enMaintenance || 0}</h3>
+//             <p className="text-sm opacity-60">En maintenance</p>
+//           </div>
+//         </div>
+
+//         <div className="card bg-primary/10 shadow-lg">
+//           <div className="card-body p-4 text-center">
+//             <div className="flex justify-center mb-2">
+//               <Zap className="h-8 w-8 text-primary" />
+//             </div>
+//             <h3 className="text-2xl font-bold text-primary mb-1">{statistiques.enAmelioration || 0}</h3>
+//             <p className="text-sm opacity-60">En amélioration</p>
+//           </div>
+//         </div>
+
+//         <div className="card bg-neutral/10 shadow-lg">
+//           <div className="card-body p-4 text-center">
+//             <div className="flex justify-center mb-2">
+//               <Package className="h-8 w-8 text-neutral" />
+//             </div>
+//             <h3 className="text-2xl font-bold text-neutral mb-1">{statistiques.obsolete}</h3>
+//             <p className="text-sm opacity-60">Obsolètes</p>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Filtres */}
+//       <div className="card bg-base-200 shadow-xl mb-6">
+//         <div className="card-body">
+//           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text">🔍 Rechercher</span>
+//               </label>
+//               <input
+//                 type="text"
+//                 placeholder="Nom, référence, utilisateur..."
+//                 className="input input-bordered w-full"
+//                 value={searchTerm}
+//                 onChange={(e) => setSearchTerm(e.target.value)}
+//               />
+//             </div>
+
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text">📊 État</span>
+//               </label>
+//               <select
+//                 className="select select-bordered w-full"
+//                 value={filterEtat}
+//                 onChange={(e) => setFilterEtat(e.target.value)}
+//               >
+//                 <option value="">Tous les états</option>
+//                 <option value="fonctionnel">Fonctionnel</option>
+//                 <option value="en_panne">En panne</option>
+//                 <option value="repare">Réparé</option>
+//                 <option value="obsolete">Obsolète</option>
+//                 <option value="en_maintenance">En maintenance</option>
+//                 <option value="en_amelioration">En amélioration</option>
+//                 <option value="en_reparation">En réparation</option>
+//                 <option value="hors_service">Hors service</option>
+//               </select>
+//             </div>
+
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text flex items-center gap-1">
+//                   <Calendar className="h-4 w-4" />
+//                   Dernière réparation
+//                 </span>
+//               </label>
+//               <select
+//                 className="select select-bordered w-full"
+//                 value={filterJours}
+//                 onChange={(e) => setFilterJours(e.target.value)}
+//               >
+//                 <option value="">Toutes périodes</option>
+//                 <option value="jamais">Jamais réparé</option>
+//                 <option value="moins7">&lt; 7 jours</option>
+//                 <option value="7a30">7 à 30 jours</option>
+//                 <option value="30a90">30 à 90 jours</option>
+//                 <option value="plus90">&gt; 90 jours</option>
+//               </select>
+//             </div>
+
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text">📁 Service</span>
+//               </label>
+//               <select
+//                 className="select select-bordered w-full"
+//                 onChange={(e) => e.target.value && setSearchTerm(e.target.value)}
+//               >
+//                 <option value="">Tous les services</option>
+//                 {Object.entries(statistiques.parService).map(([service, count]) => (
+//                   <option key={service} value={service}>
+//                     {service} ({count})
+//                   </option>
+//                 ))}
+//               </select>
+//             </div>
+
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text">🏢 Fournisseur</span>
+//               </label>
+//               <select
+//                 className="select select-bordered w-full"
+//                 onChange={(e) => e.target.value && setSearchTerm(e.target.value)}
+//               >
+//                 <option value="">Tous les fournisseurs</option>
+//                 {Object.entries(statistiques.parFournisseur).map(([fournisseur, count]) => (
+//                   <option key={fournisseur} value={fournisseur}>
+//                     {fournisseur} ({count})
+//                   </option>
+//                 ))}
+//               </select>
+//             </div>
+//           </div>
+
+//           <div className="flex justify-between items-center mt-4">
+//             <div className="flex gap-2">
+//               {selectedMateriels.length > 0 && (
+//                 <>
+//                   <button
+//                     onClick={handleEditSelected}
+//                     className="btn btn-outline btn-sm"
+//                   >
+//                     <Edit className="h-4 w-4 mr-2" />
+//                     Modifier ({selectedMateriels.length})
+//                   </button>
+//                   <button
+//                     onClick={handleDeleteSelected}
+//                     className="btn btn-error btn-sm"
+//                   >
+//                     <Trash2 className="h-4 w-4 mr-2" />
+//                     Supprimer ({selectedMateriels.length})
+//                   </button>
+//                 </>
+//               )}
+//             </div>
+//             <div className="flex gap-2">
+//               <button
+//                 onClick={resetFilters}
+//                 className="btn btn-ghost btn-sm"
+//               >
+//                 <X className="h-4 w-4 mr-2" />
+//                 Réinitialiser
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Tableau */}
+//       <div className="card bg-base-200 shadow-xl">
+//         <div className="card-body p-0">
+//           <div className="overflow-x-auto">
+//             <table className="table table-zebra">
+//               <thead>
+//                 <tr className="bg-base-300">
+//                   <th>
+//                     <div className="flex items-center">
+//                       <button 
+//                         onClick={toggleSelectAll}
+//                         className="btn btn-ghost btn-xs p-1 mr-2"
+//                       >
+//                         {isSelectAll ? (
+//                           <CheckSquare className="h-4 w-4 text-primary" />
+//                         ) : (
+//                           <Square className="h-4 w-4" />
+//                         )}
+//                       </button>
+//                       ID
+//                     </div>
+//                   </th>
+//                   <th>Nom</th>
+//                   <th>Référence</th>
+//                   <th>État</th>
+//                   <th>Jours dernière réparation</th>
+//                   <th>Service</th>
+//                   <th>Utilisateur</th>
+//                   <th className="text-right">Actions</th>
+//                 </tr>
+//               </thead>
+//               <tbody>
+//                 {safeArray(filteredMateriels).length === 0 ? (
+//                   <tr>
+//                     <td colSpan={8} className="text-center py-8">
+//                       <div className="flex flex-col items-center gap-2">
+//                         <Package className="h-12 w-12 text-base-content opacity-30" />
+//                         <p className="text-base-content opacity-50">
+//                           {searchTerm || filterEtat || filterJours ? 'Aucun matériel correspondant aux filtres' : 'Aucun matériel trouvé'}
+//                         </p>
+//                         <button 
+//                           onClick={searchTerm || filterEtat || filterJours ? resetFilters : handleAddNew}
+//                           className="btn btn-sm btn-primary mt-2"
+//                         >
+//                           <Plus className="h-4 w-4 mr-2" />
+//                           {searchTerm || filterEtat || filterJours ? 'Réinitialiser les filtres' : 'Ajouter un premier matériel'}
+//                         </button>
+//                       </div>
+//                     </td>
+//                   </tr>
+//                 ) : (
+//                   safeArray(filteredMateriels).map(materiel => {
+//                     const joursDepuisRep = getJoursDepuisReparation(materiel, reparations);
+                    
+//                     return (
+//                       <tr key={materiel.id} className="hover:bg-base-100/50">
+//                         <td>
+//                           <div className="flex items-center">
+//                             <input
+//                               type="checkbox"
+//                               className="checkbox checkbox-xs mr-3"
+//                               checked={selectedMateriels.includes(materiel.id)}
+//                               onChange={() => toggleSelectMateriel(materiel.id)}
+//                             />
+//                             <span className="font-mono text-xs opacity-70">#{materiel.id}</span>
+//                           </div>
+//                         </td>
+//                         <td>
+//                           <div className="font-medium">{materiel.nom}</div>
+//                         </td>
+//                         <td>
+//                           <div className="font-mono text-sm">{materiel.reference}</div>
+//                         </td>
+//                         <td>
+//                           <div className={`badge gap-2 ${getEtatBadge(materiel.etat)}`}>
+//                             {getEtatIcon(materiel.etat)}
+//                             {getEtatText(materiel.etat)}
+//                           </div>
+//                         </td>
+//                         <td>
+//                           <div className={`badge gap-1 ${getJoursBadge(joursDepuisRep)}`}>
+//                             <History className="h-3 w-3" />
+//                             {getJoursTexte(joursDepuisRep)}
+//                           </div>
+//                         </td>
+//                         <td>
+//                           <div>{materiel.service_attribue || 'Non attribué'}</div>
+//                         </td>
+//                         <td>
+//                           <div>{materiel.utilisateur_attribue || 'Non attribué'}</div>
+//                         </td>
+//                         <td>
+//                           <div className="flex justify-end gap-2">
+//                             <button
+//                               onClick={() => handleEdit(materiel)}
+//                               className="btn btn-ghost btn-sm btn-square"
+//                             >
+//                               <Edit className="h-4 w-4" />
+//                             </button>
+//                             <button
+//                               onClick={() => handleDelete(materiel.id)}
+//                               className="btn btn-ghost btn-sm btn-square text-error hover:bg-error/20"
+//                             >
+//                               <Trash2 className="h-4 w-4" />
+//                             </button>
+//                           </div>
+//                         </td>
+//                       </tr>
+//                     );
+//                   })
+//                 )}
+//               </tbody>
+//             </table>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Message d'information sur les états */}
+//       <div className="mt-6 p-4 bg-info/10 rounded-lg">
+//         <div className="flex items-start gap-3">
+//           <Info className="h-5 w-5 text-info mt-0.5" />
+//           <div className="flex-1">
+//             <h4 className="font-bold text-info mb-1">🔄 Synchronisation automatique des états</h4>
+//             <p className="text-sm opacity-80">
+//               Les états des matériels sont automatiquement mis à jour selon les réparations :
+//             </p>
+//             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-xs">
+//               <div className="flex items-center gap-1">
+//                 <span className="badge badge-info badge-xs">en_maintenance</span>
+//                 <span>← Réparation préventive</span>
+//               </div>
+//               <div className="flex items-center gap-1">
+//                 <span className="badge badge-warning badge-xs">en_reparation</span>
+//                 <span>← Réparation corrective</span>
+//               </div>
+//               <div className="flex items-center gap-1">
+//                 <span className="badge badge-primary badge-xs">en_amelioration</span>
+//                 <span>← Amélioration</span>
+//               </div>
+//               <div className="flex items-center gap-1">
+//                 <span className="badge badge-success badge-xs">repare/ameliore</span>
+//                 <span>← Réparation terminée</span>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default Materiels;

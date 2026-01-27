@@ -1,0 +1,3017 @@
+// // // IncidentForm.tsx - Version améliorée avec création depuis alertes
+// // import React, { useState, useEffect } from 'react';
+// // import { X, Calendar, Clock, User, AlertCircle, Loader2, Bell, AlertTriangle } from 'lucide-react';
+// // import { Incident, User as UserType, Materiel, Logiciel, Reseau, Alerte } from '../types';
+// // import { usersAPI, materielsAPI, logicielsAPI, reseauAPI, handleApiError } from '../services/api';
+
+// // interface IncidentFormProps {
+// //   isOpen: boolean;
+// //   onClose: () => void;
+// //   onSubmit: (incidentData: any) => void;
+// //   incident?: Incident;
+// //   currentUser: UserType;
+// //   alerteSource?: Alerte; // Nouveau: alerte source pour création automatique
+// // }
+
+// // const IncidentForm: React.FC<IncidentFormProps> = ({
+// //   isOpen,
+// //   onClose,
+// //   onSubmit,
+// //   incident,
+// //   currentUser,
+// //   alerteSource
+// // }) => {
+// //   const [formData, setFormData] = useState({
+// //     description: '',
+// //     date_resolution: '',
+// //     heure_resolution: '',
+// //     priorite: 'moyenne' as 'critique' | 'elevee' | 'moyenne' | 'basse',
+// //     statut: 'ouvert' as 'ouvert' | 'en_cours' | 'resolu' | 'ferme',
+// //     type_incident: '' as '' | 'materiel' | 'logiciel' | 'reseau' | 'mixte',
+// //     utilisateur_signaleur: currentUser?.id || 0,
+// //     materiel: 0,
+// //     logiciel: 0,
+// //     reseau: 0,
+// //     alerte_source: 0 // ID de l'alerte source
+// //   });
+
+// //   const [users, setUsers] = useState<UserType[]>([]);
+// //   const [materiels, setMateriels] = useState<Materiel[]>([]);
+// //   const [logiciels, setLogiciels] = useState<Logiciel[]>([]);
+// //   const [reseaux, setReseaux] = useState<Reseau[]>([]);
+// //   const [errors, setErrors] = useState<Record<string, string>>({});
+// //   const [isSubmitting, setIsSubmitting] = useState(false);
+// //   const [loading, setLoading] = useState(false);
+// //   const [apiErrors, setApiErrors] = useState<string[]>([]);
+// //   const [mode, setMode] = useState<'normal' | 'fromAlerte'>('normal');
+
+// //   // Formater le nom utilisateur
+// //   const formatUserName = (user: UserType) => {
+// //     if (!user) return 'Utilisateur inconnu';
+    
+// //     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+// //     if (fullName) {
+// //       return `${fullName} (${user.username || `ID: ${user.id}`})`;
+// //     }
+// //     return user.username || `Utilisateur #${user.id}`;
+// //   };
+
+// //   // Fonction pour extraire les données de réponse API
+// //   const extractDataFromResponse = (response: any): any[] => {
+// //     if (!response) return [];
+    
+// //     // Si response est déjà un tableau
+// //     if (Array.isArray(response)) {
+// //       return response;
+// //     }
+    
+// //     // Si response a une propriété data
+// //     if (response.data !== undefined) {
+// //       if (Array.isArray(response.data)) {
+// //         return response.data;
+// //       }
+      
+// //       if (response.data.results && Array.isArray(response.data.results)) {
+// //         return response.data.results;
+// //       }
+      
+// //       if (response.data.data && Array.isArray(response.data.data)) {
+// //         return response.data.data;
+// //       }
+      
+// //       if (typeof response.data === 'object' && !Array.isArray(response.data)) {
+// //         const values = Object.values(response.data);
+// //         if (values.length > 0 && values.every(v => typeof v === 'object')) {
+// //           return values as any[];
+// //         }
+// //       }
+// //     }
+    
+// //     if (response.results && Array.isArray(response.results)) {
+// //       return response.results;
+// //     }
+    
+// //     return [];
+// //   };
+
+// //   // Fonction pour mapper la sévérité d'alerte vers priorité d'incident
+// //   const mapSeveriteToPriorite = (severite: string): 'critique' | 'elevee' | 'moyenne' | 'basse' => {
+// //     const mapping = {
+// //       'critique': 'critique',
+// //       'elevee': 'elevee',
+// //       'moyenne': 'moyenne',
+// //       'basse': 'basse'
+// //     };
+// //     return mapping[severite as keyof typeof mapping] || 'moyenne';
+// //   };
+
+// //   // Fonction pour mapper le type d'alerte vers type d'incident
+// //   const mapTypeAlerteToIncident = (typeAlerte: string): 'materiel' | 'logiciel' | 'reseau' | 'mixte' => {
+// //     const mapping = {
+// //       'securite': 'mixte',
+// //       'performance': 'logiciel',
+// //       'panne': 'materiel',
+// //       'maintenance': 'materiel'
+// //     };
+// //     return mapping[typeAlerte as keyof typeof mapping] || 'mixte';
+// //   };
+
+// //   // Initialiser depuis une alerte
+// //   const initFromAlerte = () => {
+// //     if (!alerteSource) return;
+    
+// //     console.log('🚨 Initialisation depuis alerte:', alerteSource);
+    
+// //     // Déterminer le type d'incident basé sur la source de l'alerte
+// //     let typeIncident: 'materiel' | 'logiciel' | 'reseau' | 'mixte' = 'mixte';
+    
+// //     if (alerteSource.materiel_id && !alerteSource.logiciel_id && !alerteSource.reseau_id) {
+// //       typeIncident = 'materiel';
+// //     } else if (alerteSource.logiciel_id && !alerteSource.materiel_id && !alerteSource.reseau_id) {
+// //       typeIncident = 'logiciel';
+// //     } else if (alerteSource.reseau_id && !alerteSource.materiel_id && !alerteSource.logiciel_id) {
+// //       typeIncident = 'reseau';
+// //     } else {
+// //       typeIncident = 'mixte';
+// //     }
+    
+// //     // Préparer les données initiales
+// //     const initialData = {
+// //       description: `Incident généré depuis l'alerte: ${alerteSource.description}`,
+// //       date_resolution: new Date().toISOString().split('T')[0],
+// //       heure_resolution: new Date().toTimeString().slice(0, 5),
+// //       priorite: mapSeveriteToPriorite(alerteSource.severite),
+// //       statut: 'ouvert' as const,
+// //       type_incident: typeIncident,
+// //       utilisateur_signaleur: currentUser?.id || 0,
+// //       materiel: alerteSource.materiel_id || 0,
+// //       logiciel: alerteSource.logiciel_id || 0,
+// //       reseau: alerteSource.reseau_id || 0,
+// //       alerte_source: alerteSource.id || 0
+// //     };
+    
+// //     setFormData(initialData);
+// //     setMode('fromAlerte');
+    
+// //     console.log('📝 Données initialisées depuis alerte:', initialData);
+// //   };
+
+// //   // Charger les utilisateurs
+// //   const fetchUsers = async () => {
+// //     try {
+// //       console.log('🔄 Chargement des utilisateurs...');
+// //       setApiErrors(prev => prev.filter(e => !e.includes('Utilisateurs:')));
+      
+// //       const response = await usersAPI.getAll();
+// //       const usersData = extractDataFromResponse(response);
+      
+// //       const formattedUsers: UserType[] = usersData.map((user: any) => ({
+// //         id: user.id || 0,
+// //         username: user.username || `user_${user.id}`,
+// //         first_name: user.first_name || user.prenom || '',
+// //         last_name: user.last_name || user.nom || '',
+// //         email: user.email || '',
+// //         is_active: user.is_active !== undefined ? user.is_active : true,
+// //         date_joined: user.date_joined || user.date_creation || new Date().toISOString(),
+// //         role: user.role || user.role_utilisateur || 'user',
+// //         departement: user.departement || user.service || ''
+// //       }));
+      
+// //       setUsers(formattedUsers);
+      
+// //       if (formattedUsers.length === 0) {
+// //         console.warn('⚠️ Aucun utilisateur trouvé');
+// //         if (currentUser && currentUser.id) {
+// //           setUsers([currentUser]);
+// //           setFormData(prev => ({ ...prev, utilisateur_signaleur: currentUser.id }));
+// //         }
+// //       }
+      
+// //     } catch (error: any) {
+// //       console.error('❌ Erreur chargement utilisateurs:', error);
+// //       if (currentUser && currentUser.id) {
+// //         setUsers([currentUser]);
+// //         setFormData(prev => ({ ...prev, utilisateur_signaleur: currentUser.id }));
+// //       }
+// //     }
+// //   };
+
+// //   // Charger les matériels
+// //   const fetchMateriels = async () => {
+// //     try {
+// //       console.log('🔄 Chargement des matériels...');
+// //       const response = await materielsAPI.getAll();
+// //       const materielsData = extractDataFromResponse(response);
+// //       setMateriels(materielsData);
+// //     } catch (error: any) {
+// //       console.error('❌ Erreur chargement matériels:', error);
+// //     }
+// //   };
+
+// //   // Charger les logiciels
+// //   const fetchLogiciels = async () => {
+// //     try {
+// //       console.log('🔄 Chargement des logiciels...');
+// //       const response = await logicielsAPI.getAll();
+// //       const logicielsData = extractDataFromResponse(response);
+// //       setLogiciels(logicielsData);
+// //     } catch (error: any) {
+// //       console.error('❌ Erreur chargement logiciels:', error);
+// //     }
+// //   };
+
+// //   // Charger les réseaux
+// //   const fetchReseaux = async () => {
+// //     try {
+// //       console.log('🔄 Chargement des réseaux...');
+// //       const response = await reseauAPI.getAll();
+// //       const reseauxData = extractDataFromResponse(response);
+// //       setReseaux(reseauxData);
+// //     } catch (error: any) {
+// //       console.error('❌ Erreur chargement réseaux:', error);
+// //     }
+// //   };
+
+// //   // Charger toutes les données
+// //   const fetchAllData = async () => {
+// //     if (!isOpen) return;
+    
+// //     setLoading(true);
+// //     setApiErrors([]);
+    
+// //     try {
+// //       console.log('🔄 Début du chargement de toutes les données...');
+      
+// //       await Promise.allSettled([
+// //         fetchUsers(),
+// //         fetchMateriels(),
+// //         fetchLogiciels(),
+// //         fetchReseaux()
+// //       ]);
+      
+// //       // Initialiser le formulaire
+// //       if (alerteSource) {
+// //         initFromAlerte();
+// //       } else if (incident) {
+// //         console.log('📝 Initialisation avec incident:', incident);
+        
+// //         setFormData({
+// //           description: incident.description || '',
+// //           date_resolution: incident.date_resolution?.split('T')[0] || '',
+// //           heure_resolution: incident.date_resolution?.split('T')[1]?.substring(0, 5) || '',
+// //           priorite: incident.priorite || 'moyenne',
+// //           statut: incident.statut || 'ouvert',
+// //           type_incident: incident.type_incident || '',
+// //           utilisateur_signaleur: incident.utilisateur_signaleur || currentUser?.id || 0,
+// //           materiel: incident.materiel || 0,
+// //           logiciel: incident.logiciel || 0,
+// //           reseau: incident.reseau || 0,
+// //           alerte_source: 0
+// //         });
+// //       } else {
+// //         // Pour un nouvel incident
+// //         if (users.length > 0 && !formData.utilisateur_signaleur) {
+// //           const defaultUser = users.find(u => u.id === currentUser?.id) || users[0];
+// //           if (defaultUser) {
+// //             setFormData(prev => ({ ...prev, utilisateur_signaleur: defaultUser.id }));
+// //           }
+// //         }
+// //       }
+      
+// //     } catch (error) {
+// //       console.error('💥 Erreur critique lors du chargement:', error);
+// //       setApiErrors(prev => [...prev, 'Erreur lors du chargement des données']);
+// //     } finally {
+// //       setLoading(false);
+// //     }
+// //   };
+
+// //   // Effet pour charger les données
+// //   useEffect(() => {
+// //     if (isOpen) {
+// //       fetchAllData();
+// //     } else {
+// //       resetForm();
+// //     }
+// //   }, [isOpen, incident, alerteSource]);
+
+// //   const resetForm = () => {
+// //     setFormData({
+// //       description: '',
+// //       date_resolution: '',
+// //       heure_resolution: '',
+// //       priorite: 'moyenne',
+// //       statut: 'ouvert',
+// //       type_incident: '',
+// //       utilisateur_signaleur: currentUser?.id || 0,
+// //       materiel: 0,
+// //       logiciel: 0,
+// //       reseau: 0,
+// //       alerte_source: 0
+// //     });
+// //     setErrors({});
+// //     setApiErrors([]);
+// //     setMode('normal');
+// //   };
+
+// //   const validateForm = () => {
+// //     const newErrors: Record<string, string> = {};
+    
+// //     if (!formData.description.trim()) {
+// //       newErrors.description = 'Description requise';
+// //     }
+    
+// //     if (!formData.type_incident) {
+// //       newErrors.type_incident = 'Type d\'incident requis';
+// //     }
+    
+// //     if (!formData.utilisateur_signaleur || formData.utilisateur_signaleur === 0) {
+// //       newErrors.utilisateur_signaleur = 'Utilisateur signaleur requis';
+// //     }
+    
+// //     // Validation basée sur le type d'incident
+// //     if (formData.type_incident === 'materiel' && formData.materiel === 0) {
+// //       newErrors.materiel = 'Matériel requis pour ce type d\'incident';
+// //     }
+    
+// //     if (formData.type_incident === 'logiciel' && formData.logiciel === 0) {
+// //       newErrors.logiciel = 'Logiciel requis pour ce type d\'incident';
+// //     }
+    
+// //     if (formData.type_incident === 'reseau' && formData.reseau === 0) {
+// //       newErrors.reseau = 'Réseau requis pour ce type d\'incident';
+// //     }
+    
+// //     if (formData.type_incident === 'mixte' && formData.materiel === 0 && formData.logiciel === 0 && formData.reseau === 0) {
+// //       newErrors.type_incident = 'Au moins une source (matériel, logiciel ou réseau) est requise';
+// //     }
+    
+// //     setErrors(newErrors);
+// //     return Object.keys(newErrors).length === 0;
+// //   };
+
+// //   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+// //     const { name, value } = e.target;
+    
+// //     setFormData(prev => ({
+// //       ...prev,
+// //       [name]: name === 'utilisateur_signaleur' || name === 'materiel' || name === 'logiciel' || name === 'reseau'
+// //         ? parseInt(value) || 0 
+// //         : value
+// //     }));
+    
+// //     // Réinitialiser les champs de source selon le type
+// //     if (name === 'type_incident') {
+// //       const type = value as 'materiel' | 'logiciel' | 'reseau' | 'mixte';
+// //       setFormData(prev => ({
+// //         ...prev,
+// //         materiel: type === 'logiciel' ? 0 : prev.materiel,
+// //         logiciel: type === 'materiel' ? 0 : prev.logiciel,
+// //         reseau: type === 'materiel' ? 0 : prev.reseau
+// //       }));
+// //     }
+    
+// //     if (errors[name]) {
+// //       setErrors(prev => ({ ...prev, [name]: '' }));
+// //     }
+// //   };
+
+// //   const handleSetToday = () => {
+// //     const today = new Date().toISOString().split('T')[0];
+// //     setFormData(prev => ({ ...prev, date_resolution: today }));
+// //   };
+
+// //   const handleSetNow = () => {
+// //     const now = new Date();
+// //     const currentTime = now.toTimeString().slice(0, 5);
+// //     setFormData(prev => ({ ...prev, heure_resolution: currentTime }));
+// //   };
+
+// //   const handleSubmit = async (e: React.FormEvent) => {
+// //     e.preventDefault();
+// //     if (!validateForm()) return;
+    
+// //     setIsSubmitting(true);
+// //     setApiErrors([]);
+
+// //     try {
+// //       const incidentData: any = { 
+// //         description: formData.description.trim(),
+// //         priorite: formData.priorite,
+// //         statut: formData.statut,
+// //         type_incident: formData.type_incident,
+// //         utilisateur_signaleur: formData.utilisateur_signaleur
+// //       };
+
+// //       // Ajouter la date de résolution si complète
+// //       if (formData.date_resolution && formData.heure_resolution) {
+// //         incidentData.date_resolution = `${formData.date_resolution}T${formData.heure_resolution}`;
+// //       } else if (formData.date_resolution) {
+// //         incidentData.date_resolution = `${formData.date_resolution}T00:00`;
+// //       }
+
+// //       // Ajouter les relations selon le type
+// //       if (formData.materiel > 0) incidentData.materiel = formData.materiel;
+// //       if (formData.logiciel > 0) incidentData.logiciel = formData.logiciel;
+// //       if (formData.reseau > 0) incidentData.reseau = formData.reseau;
+
+// //       // Ajouter l'alerte source si disponible
+// //       if (formData.alerte_source > 0) {
+// //         incidentData.alerte_source = formData.alerte_source;
+// //       }
+
+// //       console.log('📤 Soumission incident:', incidentData);
+// //       await onSubmit(incidentData);
+// //       onClose();
+      
+// //     } catch (error: any) {
+// //       console.error('❌ Erreur soumission:', error);
+// //       setApiErrors(prev => [...prev, handleApiError(error)]);
+// //     } finally {
+// //       setIsSubmitting(false);
+// //     }
+// //   };
+
+// //   const handleClose = () => {
+// //     if (isSubmitting) return;
+// //     resetForm();
+// //     onClose();
+// //   };
+
+// //   // Rendre les champs selon le type
+// //   const getAvailableSources = () => {
+// //     const type = formData.type_incident;
+    
+// //     switch (type) {
+// //       case 'materiel':
+// //         return ['materiel'];
+// //       case 'logiciel':
+// //         return ['materiel', 'logiciel'];
+// //       case 'reseau':
+// //         return ['materiel', 'reseau'];
+// //       case 'mixte':
+// //         return ['materiel', 'logiciel', 'reseau'];
+// //       default:
+// //         return [];
+// //     }
+// //   };
+
+// //   const availableSources = getAvailableSources();
+
+// //   if (!isOpen) return null;
+
+// //   return (
+// //     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+// //       <div className="bg-base-100 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+// //         <div className="flex justify-between items-center p-6 border-b border-base-300 sticky top-0 bg-base-100 z-10">
+// //           <div>
+// //             <h2 className="text-xl font-bold text-base-content">
+// //               {mode === 'fromAlerte' ? '📝 Créer Incident depuis Alerte' : 
+// //                incident ? 'Modifier l\'incident' : 'Ajouter un Incident'}
+// //             </h2>
+// //             {mode === 'fromAlerte' && alerteSource && (
+// //               <p className="text-sm text-base-content opacity-60 mt-1">
+// //                 Généré depuis l'alerte #{alerteSource.id}
+// //               </p>
+// //             )}
+// //           </div>
+// //           <button onClick={handleClose} className="btn btn-ghost btn-sm btn-circle" disabled={isSubmitting}>
+// //             <X className="h-4 w-4" />
+// //           </button>
+// //         </div>
+
+// //         {/* Indicateur création depuis alerte */}
+// //         {mode === 'fromAlerte' && alerteSource && (
+// //           <div className="m-4 p-4 bg-info/10 border border-info/20 rounded-lg">
+// //             <div className="flex items-center gap-3">
+// //               <AlertTriangle className="h-5 w-5 text-info" />
+// //               <div className="flex-1">
+// //                 <p className="font-medium text-info">Incident créé automatiquement depuis une alerte</p>
+// //                 <p className="text-sm opacity-80 mt-1">{alerteSource.description}</p>
+// //                 <div className="flex flex-wrap gap-2 mt-2">
+// //                   <span className="badge badge-info badge-sm">
+// //                     Sévérité: {alerteSource.severite}
+// //                   </span>
+// //                   <span className="badge badge-info badge-sm">
+// //                     Type: {alerteSource.type_alerte}
+// //                   </span>
+// //                   <span className="badge badge-info badge-sm">
+// //                     Date: {new Date(alerteSource.date_alerte || '').toLocaleDateString('fr-FR')}
+// //                   </span>
+// //                 </div>
+// //               </div>
+// //             </div>
+// //           </div>
+// //         )}
+
+// //         {/* Messages d'erreur API */}
+// //         {apiErrors.length > 0 && (
+// //           <div className="m-4">
+// //             <div className="alert alert-warning">
+// //               <AlertCircle className="h-5 w-5" />
+// //               <div className="flex flex-col gap-1">
+// //                 {apiErrors.map((error, index) => (
+// //                   <span key={index} className="text-sm">{error}</span>
+// //                 ))}
+// //               </div>
+// //             </div>
+// //           </div>
+// //         )}
+
+// //         {loading ? (
+// //           <div className="flex justify-center items-center p-12">
+// //             <div className="flex flex-col items-center gap-4">
+// //               <Loader2 className="h-8 w-8 text-primary animate-spin" />
+// //               <span className="text-base-content">Chargement des données...</span>
+// //             </div>
+// //           </div>
+// //         ) : (
+// //           <form onSubmit={handleSubmit} className="p-6 space-y-6">
+// //             {/* Description */}
+// //             <div className="form-control">
+// //               <label className="label">
+// //                 <span className="label-text font-semibold">Description :</span>
+// //               </label>
+// //               <textarea
+// //                 name="description"
+// //                 value={formData.description}
+// //                 onChange={handleChange}
+// //                 className={`textarea textarea-bordered h-32 ${errors.description ? 'textarea-error' : ''}`}
+// //                 placeholder="Décrivez l'incident en détails..."
+// //                 disabled={isSubmitting}
+// //               />
+// //               {errors.description && <span className="text-error text-sm mt-1">{errors.description}</span>}
+// //             </div>
+
+// //             {/* Utilisateur signaleur */}
+// //             <div className="form-control">
+// //               <label className="label">
+// //                 <span className="label-text font-semibold flex items-center gap-2">
+// //                   <User className="h-4 w-4" />
+// //                   Utilisateur signaleur :
+// //                 </span>
+// //               </label>
+// //               <select
+// //                 name="utilisateur_signaleur"
+// //                 value={formData.utilisateur_signaleur}
+// //                 onChange={handleChange}
+// //                 className={`select select-bordered w-full ${errors.utilisateur_signaleur ? 'select-error' : ''}`}
+// //                 disabled={isSubmitting || users.length === 0}
+// //               >
+// //                 <option value={0}>Sélectionnez un utilisateur</option>
+// //                 {users.map(user => (
+// //                   <option key={user.id} value={user.id}>
+// //                     {formatUserName(user)}
+// //                   </option>
+// //                 ))}
+// //               </select>
+// //               {errors.utilisateur_signaleur && <span className="text-error text-sm mt-1">{errors.utilisateur_signaleur}</span>}
+// //             </div>
+
+// //             {/* Type d'incident */}
+// //             <div className="form-control">
+// //               <label className="label">
+// //                 <span className="label-text font-semibold">Type incident :</span>
+// //                 <span className="label-text-alt text-warning">*</span>
+// //               </label>
+// //               <select
+// //                 name="type_incident"
+// //                 value={formData.type_incident}
+// //                 onChange={handleChange}
+// //                 className={`select select-bordered w-full ${errors.type_incident ? 'select-error' : ''}`}
+// //                 disabled={isSubmitting}
+// //               >
+// //                 <option value="">---------</option>
+// //                 <option value="materiel">Matériel</option>
+// //                 <option value="logiciel">Logiciel</option>
+// //                 <option value="reseau">Réseau</option>
+// //                 <option value="mixte">Mixte</option>
+// //               </select>
+// //               {errors.type_incident && <span className="text-error text-sm mt-1">{errors.type_incident}</span>}
+// //               <div className="text-xs text-base-content opacity-60 mt-1">
+// //                 Champs disponibles selon le type :
+// //                 {formData.type_incident === 'materiel' && ' Matériel uniquement'}
+// //                 {formData.type_incident === 'logiciel' && ' Matériel + Logiciel'}
+// //                 {formData.type_incident === 'reseau' && ' Matériel + Réseau'}
+// //                 {formData.type_incident === 'mixte' && ' Tous les champs'}
+// //               </div>
+// //             </div>
+
+// //             {/* Priorité et Statut */}
+// //             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+// //               <div className="form-control">
+// //                 <label className="label">
+// //                   <span className="label-text font-semibold">Priorité :</span>
+// //                 </label>
+// //                 <select
+// //                   name="priorite"
+// //                   value={formData.priorite}
+// //                   onChange={handleChange}
+// //                   className="select select-bordered w-full"
+// //                   disabled={isSubmitting}
+// //                 >
+// //                   <option value="basse">Basse</option>
+// //                   <option value="moyenne">Moyenne</option>
+// //                   <option value="elevee">Élevée</option>
+// //                   <option value="critique">Critique</option>
+// //                 </select>
+// //               </div>
+
+// //               <div className="form-control">
+// //                 <label className="label">
+// //                   <span className="label-text font-semibold">Statut :</span>
+// //                 </label>
+// //                 <select
+// //                   name="statut"
+// //                   value={formData.statut}
+// //                   onChange={handleChange}
+// //                   className="select select-bordered w-full"
+// //                   disabled={isSubmitting}
+// //                 >
+// //                   <option value="ouvert">Ouvert</option>
+// //                   <option value="en_cours">En cours</option>
+// //                   <option value="resolu">Résolu</option>
+// //                   <option value="ferme">Fermé</option>
+// //                 </select>
+// //               </div>
+// //             </div>
+
+// //             {/* Sources selon le type - SECTIONS CONDITIONNELLES */}
+// //             {formData.type_incident && (
+// //               <div className="space-y-4 pt-4 border-t border-base-300">
+// //                 <h3 className="font-semibold text-base-content">Sources concernées :</h3>
+                
+// //                 {/* Matériel concerné - TOUJOURS DISPONIBLE */}
+// //                 {availableSources.includes('materiel') && (
+// //                   <div className="form-control">
+// //                     <label className="label">
+// //                       <span className="label-text font-semibold">
+// //                         Matériel {formData.type_incident === 'materiel' && <span className="text-error">*</span>}
+// //                       </span>
+// //                     </label>
+// //                     <select
+// //                       name="materiel"
+// //                       value={formData.materiel}
+// //                       onChange={handleChange}
+// //                       className={`select select-bordered w-full ${errors.materiel ? 'select-error' : ''}`}
+// //                       disabled={isSubmitting || materiels.length === 0}
+// //                     >
+// //                       <option value={0}>Sélectionnez un matériel</option>
+// //                       {materiels.map(item => (
+// //                         <option key={item.id} value={item.id}>
+// //                           {item.nom} ({item.reference})
+// //                         </option>
+// //                       ))}
+// //                     </select>
+// //                     {errors.materiel && <span className="text-error text-sm mt-1">{errors.materiel}</span>}
+// //                     {formData.type_incident === 'materiel' && (
+// //                       <div className="text-xs text-base-content opacity-60 mt-1">
+// //                         Champ obligatoire pour les incidents matériels
+// //                       </div>
+// //                     )}
+// //                   </div>
+// //                 )}
+
+// //                 {/* Logiciel concerné - SEULEMENT POUR LOGICIEL ET MIXTE */}
+// //                 {availableSources.includes('logiciel') && (
+// //                   <div className="form-control">
+// //                     <label className="label">
+// //                       <span className="label-text font-semibold">
+// //                         Logiciel {formData.type_incident === 'logiciel' && <span className="text-error">*</span>}
+// //                       </span>
+// //                     </label>
+// //                     <select
+// //                       name="logiciel"
+// //                       value={formData.logiciel}
+// //                       onChange={handleChange}
+// //                       className={`select select-bordered w-full ${errors.logiciel ? 'select-error' : ''}`}
+// //                       disabled={isSubmitting || logiciels.length === 0}
+// //                     >
+// //                       <option value={0}>Sélectionnez un logiciel</option>
+// //                       {logiciels.map(item => (
+// //                         <option key={item.id} value={item.id}>
+// //                           {item.nom} {item.version}
+// //                         </option>
+// //                       ))}
+// //                     </select>
+// //                     {errors.logiciel && <span className="text-error text-sm mt-1">{errors.logiciel}</span>}
+// //                   </div>
+// //                 )}
+
+// //                 {/* Réseau concerné - SEULEMENT POUR RESEAU ET MIXTE */}
+// //                 {availableSources.includes('reseau') && (
+// //                   <div className="form-control">
+// //                     <label className="label">
+// //                       <span className="label-text font-semibold">
+// //                         Réseau {formData.type_incident === 'reseau' && <span className="text-error">*</span>}
+// //                       </span>
+// //                     </label>
+// //                     <select
+// //                       name="reseau"
+// //                       value={formData.reseau}
+// //                       onChange={handleChange}
+// //                       className={`select select-bordered w-full ${errors.reseau ? 'select-error' : ''}`}
+// //                       disabled={isSubmitting || reseaux.length === 0}
+// //                     >
+// //                       <option value={0}>Sélectionnez un équipement réseau</option>
+// //                       {reseaux.map(item => (
+// //                         <option key={item.id} value={item.id}>
+// //                           {item.nom_hote} ({item.adresse_ip})
+// //                         </option>
+// //                       ))}
+// //                     </select>
+// //                     {errors.reseau && <span className="text-error text-sm mt-1">{errors.reseau}</span>}
+// //                   </div>
+// //                 )}
+// //               </div>
+// //             )}
+
+// //             {/* Date et Heure de résolution */}
+// //             <div className="form-control">
+// //               <label className="label">
+// //                 <span className="label-text font-semibold">Date création :</span>
+// //               </label>
+// //               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+// //                 {/* Date */}
+// //                 <div className="form-control">
+// //                   <label className="label">
+// //                     <span className="label-text">Date :</span>
+// //                   </label>
+// //                   <div className="flex items-center gap-2">
+// //                     <div className="relative flex-1">
+// //                       <Calendar className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+// //                       <input
+// //                         type="date"
+// //                         name="date_resolution"
+// //                         value={formData.date_resolution}
+// //                         onChange={handleChange}
+// //                         className="input input-bordered w-full pl-10"
+// //                         disabled={isSubmitting}
+// //                       />
+// //                     </div>
+// //                     <button
+// //                       type="button"
+// //                       onClick={handleSetToday}
+// //                       className="btn btn-outline btn-sm whitespace-nowrap"
+// //                       disabled={isSubmitting}
+// //                     >
+// //                       Aujourd'hui
+// //                     </button>
+// //                   </div>
+// //                 </div>
+
+// //                 {/* Heure */}
+// //                 <div className="form-control">
+// //                   <label className="label">
+// //                     <span className="label-text">Heure :</span>
+// //                   </label>
+// //                   <div className="flex items-center gap-2">
+// //                     <div className="relative flex-1">
+// //                       <Clock className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+// //                       <input
+// //                         type="time"
+// //                         name="heure_resolution"
+// //                         value={formData.heure_resolution}
+// //                         onChange={handleChange}
+// //                         className="input input-bordered w-full pl-10"
+// //                         disabled={isSubmitting}
+// //                       />
+// //                     </div>
+// //                     <button
+// //                       type="button"
+// //                       onClick={handleSetNow}
+// //                       className="btn btn-outline btn-sm whitespace-nowrap"
+// //                       disabled={isSubmitting}
+// //                     >
+// //                       Maintenant
+// //                     </button>
+// //                   </div>
+// //                 </div>
+// //               </div>
+// //             </div>
+
+// //             {/* Boutons */}
+// //             <div className="flex justify-end space-x-3 pt-6 border-t border-base-300">
+// //               <button 
+// //                 type="button" 
+// //                 onClick={handleClose} 
+// //                 className="btn btn-ghost"
+// //                 disabled={isSubmitting}
+// //               >
+// //                 Annuler
+// //               </button>
+// //               <button 
+// //                 type="submit" 
+// //                 className="btn btn-primary"
+// //                 disabled={isSubmitting || users.length === 0}
+// //               >
+// //                 {isSubmitting ? (
+// //                   <span className="flex items-center gap-2">
+// //                     <Loader2 className="h-4 w-4 animate-spin" />
+// //                     {incident ? 'Modification...' : 'Création...'}
+// //                   </span>
+// //                 ) : (
+// //                   incident ? 'Modifier' : 'Créer'
+// //                 )} l'incident
+// //               </button>
+// //             </div>
+// //           </form>
+// //         )}
+// //       </div>
+// //     </div>
+// //   );
+// // };
+
+// // export default IncidentForm;
+
+
+
+
+// // // IncidentForm.tsx - Version améliorée avec interface similaire à RéparationForm
+// // import React, { useState, useEffect, useRef } from 'react';
+// // import { X, Calendar, Clock, User, AlertCircle, Loader2, Bell, AlertTriangle, Search, Monitor, Filter, Info } from 'lucide-react';
+// // import { Incident, User as UserType, Materiel, Logiciel, Reseau, Alerte } from '../types';
+// // import { materielsAPI, logicielsAPI, reseauAPI, handleApiError } from '../services/api';
+
+// // interface IncidentFormProps {
+// //   isOpen: boolean;
+// //   onClose: () => void;
+// //   onSubmit: (incidentData: any) => void;
+// //   incident?: Incident;
+// //   currentUser: UserType;
+// //   alerteSource?: Alerte;
+// //   incidentsExistant?: any[]; // Pour les incidents existants (pour éviter les doublons)
+// // }
+
+// // const IncidentForm: React.FC<IncidentFormProps> = ({
+// //   isOpen,
+// //   onClose,
+// //   onSubmit,
+// //   incident,
+// //   currentUser,
+// //   alerteSource,
+// //   incidentsExistant = []
+// // }) => {
+// //   // États du formulaire
+// //   const [formData, setFormData] = useState({
+// //     description: '',
+// //     date_resolution: '',
+// //     heure_resolution: '',
+// //     priorite: 'moyenne' as 'critique' | 'elevee' | 'moyenne' | 'basse',
+// //     statut: 'ouvert' as 'ouvert' | 'en_cours' | 'resolu' | 'ferme',
+// //     type_incident: '' as '' | 'materiel' | 'logiciel' | 'reseau' | 'mixte',
+// //     materiel: 0,
+// //     logiciel: 0,
+// //     reseau: 0,
+// //     alerte_source: 0
+// //   });
+
+// //   // États pour les données externes
+// //   const [materiels, setMateriels] = useState<Materiel[]>([]);
+// //   const [logiciels, setLogiciels] = useState<Logiciel[]>([]);
+// //   const [reseaux, setReseaux] = useState<Reseau[]>([]);
+// //   const [errors, setErrors] = useState<Record<string, string>>({});
+// //   const [isSubmitting, setIsSubmitting] = useState(false);
+// //   const [loading, setLoading] = useState(false);
+// //   const [apiErrors, setApiErrors] = useState<string[]>([]);
+// //   const [mode, setMode] = useState<'normal' | 'fromAlerte'>('normal');
+  
+// //   // États pour les filtres et sélections (comme dans RéparationForm)
+// //   const [searchTerm, setSearchTerm] = useState('');
+// //   const [filterType, setFilterType] = useState('');
+// //   const [filterEtat, setFilterEtat] = useState('');
+// //   const [selectedMateriel, setSelectedMateriel] = useState<any>(null);
+// //   const [selectedLogiciel, setSelectedLogiciel] = useState<any>(null);
+// //   const [selectedReseau, setSelectedReseau] = useState<any>(null);
+  
+// //   // Références pour éviter les boucles
+// //   const dataLoadedRef = useRef(false);
+// //   const isOpenRef = useRef(false);
+
+// //   // Fonction pour obtenir le nom affichable de l'utilisateur
+// //   const getDisplayName = (user: UserType | null) => {
+// //     if (!user) return 'Utilisateur inconnu';
+    
+// //     if (user.nom_complet) return user.nom_complet;
+// //     if (user.first_name && user.last_name) {
+// //       return `${user.first_name} ${user.last_name}`;
+// //     }
+// //     if (user.username) return user.username;
+// //     return `Utilisateur #${user.id}`;
+// //   };
+
+// //   // Fonction pour extraire les données de réponse API
+// //   const extractDataFromResponse = (response: any): any[] => {
+// //     if (!response || !response.data) return [];
+    
+// //     if (Array.isArray(response.data)) {
+// //       return response.data;
+// //     }
+    
+// //     if (response.data.results && Array.isArray(response.data.results)) {
+// //       return response.data.results;
+// //     }
+    
+// //     if (response.data.data && Array.isArray(response.data.data)) {
+// //       return response.data.data;
+// //     }
+    
+// //     if (typeof response.data === 'object' && !Array.isArray(response.data)) {
+// //       const values = Object.values(response.data);
+// //       if (values.length > 0 && values.every(v => typeof v === 'object')) {
+// //         return values as any[];
+// //       }
+// //     }
+    
+// //     if (response.results && Array.isArray(response.results)) {
+// //       return response.results;
+// //     }
+    
+// //     return [];
+// //   };
+
+// //   // Fonction pour mapper la sévérité d'alerte vers priorité d'incident
+// //   const mapSeveriteToPriorite = (severite: string): 'critique' | 'elevee' | 'moyenne' | 'basse' => {
+// //     const mapping = {
+// //       'critique': 'critique',
+// //       'elevee': 'elevee',
+// //       'moyenne': 'moyenne',
+// //       'basse': 'basse'
+// //     };
+// //     return mapping[severite as keyof typeof mapping] || 'moyenne';
+// //   };
+
+// //   // Initialiser depuis une alerte
+// //   const initFromAlerte = () => {
+// //     if (!alerteSource) return;
+    
+// //     console.log('🚨 Initialisation depuis alerte:', alerteSource);
+    
+// //     // Déterminer le type d'incident basé sur la source de l'alerte
+// //     let typeIncident: 'materiel' | 'logiciel' | 'reseau' | 'mixte' = 'mixte';
+    
+// //     if (alerteSource.materiel_id && !alerteSource.logiciel_id && !alerteSource.reseau_id) {
+// //       typeIncident = 'materiel';
+// //     } else if (alerteSource.logiciel_id && !alerteSource.materiel_id && !alerteSource.reseau_id) {
+// //       typeIncident = 'logiciel';
+// //     } else if (alerteSource.reseau_id && !alerteSource.materiel_id && !alerteSource.logiciel_id) {
+// //       typeIncident = 'reseau';
+// //     } else {
+// //       typeIncident = 'mixte';
+// //     }
+    
+// //     // Trouver les éléments correspondants
+// //     const materielCorrespondant = materiels.find(m => m.id === alerteSource.materiel_id);
+// //     const logicielCorrespondant = logiciels.find(l => l.id === alerteSource.logiciel_id);
+// //     const reseauCorrespondant = reseaux.find(r => r.id === alerteSource.reseau_id);
+    
+// //     // Préparer les données initiales
+// //     const initialData = {
+// //       description: `Incident généré depuis l'alerte: ${alerteSource.description}`,
+// //       date_resolution: new Date().toISOString().split('T')[0],
+// //       heure_resolution: new Date().toTimeString().slice(0, 5),
+// //       priorite: mapSeveriteToPriorite(alerteSource.severite),
+// //       statut: 'ouvert' as const,
+// //       type_incident: typeIncident,
+// //       materiel: alerteSource.materiel_id || 0,
+// //       logiciel: alerteSource.logiciel_id || 0,
+// //       reseau: alerteSource.reseau_id || 0,
+// //       alerte_source: alerteSource.id || 0
+// //     };
+    
+// //     setFormData(initialData);
+// //     setSelectedMateriel(materielCorrespondant);
+// //     setSelectedLogiciel(logicielCorrespondant);
+// //     setSelectedReseau(reseauCorrespondant);
+// //     setMode('fromAlerte');
+    
+// //     console.log('📝 Données initialisées depuis alerte:', initialData);
+// //   };
+
+// //   // Charger les matériels
+// //   const fetchMateriels = async () => {
+// //     try {
+// //       console.log('🔄 Chargement des matériels...');
+// //       const response = await materielsAPI.getAll();
+// //       const materielsData = extractDataFromResponse(response);
+// //       setMateriels(materielsData);
+// //     } catch (error: any) {
+// //       console.error('❌ Erreur chargement matériels:', error);
+// //     }
+// //   };
+
+// //   // Charger les logiciels
+// //   const fetchLogiciels = async () => {
+// //     try {
+// //       console.log('🔄 Chargement des logiciels...');
+// //       const response = await logicielsAPI.getAll();
+// //       const logicielsData = extractDataFromResponse(response);
+// //       setLogiciels(logicielsData);
+// //     } catch (error: any) {
+// //       console.error('❌ Erreur chargement logiciels:', error);
+// //     }
+// //   };
+
+// //   // Charger les réseaux
+// //   const fetchReseaux = async () => {
+// //     try {
+// //       console.log('🔄 Chargement des réseaux...');
+// //       const response = await reseauAPI.getAll();
+// //       const reseauxData = extractDataFromResponse(response);
+// //       setReseaux(reseauxData);
+// //     } catch (error: any) {
+// //       console.error('❌ Erreur chargement réseaux:', error);
+// //     }
+// //   };
+
+// //   // Charger toutes les données
+// //   const fetchAllData = async () => {
+// //     if (dataLoadedRef.current || !isOpen) return;
+    
+// //     setLoading(true);
+// //     setApiErrors([]);
+// //     dataLoadedRef.current = true;
+    
+// //     try {
+// //       console.log('🔄 Début du chargement de toutes les données...');
+      
+// //       // Charger en parallèle
+// //       await Promise.allSettled([
+// //         fetchMateriels(),
+// //         fetchLogiciels(),
+// //         fetchReseaux()
+// //       ]);
+      
+// //       // Initialiser le formulaire
+// //       if (alerteSource) {
+// //         initFromAlerte();
+// //       } else if (incident) {
+// //         console.log('📝 Initialisation avec incident:', incident);
+        
+// //         const materielCorrespondant = materiels.find(m => m.id === incident.materiel);
+// //         const logicielCorrespondant = logiciels.find(l => l.id === incident.logiciel);
+// //         const reseauCorrespondant = reseaux.find(r => r.id === incident.reseau);
+        
+// //         setFormData({
+// //           description: incident.description || '',
+// //           date_resolution: incident.date_resolution?.split('T')[0] || '',
+// //           heure_resolution: incident.date_resolution?.split('T')[1]?.substring(0, 5) || '',
+// //           priorite: incident.priorite || 'moyenne',
+// //           statut: incident.statut || 'ouvert',
+// //           type_incident: incident.type_incident || '',
+// //           materiel: incident.materiel || 0,
+// //           logiciel: incident.logiciel || 0,
+// //           reseau: incident.reseau || 0,
+// //           alerte_source: 0
+// //         });
+        
+// //         setSelectedMateriel(materielCorrespondant);
+// //         setSelectedLogiciel(logicielCorrespondant);
+// //         setSelectedReseau(reseauCorrespondant);
+// //       } else {
+// //         // Pour un nouvel incident
+// //         console.log('👤 Utilisateur connecté actuel:', {
+// //           id: currentUser?.id,
+// //           nom: getDisplayName(currentUser),
+// //           username: currentUser?.username
+// //         });
+        
+// //         // Définir la date et heure actuelles par défaut
+// //         const now = new Date();
+// //         const today = now.toISOString().split('T')[0];
+// //         const currentTime = now.toTimeString().slice(0, 5);
+        
+// //         setFormData(prev => ({
+// //           ...prev,
+// //           date_resolution: today,
+// //           heure_resolution: currentTime
+// //         }));
+// //       }
+      
+// //     } catch (error) {
+// //       console.error('💥 Erreur critique lors du chargement:', error);
+// //       setApiErrors(prev => [...prev, 'Erreur lors du chargement des données']);
+// //     } finally {
+// //       setLoading(false);
+// //     }
+// //   };
+
+// //   // Effet pour charger les données
+// //   useEffect(() => {
+// //     if (isOpen && !isOpenRef.current) {
+// //       isOpenRef.current = true;
+// //       dataLoadedRef.current = false;
+// //       fetchAllData();
+// //     }
+    
+// //     return () => {
+// //       if (!isOpen) {
+// //         isOpenRef.current = false;
+// //         dataLoadedRef.current = false;
+// //       }
+// //     };
+// //   }, [isOpen, incident, alerteSource]);
+
+// //   // Effet pour mettre à jour les éléments sélectionnés
+// //   useEffect(() => {
+// //     if (formData.materiel > 0) {
+// //       const materiel = materiels.find(m => m.id === formData.materiel);
+// //       setSelectedMateriel(materiel);
+// //     } else {
+// //       setSelectedMateriel(null);
+// //     }
+    
+// //     if (formData.logiciel > 0) {
+// //       const logiciel = logiciels.find(l => l.id === formData.logiciel);
+// //       setSelectedLogiciel(logiciel);
+// //     } else {
+// //       setSelectedLogiciel(null);
+// //     }
+    
+// //     if (formData.reseau > 0) {
+// //       const reseau = reseaux.find(r => r.id === formData.reseau);
+// //       setSelectedReseau(reseau);
+// //     } else {
+// //       setSelectedReseau(null);
+// //     }
+// //   }, [formData.materiel, formData.logiciel, formData.reseau, materiels, logiciels, reseaux]);
+
+// //   const resetForm = () => {
+// //     setFormData({
+// //       description: '',
+// //       date_resolution: '',
+// //       heure_resolution: '',
+// //       priorite: 'moyenne',
+// //       statut: 'ouvert',
+// //       type_incident: '',
+// //       materiel: 0,
+// //       logiciel: 0,
+// //       reseau: 0,
+// //       alerte_source: 0
+// //     });
+// //     setErrors({});
+// //     setApiErrors([]);
+// //     setMode('normal');
+// //     setSelectedMateriel(null);
+// //     setSelectedLogiciel(null);
+// //     setSelectedReseau(null);
+// //     setSearchTerm('');
+// //     setFilterType('');
+// //     setFilterEtat('');
+// //   };
+
+// //   const validateForm = () => {
+// //     const newErrors: Record<string, string> = {};
+    
+// //     if (!formData.description.trim()) {
+// //       newErrors.description = 'Description requise';
+// //     }
+    
+// //     if (!formData.type_incident) {
+// //       newErrors.type_incident = 'Type d\'incident requis';
+// //     }
+    
+// //     // Validation basée sur le type d'incident
+// //     if (formData.type_incident === 'materiel' && formData.materiel === 0) {
+// //       newErrors.materiel = 'Matériel requis pour ce type d\'incident';
+// //     }
+    
+// //     if (formData.type_incident === 'logiciel' && formData.logiciel === 0) {
+// //       newErrors.logiciel = 'Logiciel requis pour ce type d\'incident';
+// //     }
+    
+// //     if (formData.type_incident === 'reseau' && formData.reseau === 0) {
+// //       newErrors.reseau = 'Réseau requis pour ce type d\'incident';
+// //     }
+    
+// //     if (formData.type_incident === 'mixte' && formData.materiel === 0 && formData.logiciel === 0 && formData.reseau === 0) {
+// //       newErrors.type_incident = 'Au moins une source (matériel, logiciel ou réseau) est requise';
+// //     }
+    
+// //     setErrors(newErrors);
+// //     return Object.keys(newErrors).length === 0;
+// //   };
+
+// //   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+// //     const { name, value } = e.target;
+    
+// //     setFormData(prev => ({
+// //       ...prev,
+// //       [name]: name === 'materiel' || name === 'logiciel' || name === 'reseau'
+// //         ? parseInt(value) || 0 
+// //         : value
+// //     }));
+    
+// //     // Réinitialiser les champs de source selon le type
+// //     if (name === 'type_incident') {
+// //       const type = value as 'materiel' | 'logiciel' | 'reseau' | 'mixte';
+// //       setFormData(prev => ({
+// //         ...prev,
+// //         materiel: type === 'logiciel' || type === 'reseau' ? 0 : prev.materiel,
+// //         logiciel: type === 'materiel' || type === 'reseau' ? 0 : prev.logiciel,
+// //         reseau: type === 'materiel' || type === 'logiciel' ? 0 : prev.reseau
+// //       }));
+// //     }
+    
+// //     if (errors[name]) {
+// //       setErrors(prev => ({ ...prev, [name]: '' }));
+// //     }
+// //   };
+
+// //   const handleSetToday = () => {
+// //     const today = new Date().toISOString().split('T')[0];
+// //     setFormData(prev => ({ ...prev, date_resolution: today }));
+// //   };
+
+// //   const handleSetNow = () => {
+// //     const now = new Date();
+// //     const currentTime = now.toTimeString().slice(0, 5);
+// //     setFormData(prev => ({ ...prev, heure_resolution: currentTime }));
+// //   };
+
+// //   const handleSubmit = async (e: React.FormEvent) => {
+// //     e.preventDefault();
+// //     if (!validateForm()) return;
+    
+// //     setIsSubmitting(true);
+// //     setApiErrors([]);
+
+// //     try {
+// //       // L'utilisateur signaleur est TOUJOURS l'utilisateur connecté
+// //       const utilisateurSignaleurId = currentUser?.id || 0;
+      
+// //       console.log('👤 Utilisateur signaleur:', {
+// //         id: utilisateurSignaleurId,
+// //         nom: getDisplayName(currentUser),
+// //         username: currentUser?.username
+// //       });
+      
+// //       const incidentData: any = { 
+// //         description: formData.description.trim(),
+// //         priorite: formData.priorite,
+// //         statut: formData.statut,
+// //         type_incident: formData.type_incident,
+// //         utilisateur_signaleur: utilisateurSignaleurId // L'utilisateur connecté
+// //       };
+
+// //       // Ajouter la date de résolution si complète
+// //       if (formData.date_resolution && formData.heure_resolution) {
+// //         incidentData.date_resolution = `${formData.date_resolution}T${formData.heure_resolution}`;
+// //       } else if (formData.date_resolution) {
+// //         incidentData.date_resolution = `${formData.date_resolution}T00:00`;
+// //       }
+
+// //       // Ajouter les relations selon le type
+// //       if (formData.materiel > 0) incidentData.materiel = formData.materiel;
+// //       if (formData.logiciel > 0) incidentData.logiciel = formData.logiciel;
+// //       if (formData.reseau > 0) incidentData.reseau = formData.reseau;
+
+// //       // Ajouter l'alerte source si disponible
+// //       if (formData.alerte_source > 0) {
+// //         incidentData.alerte_source = formData.alerte_source;
+// //       }
+
+// //       console.log('📤 Soumission incident:', incidentData);
+// //       await onSubmit(incidentData);
+// //       onClose();
+      
+// //     } catch (error: any) {
+// //       console.error('❌ Erreur soumission:', error);
+// //       setApiErrors(prev => [...prev, handleApiError(error)]);
+// //     } finally {
+// //       setIsSubmitting(false);
+// //     }
+// //   };
+
+// //   const handleClose = () => {
+// //     if (isSubmitting) return;
+// //     resetForm();
+// //     onClose();
+// //   };
+
+// //   // Rendre les champs selon le type
+// //   const getAvailableSources = () => {
+// //     const type = formData.type_incident;
+    
+// //     switch (type) {
+// //       case 'materiel':
+// //         return ['materiel'];
+// //       case 'logiciel':
+// //         return ['materiel', 'logiciel'];
+// //       case 'reseau':
+// //         return ['materiel', 'reseau'];
+// //       case 'mixte':
+// //         return ['materiel', 'logiciel', 'reseau'];
+// //       default:
+// //         return [];
+// //     }
+// //   };
+
+// //   // Fonction pour filtrer les matériels
+// //   const getMaterielsFiltres = () => {
+// //     let filtered = [...materiels];
+
+// //     if (searchTerm) {
+// //       const searchLower = searchTerm.toLowerCase();
+// //       filtered = filtered.filter(materiel =>
+// //         (materiel.nom?.toLowerCase() || '').includes(searchLower) ||
+// //         (materiel.reference?.toLowerCase() || '').includes(searchLower) ||
+// //         (materiel.type_materiel?.toLowerCase() || '').includes(searchLower)
+// //       );
+// //     }
+
+// //     if (filterType) {
+// //       filtered = filtered.filter(materiel => materiel.type_materiel === filterType);
+// //     }
+
+// //     if (filterEtat) {
+// //       filtered = filtered.filter(materiel => materiel.etat === filterEtat);
+// //     }
+
+// //     return filtered;
+// //   };
+
+// //   // Fonction pour filtrer les logiciels
+// //   const getLogicielsFiltres = () => {
+// //     let filtered = [...logiciels];
+
+// //     if (searchTerm) {
+// //       const searchLower = searchTerm.toLowerCase();
+// //       filtered = filtered.filter(logiciel =>
+// //         (logiciel.nom?.toLowerCase() || '').includes(searchLower) ||
+// //         (logiciel.version?.toLowerCase() || '').includes(searchLower) ||
+// //         (logiciel.editeur?.toLowerCase() || '').includes(searchLower)
+// //       );
+// //     }
+
+// //     return filtered;
+// //   };
+
+// //   // Fonction pour filtrer les réseaux
+// //   const getReseauxFiltres = () => {
+// //     let filtered = [...reseaux];
+
+// //     if (searchTerm) {
+// //       const searchLower = searchTerm.toLowerCase();
+// //       filtered = filtered.filter(reseau =>
+// //         (reseau.nom_hote?.toLowerCase() || '').includes(searchLower) ||
+// //         (reseau.adresse_ip?.toLowerCase() || '').includes(searchLower) ||
+// //         (reseau.type_equipement?.toLowerCase() || '').includes(searchLower)
+// //       );
+// //     }
+
+// //     return filtered;
+// //   };
+
+// //   const availableSources = getAvailableSources();
+// //   const materielsFiltres = getMaterielsFiltres();
+// //   const logicielsFiltres = getLogicielsFiltres();
+// //   const reseauxFiltres = getReseauxFiltres();
+
+// //   if (!isOpen) return null;
+
+// //   return (
+// //     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+// //       <div className="bg-base-100 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+// //         <div className="flex justify-between items-center p-6 border-b border-base-300 sticky top-0 bg-base-100 z-10">
+// //           <div>
+// //             <h2 className="text-xl font-bold text-base-content">
+// //               {mode === 'fromAlerte' ? '📝 Créer Incident depuis Alerte' : 
+// //                incident ? 'Modifier l\'incident' : 'Nouvel Incident'}
+// //             </h2>
+// //             {mode === 'fromAlerte' && alerteSource && (
+// //               <p className="text-sm text-base-content opacity-60 mt-1">
+// //                 Généré depuis l'alerte #{alerteSource.id}
+// //               </p>
+// //             )}
+// //           </div>
+// //           <button onClick={handleClose} className="btn btn-ghost btn-sm btn-circle" disabled={isSubmitting}>
+// //             <X className="h-4 w-4" />
+// //           </button>
+// //         </div>
+
+// //         {/* Indicateur création depuis alerte */}
+// //         {mode === 'fromAlerte' && alerteSource && (
+// //           <div className="m-4 p-4 bg-info/10 border border-info/20 rounded-lg">
+// //             <div className="flex items-center gap-3">
+// //               <AlertTriangle className="h-5 w-5 text-info" />
+// //               <div className="flex-1">
+// //                 <p className="font-medium text-info">Incident créé automatiquement depuis une alerte</p>
+// //                 <p className="text-sm opacity-80 mt-1">{alerteSource.description}</p>
+// //                 <div className="flex flex-wrap gap-2 mt-2">
+// //                   <span className="badge badge-info badge-sm">
+// //                     Sévérité: {alerteSource.severite}
+// //                   </span>
+// //                   <span className="badge badge-info badge-sm">
+// //                     Type: {alerteSource.type_alerte}
+// //                   </span>
+// //                 </div>
+// //               </div>
+// //             </div>
+// //           </div>
+// //         )}
+
+// //         {/* Messages d'erreur API */}
+// //         {apiErrors.length > 0 && (
+// //           <div className="m-4">
+// //             <div className="alert alert-warning">
+// //               <AlertCircle className="h-5 w-5" />
+// //               <div className="flex flex-col gap-1">
+// //                 {apiErrors.map((error, index) => (
+// //                   <span key={index} className="text-sm">{error}</span>
+// //                 ))}
+// //               </div>
+// //             </div>
+// //           </div>
+// //         )}
+
+// //         {loading ? (
+// //           <div className="flex justify-center items-center p-12">
+// //             <div className="flex flex-col items-center gap-4">
+// //               <Loader2 className="h-8 w-8 text-primary animate-spin" />
+// //               <span className="text-base-content">Chargement des données...</span>
+// //             </div>
+// //           </div>
+// //         ) : (
+// //           <form onSubmit={handleSubmit} className="p-6 space-y-6">
+// //             {/* SECTION UTILISATEUR SIGNALEUR - TOUJOURS L'UTILISATEUR CONNECTÉ */}
+// //             <div className="bg-base-200 rounded-lg p-4 border border-base-300">
+// //               <div className="flex items-center justify-between mb-3">
+// //                 <div className="flex items-center gap-3">
+// //                   <div className="p-2 bg-primary/10 rounded-lg">
+// //                     <User className="h-5 w-5 text-primary" />
+// //                   </div>
+// //                   <div>
+// //                     <h3 className="font-semibold text-base-content">Utilisateur signaleur</h3>
+// //                     <p className="text-sm text-base-content opacity-70">
+// //                       Vous signalez cet incident en tant qu'utilisateur connecté
+// //                     </p>
+// //                   </div>
+// //                 </div>
+// //                 <div className="badge badge-success">
+// //                   Auto-désigné
+// //                 </div>
+// //               </div>
+              
+// //               {/* Affichage de l'utilisateur connecté */}
+// //               <div className="p-4 bg-base-100 rounded-lg border border-success/20">
+// //                 <div className="flex items-center gap-4">
+// //                   <div className="avatar placeholder">
+// //                     <div className="bg-primary text-primary-content rounded-full w-12">
+// //                       <span className="text-lg font-bold">
+// //                         {getDisplayName(currentUser).charAt(0).toUpperCase()}
+// //                       </span>
+// //                     </div>
+// //                   </div>
+// //                   <div className="flex-1">
+// //                     <div className="flex items-center gap-2 mb-1">
+// //                       <h4 className="font-bold text-lg text-base-content">{getDisplayName(currentUser)}</h4>
+// //                       {currentUser?.role && (
+// //                         <div className={`badge ${currentUser.role === 'admin' ? 'badge-warning' : 
+// //                                           currentUser.role === 'technicien' ? 'badge-info' : 'badge-success'}`}>
+// //                           {currentUser.role}
+// //                         </div>
+// //                       )}
+// //                     </div>
+                    
+// //                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-base-content opacity-80">
+// //                       {currentUser?.username && (
+// //                         <div className="flex items-center gap-1">
+// //                           <span className="font-medium">Identifiant:</span>
+// //                           <span>{currentUser.username}</span>
+// //                         </div>
+// //                       )}
+                      
+// //                       {currentUser?.email && (
+// //                         <div className="flex items-center gap-1">
+// //                           <span className="font-medium">Email:</span>
+// //                           <span>{currentUser.email}</span>
+// //                         </div>
+// //                       )}
+                      
+// //                       {currentUser?.departement && (
+// //                         <div className="flex items-center gap-1">
+// //                           <span className="font-medium">Département:</span>
+// //                           <span>{currentUser.departement}</span>
+// //                         </div>
+// //                       )}
+                      
+// //                       {currentUser?.telephone && (
+// //                         <div className="flex items-center gap-1">
+// //                           <span className="font-medium">Téléphone:</span>
+// //                           <span>{currentUser.telephone}</span>
+// //                         </div>
+// //                       )}
+// //                     </div>
+// //                   </div>
+// //                 </div>
+                
+// //                 <div className="mt-4 pt-3 border-t border-base-300">
+// //                   <div className="flex items-center gap-2 text-success">
+// //                     <Bell className="h-4 w-4" />
+// //                     <span className="font-medium">Information importante:</span>
+// //                   </div>
+// //                   <p className="text-sm text-base-content opacity-80 mt-1 ml-6">
+// //                     Vous êtes automatiquement désigné comme utilisateur signaleur de cet incident. 
+// //                     Cette information ne peut pas être modifiée.
+// //                   </p>
+// //                 </div>
+// //               </div>
+              
+// //               {/* Champ caché pour l'ID de l'utilisateur signaleur */}
+// //               <input
+// //                 type="hidden"
+// //                 name="utilisateur_signaleur"
+// //                 value={currentUser?.id || 0}
+// //               />
+// //             </div>
+
+// //             {/* Description */}
+// //             <div className="form-control">
+// //               <label className="label">
+// //                 <span className="label-text font-semibold">Description :</span>
+// //                 <span className="label-text-alt text-error">*</span>
+// //               </label>
+// //               <textarea
+// //                 name="description"
+// //                 value={formData.description}
+// //                 onChange={handleChange}
+// //                 className={`textarea textarea-bordered h-32 ${errors.description ? 'textarea-error' : ''}`}
+// //                 placeholder="Décrivez l'incident en détails..."
+// //                 disabled={isSubmitting}
+// //               />
+// //               {errors.description && <span className="text-error text-sm mt-1">{errors.description}</span>}
+// //             </div>
+
+// //             {/* Type d'incident */}
+// //             <div className="form-control">
+// //               <label className="label">
+// //                 <span className="label-text font-semibold">Type incident :</span>
+// //                 <span className="label-text-alt text-error">*</span>
+// //               </label>
+// //               <select
+// //                 name="type_incident"
+// //                 value={formData.type_incident}
+// //                 onChange={handleChange}
+// //                 className={`select select-bordered w-full ${errors.type_incident ? 'select-error' : ''}`}
+// //                 disabled={isSubmitting}
+// //               >
+// //                 <option value="">---------</option>
+// //                 <option value="materiel">Matériel</option>
+// //                 <option value="logiciel">Logiciel</option>
+// //                 <option value="reseau">Réseau</option>
+// //                 <option value="mixte">Mixte</option>
+// //               </select>
+// //               {errors.type_incident && <span className="text-error text-sm mt-1">{errors.type_incident}</span>}
+// //               <div className="text-xs text-base-content opacity-60 mt-1">
+// //                 Champs disponibles selon le type :
+// //                 {formData.type_incident === 'materiel' && ' Matériel uniquement'}
+// //                 {formData.type_incident === 'logiciel' && ' Matériel + Logiciel'}
+// //                 {formData.type_incident === 'reseau' && ' Matériel + Réseau'}
+// //                 {formData.type_incident === 'mixte' && ' Tous les champs'}
+// //               </div>
+// //             </div>
+
+// //             {/* Priorité et Statut */}
+// //             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+// //               <div className="form-control">
+// //                 <label className="label">
+// //                   <span className="label-text font-semibold">Priorité :</span>
+// //                 </label>
+// //                 <select
+// //                   name="priorite"
+// //                   value={formData.priorite}
+// //                   onChange={handleChange}
+// //                   className="select select-bordered w-full"
+// //                   disabled={isSubmitting}
+// //                 >
+// //                   <option value="basse">Basse</option>
+// //                   <option value="moyenne">Moyenne</option>
+// //                   <option value="elevee">Élevée</option>
+// //                   <option value="critique">Critique</option>
+// //                 </select>
+// //               </div>
+
+// //               <div className="form-control">
+// //                 <label className="label">
+// //                   <span className="label-text font-semibold">Statut :</span>
+// //                 </label>
+// //                 <select
+// //                   name="statut"
+// //                   value={formData.statut}
+// //                   onChange={handleChange}
+// //                   className="select select-bordered w-full"
+// //                   disabled={isSubmitting}
+// //                 >
+// //                   <option value="ouvert">Ouvert</option>
+// //                   <option value="en_cours">En cours</option>
+// //                   <option value="resolu">Résolu</option>
+// //                   <option value="ferme">Fermé</option>
+// //                 </select>
+// //               </div>
+// //             </div>
+
+// //             {/* Sources selon le type - AVEC FILTRES COMME DANS REPARATION */}
+// //             {formData.type_incident && (
+// //               <div className="space-y-4 pt-4 border-t border-base-300">
+// //                 <h3 className="font-semibold text-base-content mb-2">Sources concernées :</h3>
+                
+// //                 {/* Filtres pour les sources */}
+// //                 <div className="border rounded-lg p-4 bg-base-200">
+// //                   <h4 className="font-semibold text-base-content mb-3 flex items-center gap-2">
+// //                     <Filter className="h-5 w-5 text-primary" />
+// //                     Filtres de recherche
+// //                   </h4>
+// //                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+// //                     <div className="form-control">
+// //                       <label className="label">
+// //                         <span className="label-text">🔍 Recherche</span>
+// //                       </label>
+// //                       <div className="relative">
+// //                         <Search className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+// //                         <input
+// //                           type="text"
+// //                           placeholder="Nom, référence, IP..."
+// //                           className="input input-bordered w-full pl-10"
+// //                           value={searchTerm}
+// //                           onChange={(e) => setSearchTerm(e.target.value)}
+// //                         />
+// //                       </div>
+// //                     </div>
+
+// //                     {availableSources.includes('materiel') && (
+// //                       <div className="form-control">
+// //                         <label className="label">
+// //                           <span className="label-text">📦 Type matériel</span>
+// //                         </label>
+// //                         <select
+// //                           className="select select-bordered w-full"
+// //                           value={filterType}
+// //                           onChange={(e) => setFilterType(e.target.value)}
+// //                         >
+// //                           <option value="">Tous les types</option>
+// //                           <option value="ordinateur">Ordinateur</option>
+// //                           <option value="imprimante">Imprimante</option>
+// //                           <option value="serveur">Serveur</option>
+// //                           <option value="ecran">Écran</option>
+// //                           <option value="peripherique">Périphérique</option>
+// //                         </select>
+// //                       </div>
+// //                     )}
+
+// //                     {availableSources.includes('materiel') && (
+// //                       <div className="form-control">
+// //                         <label className="label">
+// //                           <span className="label-text">⚡ État</span>
+// //                         </label>
+// //                         <select
+// //                           className="select select-bordered w-full"
+// //                           value={filterEtat}
+// //                           onChange={(e) => setFilterEtat(e.target.value)}
+// //                         >
+// //                           <option value="">Tous les états</option>
+// //                           <option value="fonctionnel">Fonctionnel</option>
+// //                           <option value="en_panne">En panne</option>
+// //                           <option value="maintenance">En maintenance</option>
+// //                           <option value="hors_service">Hors service</option>
+// //                         </select>
+// //                       </div>
+// //                     )}
+// //                   </div>
+// //                 </div>
+
+// //                 {/* Matériel concerné */}
+// //                 {availableSources.includes('materiel') && (
+// //                   <div className="form-control">
+// //                     <label className="label">
+// //                       <span className="label-text font-semibold">
+// //                         Matériel {formData.type_incident === 'materiel' && <span className="text-error">*</span>}
+// //                       </span>
+// //                       <span className="label-text-alt">
+// //                         {materielsFiltres.length} / {materiels.length} matériel(s)
+// //                       </span>
+// //                     </label>
+                    
+// //                     {materiels.length === 0 ? (
+// //                       <div className="alert alert-warning">
+// //                         <AlertCircle className="h-4 w-4" />
+// //                         <div>
+// //                           <p className="font-medium">Aucun matériel disponible</p>
+// //                           <p className="text-sm">Veuillez d'abord créer des matériels dans le système</p>
+// //                         </div>
+// //                       </div>
+// //                     ) : materielsFiltres.length === 0 ? (
+// //                       <div className="alert alert-info">
+// //                         <AlertCircle className="h-4 w-4" />
+// //                         <div>
+// //                           <p className="font-medium">Aucun matériel ne correspond aux filtres</p>
+// //                           <p className="text-sm">Modifiez vos critères de recherche</p>
+// //                         </div>
+// //                       </div>
+// //                     ) : (
+// //                       <div className="space-y-2 max-h-60 overflow-y-auto">
+// //                         {materielsFiltres.map((materiel) => (
+// //                           <div 
+// //                             key={materiel.id}
+// //                             className={`p-4 rounded-lg border ${formData.materiel === materiel.id ? 'border-primary bg-primary/10' : 'border-base-300'} cursor-pointer hover:bg-base-200 transition-colors`}
+// //                             onClick={() => setFormData(prev => ({ 
+// //                               ...prev, 
+// //                               materiel: materiel.id 
+// //                             }))}
+// //                           >
+// //                             <div className="flex items-start gap-3">
+// //                               <input
+// //                                 type="radio"
+// //                                 name="materiel_select"
+// //                                 checked={formData.materiel === materiel.id}
+// //                                 onChange={() => setFormData(prev => ({ 
+// //                                   ...prev, 
+// //                                   materiel: materiel.id 
+// //                                 }))}
+// //                                 className="radio radio-sm radio-primary mt-1"
+// //                               />
+// //                               <div className="flex-1">
+// //                                 <div className="flex justify-between items-start mb-2">
+// //                                   <div>
+// //                                     <span className="font-bold text-lg">{materiel.nom}</span>
+// //                                     <div className="flex gap-2 mt-1">
+// //                                       <span className="badge badge-outline">
+// //                                         {materiel.type_materiel || 'Non spécifié'}
+// //                                       </span>
+// //                                       <span className={`badge ${materiel.etat === 'en_panne' ? 'badge-error' : 
+// //                                                           materiel.etat === 'fonctionnel' ? 'badge-success' : 'badge-warning'}`}>
+// //                                         {materiel.etat || 'Non spécifié'}
+// //                                       </span>
+// //                                     </div>
+// //                                   </div>
+// //                                   <div className="text-xs text-gray-500">
+// //                                     Réf: {materiel.reference || 'N/A'}
+// //                                   </div>
+// //                                 </div>
+                                
+// //                                 <p className="text-sm text-gray-700 mb-2">
+// //                                   {materiel.description || 'Pas de description disponible'}
+// //                                 </p>
+                                
+// //                                 <div className="bg-base-200 p-2 rounded text-sm">
+// //                                   <div className="flex items-center gap-2">
+// //                                     <Monitor className="h-4 w-4 text-primary" />
+// //                                     <span className="font-medium">Localisation: </span>
+// //                                     <span>{materiel.localisation || 'Non spécifiée'}</span>
+// //                                   </div>
+// //                                 </div>
+// //                               </div>
+// //                             </div>
+// //                           </div>
+// //                         ))}
+// //                       </div>
+// //                     )}
+                    
+// //                     {errors.materiel && <span className="text-error text-sm mt-1">{errors.materiel}</span>}
+                    
+// //                     {/* Information sur le matériel sélectionné */}
+// //                     {selectedMateriel && (
+// //                       <div className="mt-4 p-4 bg-base-200 rounded-lg border border-primary/20">
+// //                         <h4 className="font-semibold text-base-content mb-3 flex items-center gap-2">
+// //                           <Monitor className="h-5 w-5 text-primary" />
+// //                           Matériel sélectionné
+// //                         </h4>
+// //                         <div className="space-y-2">
+// //                           <div className="grid grid-cols-2 gap-4">
+// //                             <div>
+// //                               <span className="font-medium">Nom: </span>
+// //                               <span className="text-gray-700 font-bold">{selectedMateriel.nom}</span>
+// //                             </div>
+// //                             <div>
+// //                               <span className="font-medium">Référence: </span>
+// //                               <span className="text-gray-700">{selectedMateriel.reference || 'N/A'}</span>
+// //                             </div>
+// //                             <div>
+// //                               <span className="font-medium">Type: </span>
+// //                               <span className="text-gray-700">{selectedMateriel.type_materiel || 'N/A'}</span>
+// //                             </div>
+// //                             <div>
+// //                               <span className="font-medium">État: </span>
+// //                               <span className={`badge ${selectedMateriel.etat === 'en_panne' ? 'badge-error' : 
+// //                                                   selectedMateriel.etat === 'fonctionnel' ? 'badge-success' : 'badge-warning'}`}>
+// //                                 {selectedMateriel.etat || 'N/A'}
+// //                               </span>
+// //                             </div>
+// //                           </div>
+// //                           {selectedMateriel.description && (
+// //                             <div>
+// //                               <span className="font-medium">Description: </span>
+// //                               <p className="text-gray-700 mt-1">{selectedMateriel.description}</p>
+// //                             </div>
+// //                           )}
+// //                         </div>
+// //                       </div>
+// //                     )}
+// //                   </div>
+// //                 )}
+
+// //                 {/* Logiciel concerné */}
+// //                 {availableSources.includes('logiciel') && (
+// //                   <div className="form-control">
+// //                     <label className="label">
+// //                       <span className="label-text font-semibold">
+// //                         Logiciel {formData.type_incident === 'logiciel' && <span className="text-error">*</span>}
+// //                       </span>
+// //                       <span className="label-text-alt">
+// //                         {logicielsFiltres.length} / {logiciels.length} logiciel(s)
+// //                       </span>
+// //                     </label>
+                    
+// //                     {logiciels.length === 0 ? (
+// //                       <div className="alert alert-warning">
+// //                         <AlertCircle className="h-4 w-4" />
+// //                         <div>
+// //                           <p className="font-medium">Aucun logiciel disponible</p>
+// //                           <p className="text-sm">Veuillez d'abord créer des logiciels dans le système</p>
+// //                         </div>
+// //                       </div>
+// //                     ) : logicielsFiltres.length === 0 ? (
+// //                       <div className="alert alert-info">
+// //                         <AlertCircle className="h-4 w-4" />
+// //                         <div>
+// //                           <p className="font-medium">Aucun logiciel ne correspond aux filtres</p>
+// //                           <p className="text-sm">Modifiez vos critères de recherche</p>
+// //                         </div>
+// //                       </div>
+// //                     ) : (
+// //                       <select
+// //                         name="logiciel"
+// //                         value={formData.logiciel}
+// //                         onChange={handleChange}
+// //                         className={`select select-bordered w-full ${errors.logiciel ? 'select-error' : ''}`}
+// //                         disabled={isSubmitting}
+// //                       >
+// //                         <option value={0}>Sélectionnez un logiciel</option>
+// //                         {logicielsFiltres.map(item => (
+// //                           <option key={item.id} value={item.id}>
+// //                             {item.nom} {item.version}
+// //                           </option>
+// //                         ))}
+// //                       </select>
+// //                     )}
+// //                     {errors.logiciel && <span className="text-error text-sm mt-1">{errors.logiciel}</span>}
+// //                   </div>
+// //                 )}
+
+// //                 {/* Réseau concerné */}
+// //                 {availableSources.includes('reseau') && (
+// //                   <div className="form-control">
+// //                     <label className="label">
+// //                       <span className="label-text font-semibold">
+// //                         Réseau {formData.type_incident === 'reseau' && <span className="text-error">*</span>}
+// //                       </span>
+// //                       <span className="label-text-alt">
+// //                         {reseauxFiltres.length} / {reseaux.length} équipement(s)
+// //                       </span>
+// //                     </label>
+                    
+// //                     {reseaux.length === 0 ? (
+// //                       <div className="alert alert-warning">
+// //                         <AlertCircle className="h-4 w-4" />
+// //                         <div>
+// //                           <p className="font-medium">Aucun équipement réseau disponible</p>
+// //                           <p className="text-sm">Veuillez d'abord créer des équipements réseau</p>
+// //                         </div>
+// //                       </div>
+// //                     ) : reseauxFiltres.length === 0 ? (
+// //                       <div className="alert alert-info">
+// //                         <AlertCircle className="h-4 w-4" />
+// //                         <div>
+// //                           <p className="font-medium">Aucun équipement ne correspond aux filtres</p>
+// //                           <p className="text-sm">Modifiez vos critères de recherche</p>
+// //                         </div>
+// //                       </div>
+// //                     ) : (
+// //                       <select
+// //                         name="reseau"
+// //                         value={formData.reseau}
+// //                         onChange={handleChange}
+// //                         className={`select select-bordered w-full ${errors.reseau ? 'select-error' : ''}`}
+// //                         disabled={isSubmitting}
+// //                       >
+// //                         <option value={0}>Sélectionnez un équipement réseau</option>
+// //                         {reseauxFiltres.map(item => (
+// //                           <option key={item.id} value={item.id}>
+// //                             {item.nom_hote} ({item.adresse_ip})
+// //                           </option>
+// //                         ))}
+// //                       </select>
+// //                     )}
+// //                     {errors.reseau && <span className="text-error text-sm mt-1">{errors.reseau}</span>}
+// //                   </div>
+// //                 )}
+// //               </div>
+// //             )}
+
+// //             {/* Date et Heure */}
+// //             <div className="form-control">
+// //               <label className="label">
+// //                 <span className="label-text font-semibold">Date et heure :</span>
+// //               </label>
+// //               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+// //                 {/* Date */}
+// //                 <div className="form-control">
+// //                   <label className="label">
+// //                     <span className="label-text">Date :</span>
+// //                   </label>
+// //                   <div className="flex items-center gap-2">
+// //                     <div className="relative flex-1">
+// //                       <Calendar className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+// //                       <input
+// //                         type="date"
+// //                         name="date_resolution"
+// //                         value={formData.date_resolution}
+// //                         onChange={handleChange}
+// //                         className="input input-bordered w-full pl-10"
+// //                         disabled={isSubmitting}
+// //                       />
+// //                     </div>
+// //                     <button
+// //                       type="button"
+// //                       onClick={handleSetToday}
+// //                       className="btn btn-outline btn-sm whitespace-nowrap"
+// //                       disabled={isSubmitting}
+// //                     >
+// //                       Aujourd'hui
+// //                     </button>
+// //                   </div>
+// //                 </div>
+
+// //                 {/* Heure */}
+// //                 <div className="form-control">
+// //                   <label className="label">
+// //                     <span className="label-text">Heure :</span>
+// //                   </label>
+// //                   <div className="flex items-center gap-2">
+// //                     <div className="relative flex-1">
+// //                       <Clock className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+// //                       <input
+// //                         type="time"
+// //                         name="heure_resolution"
+// //                         value={formData.heure_resolution}
+// //                         onChange={handleChange}
+// //                         className="input input-bordered w-full pl-10"
+// //                         disabled={isSubmitting}
+// //                       />
+// //                     </div>
+// //                     <button
+// //                       type="button"
+// //                       onClick={handleSetNow}
+// //                       className="btn btn-outline btn-sm whitespace-nowrap"
+// //                       disabled={isSubmitting}
+// //                     >
+// //                       Maintenant
+// //                     </button>
+// //                   </div>
+// //                 </div>
+// //               </div>
+// //             </div>
+
+// //             {/* Boutons */}
+// //             <div className="flex justify-end space-x-3 pt-6 border-t border-base-300">
+// //               <button 
+// //                 type="button" 
+// //                 onClick={handleClose} 
+// //                 className="btn btn-ghost"
+// //                 disabled={isSubmitting}
+// //               >
+// //                 Annuler
+// //               </button>
+// //               <button 
+// //                 type="submit" 
+// //                 className="btn btn-primary"
+// //                 disabled={isSubmitting}
+// //               >
+// //                 {isSubmitting ? (
+// //                   <span className="flex items-center gap-2">
+// //                     <Loader2 className="h-4 w-4 animate-spin" />
+// //                     {incident ? 'Modification...' : 'Création...'}
+// //                   </span>
+// //                 ) : (
+// //                   incident ? 'Modifier' : 'Créer'
+// //                 )} l'incident
+// //               </button>
+// //             </div>
+// //           </form>
+// //         )}
+// //       </div>
+// //     </div>
+// //   );
+// // };
+
+// // export default IncidentForm;
+
+
+
+
+
+
+
+
+
+
+
+// // IncidentForm.tsx - Version corrigée avec récupération automatique du nom du matériel
+// import React, { useState, useEffect, useRef } from 'react';
+// import { X, Calendar, Clock, User, AlertCircle, Loader2, AlertTriangle, Wrench, Info, Cpu, Monitor, HardDrive, Search } from 'lucide-react';
+// import { Incident, User as UserType, Materiel, Alerte } from '../types';
+// import { materielsAPI, handleApiError } from '../services/api';
+
+// interface IncidentFormProps {
+//   isOpen: boolean;
+//   onClose: () => void;
+//   onSubmit: (incidentData: any) => void;
+//   incident?: Incident;
+//   currentUser: UserType;
+//   alerteSource?: Alerte;
+//   materielSource?: Materiel;
+//   alertes?: Alerte[];        // Ajouté pour la sélection d'alertes
+//   materiels?: Materiel[];    // Ajouté pour la sélection de matériels
+// }
+
+// // Fonction pour extraire les données de la réponse API
+// const extractDataFromResponse = (response: any): any[] => {
+//   if (!response) return [];
+  
+//   if (Array.isArray(response)) return response;
+  
+//   if (response.data !== undefined) {
+//     if (Array.isArray(response.data)) return response.data;
+    
+//     if (response.data.results && Array.isArray(response.data.results)) {
+//       return response.data.results;
+//     }
+    
+//     if (response.data.data && Array.isArray(response.data.data)) {
+//       return response.data.data;
+//     }
+    
+//     if (typeof response.data === 'object' && !Array.isArray(response.data)) {
+//       return [response.data];
+//     }
+//   }
+  
+//   if (response.results && Array.isArray(response.results)) {
+//     return response.results;
+//   }
+  
+//   return [];
+// };
+
+// // Fonction pour vérifier si un matériel est en panne
+// const isMaterielEnPanne = (materiel: any): boolean => {
+//   if (!materiel) return false;
+  
+//   const etat = (materiel.etat || '').toLowerCase().trim();
+//   const statut = (materiel.statut || '').toLowerCase().trim();
+  
+//   const etatsPanne = [
+//     'en_panne',
+//     'en panne',
+//     'panne',
+//     'broken',
+//     'out of order',
+//     'hors service',
+//     'defective',
+//     'faulty',
+//     'défectueux',
+//     'ne fonctionne pas'
+//   ];
+  
+//   return etatsPanne.some(panneEtat => 
+//     etat.includes(panneEtat) || statut.includes(panneEtat)
+//   );
+// };
+
+// const IncidentForm: React.FC<IncidentFormProps> = ({
+//   isOpen,
+//   onClose,
+//   onSubmit,
+//   incident,
+//   currentUser,
+//   alerteSource,
+//   materielSource,
+//   alertes = [],
+//   materiels = []
+// }) => {
+//   // Déterminer automatiquement le mode
+//   const getMode = () => {
+//     if (alerteSource) return 'fromAlerte';
+//     if (materielSource) return 'fromMateriel';
+//     return 'normal';
+//   };
+
+//   // États du formulaire
+//   const [formData, setFormData] = useState({
+//     description: '',
+//     date_resolution: '',
+//     heure_resolution: '',
+//     priorite: 'moyenne' as 'critique' | 'elevee' | 'moyenne' | 'basse',
+//     statut: 'ouvert' as 'ouvert' | 'en_cours' | 'resolu' | 'ferme',
+//     materiel: 0,
+//     alerte_source: 0,
+//     source: 'manuel' as 'manuel' | 'dashboard' | 'alerte' | 'automatique',
+//     type_incident: 'materiel' as 'materiel' | 'logiciel' | 'reseau' | 'mixte'
+//   });
+
+//   // États pour les données
+//   const [allMateriels, setAllMateriels] = useState<Materiel[]>([]);
+//   const [materielsEnPanne, setMaterielsEnPanne] = useState<Materiel[]>([]);
+//   const [filteredAlertes, setFilteredAlertes] = useState<Alerte[]>([]);
+//   const [errors, setErrors] = useState<Record<string, string>>({});
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+//   const [loading, setLoading] = useState(false);
+//   const [apiErrors, setApiErrors] = useState<string[]>([]);
+//   const [selectedMaterielDetails, setSelectedMaterielDetails] = useState<Materiel | null>(null);
+//   const [selectedAlerteDetails, setSelectedAlerteDetails] = useState<Alerte | null>(null);
+  
+//   // Filtres de recherche
+//   const [searchMateriel, setSearchMateriel] = useState('');
+//   const [searchAlerte, setSearchAlerte] = useState('');
+  
+//   // Références
+//   const dataLoadedRef = useRef(false);
+//   const isOpenRef = useRef(false);
+//   const mode = getMode();
+
+//   // Fonction pour générer une description automatique
+//   const generateDescriptionFromMateriel = (materiel: Materiel | null | undefined): string => {
+//     if (!materiel) return '';
+    
+//     const nom = materiel.nom || materiel.reference || `Matériel #${materiel.id}`;
+//     const etat = materiel.etat || 'en panne';
+//     const service = materiel.service_attribue || 'Non spécifié';
+    
+//     const isPanne = isMaterielEnPanne(materiel);
+    
+//     // Détecter le type de problème
+//     let typeProbleme = 'Problème';
+//     if (etat.toLowerCase().includes('écran')) typeProbleme = 'Problème d\'écran';
+//     else if (etat.toLowerCase().includes('clavier')) typeProbleme = 'Problème de clavier';
+//     else if (etat.toLowerCase().includes('souris')) typeProbleme = 'Problème de souris';
+//     else if (etat.toLowerCase().includes('réseau')) typeProbleme = 'Problème réseau';
+//     else if (etat.toLowerCase().includes('batterie')) typeProbleme = 'Problème de batterie';
+//     else if (etat.toLowerCase().includes('alimentation')) typeProbleme = 'Problème d\'alimentation';
+    
+//     const emplacement = materiel.emplacement || 'Local inconnu';
+    
+//     if (mode === 'fromAlerte' && selectedAlerteDetails) {
+//       return `🚨 INCIDENT CRITIQUE - ${selectedAlerteDetails.description}`;
+//     }
+    
+//     if (mode === 'fromMateriel') {
+//       return `${isPanne ? '🚨 ' : ''}${typeProbleme} sur ${nom} (${service}). État: ${etat}. Localisation: ${emplacement}.`;
+//     }
+    
+//     if (isPanne) {
+//       return `🚨 PANNE MATÉRIEL - ${nom} est ${etat}. Service: ${service}. Localisation: ${emplacement}. Nécessite intervention.`;
+//     }
+    
+//     return `Incident sur ${nom}. Service: ${service}. État: ${etat}. Localisation: ${emplacement}.`;
+//   };
+
+//   // Charger tous les matériels
+//   const fetchAllMateriels = async () => {
+//     try {
+//       console.log('🔄 Chargement de tous les matériels...');
+//       const response = await materielsAPI.getAll();
+//       const allMateriels = extractDataFromResponse(response);
+      
+//       // Filtrer les matériels en panne
+//       const materielsPanne = allMateriels.filter(materiel => 
+//         isMaterielEnPanne(materiel)
+//       );
+      
+//       console.log(`✅ ${allMateriels.length} matériels chargés, ${materielsPanne.length} en panne`);
+//       setAllMateriels(allMateriels);
+//       setMaterielsEnPanne(materielsPanne);
+      
+//       // Si nous avons des matériels passés en props, les ajouter
+//       if (materiels.length > 0) {
+//         setAllMateriels(prev => {
+//           const uniqueMateriels = [...prev];
+//           materiels.forEach(materiel => {
+//             if (!uniqueMateriels.some(m => m.id === materiel.id)) {
+//               uniqueMateriels.push(materiel);
+//             }
+//           });
+//           return uniqueMateriels;
+//         });
+//       }
+      
+//     } catch (error: any) {
+//       console.error('❌ Erreur chargement matériels:', error);
+//       setApiErrors(prev => [...prev, 'Impossible de charger les matériels']);
+//     }
+//   };
+
+//   // Initialiser les alertes
+//   const initializeAlertes = () => {
+//     // Filtrer les alertes critiques et nouvelles/en traitement
+//     const alertesFiltrees = alertes.filter(alerte => 
+//       alerte.severite === 'critique' && 
+//       (alerte.statut === 'nouvelle' || alerte.statut === 'en_traitement')
+//     );
+    
+//     setFilteredAlertes(alertesFiltrees);
+//     console.log(`✅ ${alertesFiltrees.length} alertes critiques disponibles`);
+//   };
+
+//   // Initialiser le formulaire selon le scénario
+//   const initializeForm = () => {
+//     console.log(`🎯 Initialisation - Mode: ${mode}`);
+    
+//     let initialSource: 'manuel' | 'dashboard' | 'alerte' | 'automatique' = 'manuel';
+//     let initialMaterielId = 0;
+//     let initialAlerteId = 0;
+//     let initialDescription = '';
+//     let initialPriorite: 'critique' | 'elevee' | 'moyenne' | 'basse' = 'moyenne';
+//     let initialStatut: 'ouvert' | 'en_cours' | 'resolu' | 'ferme' = 'ouvert';
+
+//     // SCÉNARIO 2 : Depuis alerte
+//     if (mode === 'fromAlerte' && alerteSource) {
+//       console.log('🚨 SCÉNARIO 2 : Depuis alerte critique');
+      
+//       // Vérifications
+//       if (alerteSource.severite !== 'critique') {
+//         setApiErrors(prev => [...prev, 'Seules les alertes critiques peuvent créer des incidents']);
+//         return;
+//       }
+      
+//       if (alerteSource.statut !== 'nouvelle' && alerteSource.statut !== 'en_traitement') {
+//         setApiErrors(prev => [...prev, 'Seules les alertes "nouvelle" ou "en_traitement" peuvent créer des incidents']);
+//         return;
+//       }
+      
+//       initialSource = 'alerte';
+//       initialAlerteId = alerteSource.id || 0;
+//       initialMaterielId = alerteSource.materiel_id || 0;
+//       initialPriorite = 'critique';
+//       initialStatut = alerteSource.statut === 'en_traitement' ? 'en_cours' : 'ouvert';
+//       initialDescription = `🚨 INCIDENT CRITIQUE - ${alerteSource.description}`;
+      
+//       setSelectedAlerteDetails(alerteSource);
+//     }
+    
+//     // SCÉNARIO 3 : Depuis matériel
+//     else if (mode === 'fromMateriel' && materielSource) {
+//       console.log('🖥️ SCÉNARIO 3 : Depuis matériel');
+      
+//       initialSource = 'dashboard';
+//       initialMaterielId = materielSource.id || 0;
+//       initialDescription = generateDescriptionFromMateriel(materielSource);
+//       initialPriorite = isMaterielEnPanne(materielSource) ? 'critique' : 'moyenne';
+//       initialStatut = 'ouvert';
+      
+//       setSelectedMaterielDetails(materielSource);
+//     }
+    
+//     // SCÉNARIO 1 : Édition
+//     else if (incident) {
+//       console.log('📝 Mode édition');
+      
+//       initialMaterielId = incident.materiel || 0;
+//       initialAlerteId = incident.alerte_id || 0;
+//       initialDescription = incident.description || '';
+//       initialPriorite = incident.priorite || 'moyenne';
+//       initialStatut = incident.statut || 'ouvert';
+//       initialSource = incident.source as any || 'manuel';
+//     }
+
+//     setFormData({
+//       description: initialDescription,
+//       date_resolution: new Date().toISOString().split('T')[0],
+//       heure_resolution: new Date().toTimeString().slice(0, 5),
+//       priorite: initialPriorite,
+//       statut: initialStatut,
+//       materiel: initialMaterielId,
+//       alerte_source: initialAlerteId,
+//       source: initialSource,
+//       type_incident: 'materiel'
+//     });
+    
+//     // Mettre à jour les détails du matériel si nécessaire
+//     if (initialMaterielId > 0) {
+//       updateSelectedMaterielDetails(initialMaterielId);
+//     }
+    
+//     // Mettre à jour les détails de l'alerte si nécessaire
+//     if (initialAlerteId > 0) {
+//       updateSelectedAlerteDetails(initialAlerteId);
+//     }
+//   };
+
+//   // Mettre à jour les détails du matériel sélectionné
+//   const updateSelectedMaterielDetails = (materielId: number) => {
+//     if (materielId === 0) {
+//       setSelectedMaterielDetails(null);
+//       return;
+//     }
+    
+//     // Chercher d'abord dans les matériels en panne
+//     const foundMateriel = materielsEnPanne.find(m => m.id === materielId);
+//     if (foundMateriel) {
+//       setSelectedMaterielDetails(foundMateriel);
+//       return;
+//     }
+    
+//     // Sinon chercher dans tous les matériels
+//     const foundInAll = allMateriels.find(m => m.id === materielId);
+//     if (foundInAll) {
+//       setSelectedMaterielDetails(foundInAll);
+//     } else {
+//       setSelectedMaterielDetails(null);
+//     }
+//   };
+
+//   // Mettre à jour les détails de l'alerte sélectionnée
+//   const updateSelectedAlerteDetails = (alerteId: number) => {
+//     if (alerteId === 0) {
+//       setSelectedAlerteDetails(null);
+//       return;
+//     }
+    
+//     const foundAlerte = filteredAlertes.find(a => a.id === alerteId);
+//     if (foundAlerte) {
+//       setSelectedAlerteDetails(foundAlerte);
+      
+//       // Si l'alerte a un matériel associé, le sélectionner automatiquement
+//       if (foundAlerte.materiel_id && formData.materiel === 0) {
+//         setFormData(prev => ({
+//           ...prev,
+//           materiel: foundAlerte.materiel_id
+//         }));
+//         updateSelectedMaterielDetails(foundAlerte.materiel_id);
+//       }
+//     } else {
+//       setSelectedAlerteDetails(null);
+//     }
+//   };
+
+//   // Filtrer les matériels par recherche
+//   const getFilteredMateriels = () => {
+//     let filtered = materielsEnPanne.length > 0 ? materielsEnPanne : allMateriels;
+    
+//     if (searchMateriel) {
+//       const searchLower = searchMateriel.toLowerCase();
+//       filtered = filtered.filter(materiel => 
+//         (materiel.nom?.toLowerCase() || '').includes(searchLower) ||
+//         (materiel.reference?.toLowerCase() || '').includes(searchLower) ||
+//         (materiel.service_attribue?.toLowerCase() || '').includes(searchLower)
+//       );
+//     }
+    
+//     return filtered;
+//   };
+
+//   // Filtrer les alertes par recherche
+//   const getFilteredAlertes = () => {
+//     let filtered = filteredAlertes;
+    
+//     if (searchAlerte) {
+//       const searchLower = searchAlerte.toLowerCase();
+//       filtered = filtered.filter(alerte => 
+//         (alerte.description?.toLowerCase() || '').includes(searchLower)
+//       );
+//     }
+    
+//     return filtered;
+//   };
+
+//   // Charger les données
+//   const loadData = async () => {
+//     if (dataLoadedRef.current || !isOpen) return;
+    
+//     setLoading(true);
+//     setApiErrors([]);
+//     dataLoadedRef.current = true;
+    
+//     try {
+//       // Charger les matériels
+//       await fetchAllMateriels();
+      
+//       // Initialiser les alertes
+//       initializeAlertes();
+      
+//       // Initialiser le formulaire
+//       initializeForm();
+      
+//     } catch (error) {
+//       console.error('💥 Erreur chargement:', error);
+//       setApiErrors(prev => [...prev, 'Erreur lors du chargement des données']);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   // Effets
+//   useEffect(() => {
+//     if (isOpen && !isOpenRef.current) {
+//       isOpenRef.current = true;
+//       dataLoadedRef.current = false;
+//       loadData();
+//     }
+    
+//     if (!isOpen) {
+//       isOpenRef.current = false;
+//       dataLoadedRef.current = false;
+//     }
+//   }, [isOpen]);
+
+//   // Réinitialiser le formulaire
+//   const resetForm = () => {
+//     setFormData({
+//       description: '',
+//       date_resolution: '',
+//       heure_resolution: '',
+//       priorite: 'moyenne',
+//       statut: 'ouvert',
+//       materiel: 0,
+//       alerte_source: 0,
+//       source: 'manuel',
+//       type_incident: 'materiel'
+//     });
+//     setErrors({});
+//     setApiErrors([]);
+//     setAllMateriels([]);
+//     setMaterielsEnPanne([]);
+//     setFilteredAlertes([]);
+//     setSelectedMaterielDetails(null);
+//     setSelectedAlerteDetails(null);
+//     setSearchMateriel('');
+//     setSearchAlerte('');
+//   };
+
+//   // Validation
+//   const validateForm = () => {
+//     const newErrors: Record<string, string> = {};
+    
+//     if (!formData.description.trim()) {
+//       newErrors.description = 'Description requise';
+//     }
+    
+//     if (formData.materiel === 0) {
+//       newErrors.materiel = 'Matériel concerné requis';
+//     }
+    
+//     setErrors(newErrors);
+//     return Object.keys(newErrors).length === 0;
+//   };
+
+//   // Handlers
+//   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+//     const { name, value } = e.target;
+    
+//     setFormData(prev => ({
+//       ...prev,
+//       [name]: value
+//     }));
+    
+//     if (errors[name]) {
+//       setErrors(prev => ({ ...prev, [name]: '' }));
+//     }
+//   };
+
+//   const handleMaterielChange = (materielId: number) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       materiel: materielId
+//     }));
+    
+//     updateSelectedMaterielDetails(materielId);
+    
+//     // Générer une description automatique
+//     if (materielId > 0 && selectedMaterielDetails) {
+//       const newDescription = generateDescriptionFromMateriel(selectedMaterielDetails);
+//       setFormData(prev => ({
+//         ...prev,
+//         description: newDescription
+//       }));
+//     }
+    
+//     if (errors.materiel) {
+//       setErrors(prev => ({ ...prev, materiel: '' }));
+//     }
+//   };
+
+//   const handleAlerteChange = (alerteId: number) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       alerte_source: alerteId,
+//       source: 'alerte',
+//       priorite: 'critique'
+//     }));
+    
+//     updateSelectedAlerteDetails(alerteId);
+    
+//     // Générer une description automatique depuis l'alerte
+//     if (alerteId > 0 && selectedAlerteDetails) {
+//       const newDescription = `🚨 INCIDENT CRITIQUE - ${selectedAlerteDetails.description}`;
+//       setFormData(prev => ({
+//         ...prev,
+//         description: newDescription
+//       }));
+//     }
+//   };
+
+//   const handleSetToday = () => {
+//     const today = new Date().toISOString().split('T')[0];
+//     setFormData(prev => ({ ...prev, date_resolution: today }));
+//   };
+
+//   const handleSetNow = () => {
+//     const now = new Date();
+//     const currentTime = now.toTimeString().slice(0, 5);
+//     setFormData(prev => ({ ...prev, heure_resolution: currentTime }));
+//   };
+
+//   const handleRegenerateDescription = () => {
+//     if (selectedMaterielDetails) {
+//       const newDescription = generateDescriptionFromMateriel(selectedMaterielDetails);
+//       setFormData(prev => ({
+//         ...prev,
+//         description: newDescription
+//       }));
+//     }
+//   };
+
+//   const handleSubmit = async (e: React.FormEvent) => {
+//     e.preventDefault();
+//     if (!validateForm()) return;
+    
+//     setIsSubmitting(true);
+//     setApiErrors([]);
+
+//     try {
+//       const incidentData: any = { 
+//         description: formData.description.trim(),
+//         priorite: formData.priorite,
+//         statut: formData.statut,
+//         type_incident: formData.type_incident,
+//         utilisateur_signaleur: currentUser?.id || 0,
+//         materiel: formData.materiel,
+//         source: formData.source,
+//         materiel_nom: selectedMaterielDetails?.nom || 'Matériel non spécifié' // IMPORTANT: Récupérer le nom pour l'affichage
+//       };
+
+//       // Date de résolution
+//       if (formData.date_resolution && formData.heure_resolution) {
+//         incidentData.date_resolution = `${formData.date_resolution}T${formData.heure_resolution}`;
+//       } else if (formData.date_resolution) {
+//         incidentData.date_resolution = `${formData.date_resolution}T00:00`;
+//       }
+
+//       // Lien avec alerte
+//       if (formData.alerte_source > 0) {
+//         incidentData.alerte_source = formData.alerte_source;
+//         incidentData.alerte_id = formData.alerte_source;
+//       }
+
+//       // Ajouter les détails du matériel pour l'affichage
+//       if (selectedMaterielDetails) {
+//         incidentData.materiel_details = {
+//           id: selectedMaterielDetails.id,
+//           nom: selectedMaterielDetails.nom,
+//           reference: selectedMaterielDetails.reference,
+//           type_materiel: selectedMaterielDetails.type,
+//           etat: selectedMaterielDetails.etat,
+//           service_attribue: selectedMaterielDetails.service_attribue,
+//           utilisateur_attribue: selectedMaterielDetails.utilisateur_attribue
+//         };
+//       }
+
+//       console.log('📤 Soumission incident avec matériel:', {
+//         ...incidentData,
+//         materiel_nom: selectedMaterielDetails?.nom
+//       });
+      
+//       await onSubmit(incidentData);
+//       onClose();
+      
+//     } catch (error: any) {
+//       console.error('❌ Erreur soumission:', error);
+//       setApiErrors(prev => [...prev, handleApiError(error)]);
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+//   const handleClose = () => {
+//     if (isSubmitting) return;
+//     resetForm();
+//     onClose();
+//   };
+
+//   // Obtenir le titre
+//   const getFormTitle = () => {
+//     if (incident) return 'Modifier l\'incident';
+    
+//     switch (mode) {
+//       case 'fromAlerte': return '🚨 Créer Incident depuis Alerte';
+//       case 'fromMateriel': return '🖥️ Créer Incident pour Matériel';
+//       default: return '➕ Nouvel Incident Matériel';
+//     }
+//   };
+
+//   // Obtenir l'icône du matériel
+//   const getMaterielIcon = (type?: string) => {
+//     if (!type) return <Monitor className="h-4 w-4" />;
+    
+//     const typeLower = type.toLowerCase();
+//     if (typeLower.includes('ordinateur') || typeLower.includes('pc') || typeLower.includes('laptop')) 
+//       return <Monitor className="h-4 w-4" />;
+//     if (typeLower.includes('serveur')) return <HardDrive className="h-4 w-4" />;
+//     if (typeLower.includes('imprimante') || typeLower.includes('printer')) 
+//       return <Printer className="h-4 w-4" />;
+//     if (typeLower.includes('réseau') || typeLower.includes('switch') || typeLower.includes('routeur')) 
+//       return <Network className="h-4 w-4" />;
+//     return <Monitor className="h-4 w-4" />;
+//   };
+
+//   // Composant d'icône
+//   const Printer = ({ className }: { className: string }) => (
+//     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+//     </svg>
+//   );
+
+//   const Network = ({ className }: { className: string }) => (
+//     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+//     </svg>
+//   );
+
+//   const filteredMateriels = getFilteredMateriels();
+//   const filteredAlertesList = getFilteredAlertes();
+
+//   if (!isOpen) return null;
+
+//   return (
+//     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+//       <div className="bg-base-100 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+//         {/* Header */}
+//         <div className="flex justify-between items-center p-6 border-b border-base-300 sticky top-0 bg-base-100 z-10">
+//           <div className="flex items-center gap-3">
+//             {mode === 'fromAlerte' ? (
+//               <AlertTriangle className="h-5 w-5 text-error" />
+//             ) : mode === 'fromMateriel' ? (
+//               <Cpu className="h-5 w-5 text-warning" />
+//             ) : (
+//               <Wrench className="h-5 w-5 text-primary" />
+//             )}
+//             <div>
+//               <h2 className="text-xl font-bold text-base-content">
+//                 {getFormTitle()}
+//               </h2>
+//               <p className="text-sm text-base-content opacity-60 mt-1">
+//                 Matériel: {selectedMaterielDetails?.nom || 'Non sélectionné'}
+//               </p>
+//             </div>
+//           </div>
+//           <button onClick={handleClose} className="btn btn-ghost btn-sm btn-circle" disabled={isSubmitting}>
+//             <X className="h-4 w-4" />
+//           </button>
+//         </div>
+
+//         {/* Messages d'erreur */}
+//         {apiErrors.length > 0 && (
+//           <div className="m-4">
+//             <div className="alert alert-error">
+//               <AlertCircle className="h-5 w-5" />
+//               <div className="flex flex-col gap-1">
+//                 {apiErrors.map((error, index) => (
+//                   <span key={index} className="text-sm">{error}</span>
+//                 ))}
+//               </div>
+//             </div>
+//           </div>
+//         )}
+
+//         {loading ? (
+//           <div className="flex justify-center items-center p-12">
+//             <div className="flex flex-col items-center gap-4">
+//               <Loader2 className="h-8 w-8 text-primary animate-spin" />
+//               <span className="text-base-content">Chargement...</span>
+//             </div>
+//           </div>
+//         ) : (
+//           <form onSubmit={handleSubmit} className="p-6 space-y-6">
+//             {/* Indicateur de scénario */}
+//             {mode === 'fromAlerte' && alerteSource && (
+//               <div className="alert alert-error">
+//                 <div className="flex items-center gap-3">
+//                   <AlertTriangle className="h-5 w-5" />
+//                   <div>
+//                     <p className="font-bold">SCÉNARIO 2 : Incident depuis alerte critique</p>
+//                     <p className="text-sm mt-1">{alerteSource.description}</p>
+//                   </div>
+//                 </div>
+//               </div>
+//             )}
+
+//             {/* Sélection d'alerte (si mode normal et des alertes sont disponibles) */}
+//             {mode === 'normal' && filteredAlertesList.length > 0 && (
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Créer depuis une alerte (optionnel)</span>
+//                 </label>
+//                 <div className="space-y-2">
+//                   <div className="relative">
+//                     <Search className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+//                     <input
+//                       type="text"
+//                       placeholder="Rechercher une alerte..."
+//                       className="input input-bordered w-full pl-10"
+//                       value={searchAlerte}
+//                       onChange={(e) => setSearchAlerte(e.target.value)}
+//                     />
+//                   </div>
+//                   <select
+//                     value={formData.alerte_source}
+//                     onChange={(e) => handleAlerteChange(parseInt(e.target.value))}
+//                     className="select select-bordered w-full"
+//                     disabled={isSubmitting}
+//                   >
+//                     <option value={0}>Sélectionnez une alerte critique</option>
+//                     {filteredAlertesList.map(alerte => (
+//                       <option key={alerte.id} value={alerte.id}>
+//                         🚨 Alerte #{alerte.id}: {alerte.description.substring(0, 50)}...
+//                       </option>
+//                     ))}
+//                   </select>
+//                 </div>
+//               </div>
+//             )}
+
+//             {/* Sélection du matériel */}
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text font-semibold">
+//                   Matériel concerné 
+//                   <span className="text-error ml-1">*</span>
+//                 </span>
+//                 {materielsEnPanne.length > 0 && (
+//                   <span className="label-text-alt text-success">
+//                     ✅ {materielsEnPanne.length} matériel(s) en panne disponible(s)
+//                   </span>
+//                 )}
+//               </label>
+              
+//               <div className="space-y-2">
+//                 <div className="relative">
+//                   <Search className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+//                   <input
+//                     type="text"
+//                     placeholder="Rechercher un matériel..."
+//                     className="input input-bordered w-full pl-10"
+//                     value={searchMateriel}
+//                     onChange={(e) => setSearchMateriel(e.target.value)}
+//                     disabled={isSubmitting}
+//                   />
+//                 </div>
+                
+//                 <select
+//                   value={formData.materiel}
+//                   onChange={(e) => handleMaterielChange(parseInt(e.target.value))}
+//                   className={`select select-bordered w-full ${errors.materiel ? 'select-error' : ''}`}
+//                   disabled={isSubmitting}
+//                 >
+//                   <option value={0}>Sélectionnez un matériel</option>
+//                   {filteredMateriels.map(item => (
+//                     <option key={item.id} value={item.id}>
+//                       {getMaterielIcon(item.type)}
+//                       {' '}
+//                       {item.nom} ({item.reference}) - {item.service_attribue || 'Non spécifié'}
+//                       {isMaterielEnPanne(item) && ' 🚨'}
+//                     </option>
+//                   ))}
+//                 </select>
+//                 {errors.materiel && <span className="text-error text-sm mt-1">{errors.materiel}</span>}
+//               </div>
+//             </div>
+
+//             {/* Aperçu du matériel sélectionné */}
+//             {selectedMaterielDetails && (
+//               <div className="p-4 bg-base-200 rounded-lg border border-primary/20">
+//                 <div className="flex items-center justify-between mb-3">
+//                   <div className="flex items-center gap-3">
+//                     {getMaterielIcon(selectedMaterielDetails.type)}
+//                     <div>
+//                       <h4 className="font-bold text-base-content">
+//                         {selectedMaterielDetails.nom}
+//                       </h4>
+//                       <p className="text-sm text-base-content opacity-70">
+//                         Référence: {selectedMaterielDetails.reference}
+//                       </p>
+//                     </div>
+//                   </div>
+//                   <span className={`badge ${
+//                     isMaterielEnPanne(selectedMaterielDetails) ? 'badge-error' : 'badge-info'
+//                   }`}>
+//                     {selectedMaterielDetails.etat || 'État inconnu'}
+//                     {isMaterielEnPanne(selectedMaterielDetails) && ' 🚨'}
+//                   </span>
+//                 </div>
+                
+//                 <div className="grid grid-cols-2 gap-4 text-sm">
+//                   <div>
+//                     <span className="opacity-70">Type:</span>
+//                     <span className="font-medium ml-2">
+//                       {selectedMaterielDetails.type || 'Non spécifié'}
+//                     </span>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-70">Service:</span>
+//                     <span className="font-medium ml-2">
+//                       {selectedMaterielDetails.service_attribue || 'Non spécifié'}
+//                     </span>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-70">Utilisateur:</span>
+//                     <span className="font-medium ml-2">
+//                       {selectedMaterielDetails.utilisateur_attribue || 'Non attribué'}
+//                     </span>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-70">Emplacement:</span>
+//                     <span className="font-medium ml-2">
+//                       {selectedMaterielDetails.emplacement || 'Non spécifié'}
+//                     </span>
+//                   </div>
+//                 </div>
+                
+//                 <div className="mt-3 text-xs text-base-content opacity-60">
+//                   Ce nom sera automatiquement récupéré dans le tableau des incidents
+//                 </div>
+//               </div>
+//             )}
+
+//             {/* Description */}
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text font-semibold">Description :</span>
+//                 <span className="label-text-alt text-error">*</span>
+//               </label>
+//               <textarea
+//                 name="description"
+//                 value={formData.description}
+//                 onChange={handleChange}
+//                 className={`textarea textarea-bordered h-32 ${errors.description ? 'textarea-error' : ''}`}
+//                 placeholder="Décrivez le problème..."
+//                 disabled={isSubmitting}
+//               />
+//               <div className="flex justify-between mt-1">
+//                 {errors.description && (
+//                   <span className="label-text-alt text-error">{errors.description}</span>
+//                 )}
+//                 <button
+//                   type="button"
+//                   onClick={handleRegenerateDescription}
+//                   className="btn btn-xs btn-outline"
+//                   disabled={!formData.materiel || isSubmitting}
+//                 >
+//                   Générer automatiquement
+//                 </button>
+//               </div>
+//             </div>
+
+//             {/* Priorité et Statut */}
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Priorité :</span>
+//                 </label>
+//                 <select
+//                   name="priorite"
+//                   value={formData.priorite}
+//                   onChange={handleChange}
+//                   className="select select-bordered w-full"
+//                   disabled={isSubmitting || formData.alerte_source > 0}
+//                 >
+//                   <option value="basse">Basse</option>
+//                   <option value="moyenne">Moyenne</option>
+//                   <option value="elevee">Élevée</option>
+//                   <option value="critique">Critique</option>
+//                 </select>
+//                 {formData.alerte_source > 0 && (
+//                   <div className="text-xs text-error mt-1">⚠️ Priorité fixée à "Critique" pour alerte critique</div>
+//                 )}
+//               </div>
+
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Statut :</span>
+//                 </label>
+//                 <select
+//                   name="statut"
+//                   value={formData.statut}
+//                   onChange={handleChange}
+//                   className="select select-bordered w-full"
+//                   disabled={isSubmitting}
+//                 >
+//                   <option value="ouvert">Ouvert</option>
+//                   <option value="en_cours">En cours</option>
+//                   <option value="resolu">Résolu</option>
+//                   <option value="ferme">Fermé</option>
+//                 </select>
+//               </div>
+//             </div>
+
+//             {/* Date et Heure */}
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Date de création :</span>
+//                 </label>
+//                 <div className="flex items-center gap-2">
+//                   <div className="relative flex-1">
+//                     <Calendar className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+//                     <input
+//                       type="date"
+//                       name="date_resolution"
+//                       value={formData.date_resolution}
+//                       onChange={handleChange}
+//                       className="input input-bordered w-full pl-10"
+//                       disabled={isSubmitting}
+//                     />
+//                   </div>
+//                   <button
+//                     type="button"
+//                     onClick={handleSetToday}
+//                     className="btn btn-outline btn-sm"
+//                     disabled={isSubmitting}
+//                   >
+//                     Aujourd'hui
+//                   </button>
+//                 </div>
+//               </div>
+
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Heure :</span>
+//                 </label>
+//                 <div className="flex items-center gap-2">
+//                   <div className="relative flex-1">
+//                     <Clock className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+//                     <input
+//                       type="time"
+//                       name="heure_resolution"
+//                       value={formData.heure_resolution}
+//                       onChange={handleChange}
+//                       className="input input-bordered w-full pl-10"
+//                       disabled={isSubmitting}
+//                     />
+//                   </div>
+//                   <button
+//                     type="button"
+//                     onClick={handleSetNow}
+//                     className="btn btn-outline btn-sm"
+//                     disabled={isSubmitting}
+//                   >
+//                     Maintenant
+//                   </button>
+//                 </div>
+//               </div>
+//             </div>
+
+//             {/* Type d'incident (caché mais toujours matériel) */}
+//             <input type="hidden" name="type_incident" value="materiel" />
+
+//             {/* Boutons */}
+//             <div className="flex justify-end space-x-3 pt-6 border-t border-base-300">
+//               <button 
+//                 type="button" 
+//                 onClick={handleClose} 
+//                 className="btn btn-ghost"
+//                 disabled={isSubmitting}
+//               >
+//                 Annuler
+//               </button>
+//               <button 
+//                 type="submit" 
+//                 className={`btn ${formData.alerte_source > 0 ? 'btn-error' : 'btn-primary'}`}
+//                 disabled={isSubmitting || !formData.materiel}
+//               >
+//                 {isSubmitting ? (
+//                   <span className="flex items-center gap-2">
+//                     <Loader2 className="h-4 w-4 animate-spin" />
+//                     {incident ? 'Modification...' : 'Création...'}
+//                   </span>
+//                 ) : (
+//                   incident ? 'Modifier l\'incident' : 'Créer l\'incident'
+//                 )}
+//               </button>
+//             </div>
+//           </form>
+//         )}
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default IncidentForm;  

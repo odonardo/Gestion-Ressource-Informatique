@@ -34,7 +34,7 @@ class IsTechnician(permissions.BasePermission):
             hasattr(request.user, 'profilutilisateur') and 
             request.user.profilutilisateur.role in ['technician', 'director', 'admin']
         )
-
+        
 class IsSecretary(permissions.BasePermission):
     """
     Permission pour les secrétaires, directeurs et administrateurs

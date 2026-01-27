@@ -1,0 +1,1199 @@
+
+// // src/pages/Historique.jsx - VERSION CORRIGÉE
+// import React, { useState, useEffect, useMemo, useCallback } from 'react';
+// import { 
+//   History, Filter, Search, Download, RefreshCw, 
+//   User, Calendar, FileText, Clock, Eye, Edit, 
+//   Trash2, Plus, AlertTriangle, CheckCircle, XCircle,
+//   ArrowUpDown, MoreVertical, Database, Printer,
+//   ExternalLink, ChevronDown, ChevronUp, Copy,
+//   Save, Upload, Settings, Key, LogOut, LogIn,
+//   Shield, Bell, Package, Monitor, Network,
+//   Wrench, Users as UsersIcon, FileSpreadsheet,
+//   BookOpen, FileEdit, FilePlus, FileMinus, FileDown,
+//   Database as DatabaseIcon, HardDrive, Server, Cpu,
+//   BarChart3, TrendingUp, Activity, Zap,
+//   PieChart, CalendarDays, UserCheck, Target,
+//   Clock3, Layers, Grid3x3, AlertCircle,
+//   Star, Award, Trophy, TrendingDown, DollarSign,
+//   Percent, Hash, KeyRound, ShieldCheck,
+//   BarChart4, LineChart, DownloadCloud,
+//   Info, HelpCircle, BellRing
+// } from 'lucide-react';
+// import { useAuth } from '../context/AuthContext';
+// import { useNotification } from '../context/NotificationContext';
+// import jsPDF from 'jspdf';
+// import autoTable from 'jspdf-autotable';
+// import * as XLSX from 'xlsx';
+
+// const Historique = () => {
+//   const { user } = useAuth();
+//   const { showNotification } = useNotification();
+//   const [historique, setHistorique] = useState([]);
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState(null);
+//   const [filters, setFilters] = useState({
+//     search: '',
+//     utilisateur: '',
+//     action: '',
+//     module: '',
+//     dateDebut: '',
+//     dateFin: '',
+//     status: ''
+//   });
+  
+//   const [pagination, setPagination] = useState({
+//     page: 1,
+//     limit: 20,
+//     total: 0,
+//     totalPages: 0
+//   });
+  
+//   const [sortConfig, setSortConfig] = useState({
+//     key: 'date',
+//     direction: 'desc'
+//   });
+  
+//   const [expandedRows, setExpandedRows] = useState({});
+//   const [selectedActions, setSelectedActions] = useState([]);
+//   const [viewMode, setViewMode] = useState('table');
+//   const [autoRefresh, setAutoRefresh] = useState(false);
+  
+//   // Statistiques avancées
+//   const [advancedStats, setAdvancedStats] = useState({
+//     totalActions: 0,
+//     actionsToday: 0,
+//     actionsThisWeek: 0,
+//     actionsThisMonth: 0,
+//     hourlyDistribution: {},
+//     dailyDistribution: {},
+//     monthlyTrend: [],
+//     averageActionsPerDay: 0,
+//     peakHour: '',
+//     peakDay: '',
+//     topUsers: [],
+//     mostActiveUser: { username: '', count: 0 },
+//     userRetention: 0,
+//     topModules: [],
+//     mostUsedModule: { module: '', count: 0 },
+//     moduleSuccessRate: {},
+//     actionDistribution: {},
+//     mostCommonAction: { action: '', count: 0 },
+//     successRate: 0,
+//     errorRate: 0,
+//     failedLogins: 0,
+//     suspiciousActivities: [],
+//     securityScore: 0,
+//     avgResponseTime: 0,
+//     storageEfficiency: 0,
+//     dataGrowthRate: 0,
+//     productivityIndex: 0,
+//     systemAdoptionRate: 0,
+//     userSatisfaction: 0
+//   });
+
+//   // Actions disponibles
+//   const availableActions = useMemo(() => [
+//     'CONNEXION', 'DECONNEXION', 'CREATION COMPTE', 
+//     'AJOUT', 'MODIFICATION', 'SUPPRESSION', 
+//     'CONSULTATION', 'EXPORTATION', 'GENERATION',
+//     'RÉSOLUTION', 'NAVIGATION', 'LECTURE',
+//     'IMPORTATION', 'VALIDATION', 'REJET',
+//     'APPROBATION', 'ARCHIVAGE', 'RESTAURATION'
+//   ], []);
+
+//   // Modules disponibles
+//   const availableModules = useMemo(() => [
+//     'Matériels', 'Logiciels', 'Incidents', 'Réparations',
+//     'Alertes', 'Fournisseurs', 'Utilisateurs', 'Rapports',
+//     'Authentification', 'Navigation', 'Système', 'Configuration',
+//     'Dashboard', 'Réseau', 'Stockage', 'Sécurité',
+//     'Audit', 'Maintenance', 'Backup', 'Monitoring'
+//   ], []);
+
+//   // Charger l'historique
+//   const loadHistorique = useCallback((page = 1) => {
+//     try {
+//       setLoading(true);
+//       setError(null);
+      
+//       const STORAGE_KEY = 'gestion_parc_historique';
+//       const saved = localStorage.getItem(STORAGE_KEY);
+//       let data = saved ? JSON.parse(saved) : [];
+      
+//       // Appliquer les filtres
+//       data = applyFilters(data, filters);
+      
+//       // Appliquer le tri
+//       data = applySort(data, sortConfig);
+      
+//       // Calculer les statistiques avancées
+//       calculateAdvancedStats(data);
+      
+//       // Pagination
+//       const startIndex = (page - 1) * pagination.limit;
+//       const endIndex = startIndex + pagination.limit;
+//       const paginatedData = data.slice(startIndex, endIndex);
+      
+//       setHistorique(paginatedData);
+//       setPagination(prev => ({
+//         ...prev,
+//         page: page,
+//         total: data.length,
+//         totalPages: Math.ceil(data.length / prev.limit)
+//       }));
+      
+//     } catch (error) {
+//       console.error('❌ Erreur chargement historique:', error);
+//       setError('Erreur de chargement des données');
+//       setHistorique([]);
+//     } finally {
+//       setLoading(false);
+//     }
+//   }, [filters, sortConfig, pagination.limit]);
+
+//   // Appliquer les filtres
+//   const applyFilters = (data, filters) => {
+//     let filtered = [...data];
+    
+//     if (filters.search) {
+//       const searchTerm = filters.search.toLowerCase();
+//       filtered = filtered.filter(item => 
+//         item.utilisateur?.toLowerCase().includes(searchTerm) ||
+//         item.action?.toLowerCase().includes(searchTerm) ||
+//         item.module?.toLowerCase().includes(searchTerm) ||
+//         item.details?.toLowerCase().includes(searchTerm) ||
+//         false
+//       );
+//     }
+    
+//     if (filters.utilisateur) {
+//       filtered = filtered.filter(item => item.utilisateur === filters.utilisateur);
+//     }
+    
+//     if (filters.action) {
+//       filtered = filtered.filter(item => item.action === filters.action);
+//     }
+    
+//     if (filters.module) {
+//       filtered = filtered.filter(item => item.module === filters.module);
+//     }
+    
+//     if (filters.dateDebut) {
+//       const startDate = new Date(filters.dateDebut);
+//       filtered = filtered.filter(item => new Date(item.date) >= startDate);
+//     }
+    
+//     if (filters.dateFin) {
+//       const endDate = new Date(filters.dateFin);
+//       endDate.setHours(23, 59, 59, 999);
+//       filtered = filtered.filter(item => new Date(item.date) <= endDate);
+//     }
+    
+//     if (filters.status) {
+//       filtered = filtered.filter(item => item.status === filters.status);
+//     }
+    
+//     return filtered;
+//   };
+
+//   // Appliquer le tri
+//   const applySort = (data, sortConfig) => {
+//     return [...data].sort((a, b) => {
+//       let aValue = a[sortConfig.key];
+//       let bValue = b[sortConfig.key];
+      
+//       if (sortConfig.key === 'date') {
+//         aValue = new Date(aValue);
+//         bValue = new Date(bValue);
+//       }
+      
+//       if (sortConfig.direction === 'asc') {
+//         return aValue > bValue ? 1 : -1;
+//       } else {
+//         return aValue < bValue ? 1 : -1;
+//       }
+//     });
+//   };
+
+//   // Calculer les statistiques avancées
+//   const calculateAdvancedStats = (data) => {
+//     const now = new Date();
+//     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+//     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+//     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+//     // Distribution temporelle
+//     const hourlyDistribution = {};
+//     const dailyDistribution = {};
+//     const monthlyTrend = [];
+    
+//     // Compteurs
+//     const userCounts = {};
+//     const moduleCounts = {};
+//     const actionCounts = {};
+//     const moduleSuccess = {};
+//     const moduleTotal = {};
+    
+//     let successfulActions = 0;
+//     let failedLogins = 0;
+//     let suspiciousActivities = [];
+    
+//     data.forEach(item => {
+//       const date = new Date(item.date);
+//       const hour = date.getHours();
+//       const day = date.toLocaleDateString('fr-FR');
+      
+//       // Distribution horaire
+//       hourlyDistribution[hour] = (hourlyDistribution[hour] || 0) + 1;
+      
+//       // Distribution journalière
+//       dailyDistribution[day] = (dailyDistribution[day] || 0) + 1;
+      
+//       // Comptage utilisateurs
+//       if (item.utilisateur) {
+//         userCounts[item.utilisateur] = (userCounts[item.utilisateur] || 0) + 1;
+//       }
+      
+//       // Comptage modules
+//       if (item.module) {
+//         moduleCounts[item.module] = (moduleCounts[item.module] || 0) + 1;
+//         moduleTotal[item.module] = (moduleTotal[item.module] || 0) + 1;
+        
+//         if (item.status === 'SUCCESS') {
+//           moduleSuccess[item.module] = (moduleSuccess[item.module] || 0) + 1;
+//         }
+//       }
+      
+//       // Comptage actions
+//       if (item.action) {
+//         actionCounts[item.action] = (actionCounts[item.action] || 0) + 1;
+//       }
+      
+//       // Succès/échecs
+//       if (item.status === 'SUCCESS') {
+//         successfulActions++;
+//       }
+      
+//       // Sécurité
+//       if (item.action === 'CONNEXION' && item.status === 'ERROR') {
+//         failedLogins++;
+//       }
+      
+//       // Activités suspectes
+//       if (item.action === 'SUPPRESSION' || item.action === 'MODIFICATION' || item.action === 'CREATION COMPTE') {
+//         if (!item.utilisateur || item.utilisateur === 'unknown') {
+//           suspiciousActivities.push(item);
+//         }
+//       }
+//     });
+    
+//     // Tendances mensuelles
+//     const monthlyData = {};
+//     data.forEach(item => {
+//       const date = new Date(item.date);
+//       const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
+//       monthlyData[monthKey] = (monthlyData[monthKey] || 0) + 1;
+//     });
+    
+//     Object.entries(monthlyData).forEach(([month, count]) => {
+//       monthlyTrend.push({ month, count });
+//     });
+    
+//     // Trier et préparer les données
+//     const topUsers = Object.entries(userCounts)
+//       .map(([username, count]) => ({ username, count }))
+//       .sort((a, b) => b.count - a.count)
+//       .slice(0, 5);
+    
+//     const topModules = Object.entries(moduleCounts)
+//       .map(([module, count]) => ({ module, count }))
+//       .sort((a, b) => b.count - a.count)
+//       .slice(0, 5);
+    
+//     // Calculs avancés
+//     const totalActions = data.length;
+//     const actionsToday = data.filter(item => new Date(item.date) >= today).length;
+//     const actionsThisWeek = data.filter(item => new Date(item.date) >= weekAgo).length;
+//     const actionsThisMonth = data.filter(item => new Date(item.date) >= monthAgo).length;
+    
+//     // Performance
+//     const averageActionsPerDay = totalActions > 0 ? (totalActions / 30).toFixed(1) : 0;
+//     const peakHour = Object.entries(hourlyDistribution)
+//       .sort(([,a], [,b]) => b - a)[0]?.[0] || '';
+//     const peakDay = Object.entries(dailyDistribution)
+//       .sort(([,a], [,b]) => b - a)[0]?.[0] || '';
+    
+//     // Utilisateurs
+//     const mostActiveUser = topUsers[0] || { username: '', count: 0 };
+//     const userRetention = topUsers.length > 0 ? Math.min(100, (topUsers.length / totalActions) * 1000) : 0;
+    
+//     // Modules
+//     const mostUsedModule = topModules[0] || { module: '', count: 0 };
+//     const moduleSuccessRate = {};
+//     Object.keys(moduleTotal).forEach(module => {
+//       const success = moduleSuccess[module] || 0;
+//       const total = moduleTotal[module];
+//       moduleSuccessRate[module] = total > 0 ? Math.round((success / total) * 100) : 0;
+//     });
+    
+//     // Actions
+//     const actionDistribution = actionCounts;
+//     const mostCommonAction = Object.entries(actionCounts)
+//       .sort(([,a], [,b]) => b - a)[0] || ['', 0];
+    
+//     const successRate = totalActions > 0 ? Math.round((successfulActions / totalActions) * 100) : 0;
+//     const errorRate = 100 - successRate;
+    
+//     // Indicateurs métiers
+//     const productivityIndex = Math.min(100, Math.round((actionsToday / 50) * 100));
+//     const systemAdoptionRate = Math.min(100, Math.round((topUsers.length / 10) * 100));
+//     const userSatisfaction = Math.min(100, Math.round(successRate * 0.8 + systemAdoptionRate * 0.2));
+    
+//     // Sécurité
+//     const securityScore = Math.max(0, 100 - (failedLogins * 5) - (suspiciousActivities.length * 10));
+    
+//     setAdvancedStats({
+//       totalActions,
+//       actionsToday,
+//       actionsThisWeek,
+//       actionsThisMonth,
+      
+//       hourlyDistribution,
+//       dailyDistribution,
+//       monthlyTrend,
+      
+//       averageActionsPerDay,
+//       peakHour: `${peakHour}h`,
+//       peakDay,
+      
+//       topUsers,
+//       mostActiveUser,
+//       userRetention,
+      
+//       topModules,
+//       mostUsedModule,
+//       moduleSuccessRate,
+      
+//       actionDistribution,
+//       mostCommonAction: { action: mostCommonAction[0], count: mostCommonAction[1] },
+//       successRate,
+//       errorRate,
+      
+//       failedLogins,
+//       suspiciousActivities,
+//       securityScore,
+      
+//       avgResponseTime: 0.5,
+//       storageEfficiency: 85,
+//       dataGrowthRate: 12,
+      
+//       productivityIndex,
+//       systemAdoptionRate,
+//       userSatisfaction
+//     });
+//   };
+
+//   // Formater la date
+//   const formatDate = (dateString) => {
+//     if (!dateString) return '-';
+//     try {
+//       const date = new Date(dateString);
+//       return new Intl.DateTimeFormat('fr-FR', {
+//         day: '2-digit',
+//         month: '2-digit',
+//         year: 'numeric',
+//         hour: '2-digit',
+//         minute: '2-digit',
+//         second: '2-digit'
+//       }).format(date);
+//     } catch {
+//       return dateString;
+//     }
+//   };
+
+//   // Obtenir la couleur pour l'action
+//   const getActionColor = (action) => {
+//     const actionColors = {
+//       'CONNEXION': 'badge-success',
+//       'DECONNEXION': 'badge-warning',
+//       'CREATION COMPTE': 'badge-primary',
+//       'AJOUT': 'badge-primary',
+//       'MODIFICATION': 'badge-warning',
+//       'SUPPRESSION': 'badge-error',
+//       'CONSULTATION': 'badge-info',
+//       'EXPORTATION': 'badge-secondary',
+//       'GENERATION': 'badge-secondary',
+//       'RÉSOLUTION': 'badge-success',
+//       'NAVIGATION': 'badge-neutral',
+//       'LECTURE': 'badge-info',
+//       'IMPORTATION': 'badge-primary',
+//       'VALIDATION': 'badge-success',
+//       'REJET': 'badge-error',
+//       'APPROBATION': 'badge-success',
+//       'ARCHIVAGE': 'badge-neutral',
+//       'RESTAURATION': 'badge-warning'
+//     };
+    
+//     return actionColors[action] || 'badge-neutral';
+//   };
+
+//   // Obtenir l'icône pour l'action
+//   const getActionIcon = (action) => {
+//     const actionIcons = {
+//       'CONNEXION': <LogIn className="h-4 w-4" />,
+//       'DECONNEXION': <LogOut className="h-4 w-4" />,
+//       'CREATION COMPTE': <Key className="h-4 w-4" />,
+//       'AJOUT': <FilePlus className="h-4 w-4" />,
+//       'MODIFICATION': <FileEdit className="h-4 w-4" />,
+//       'SUPPRESSION': <FileMinus className="h-4 w-4" />,
+//       'CONSULTATION': <Eye className="h-4 w-4" />,
+//       'EXPORTATION': <FileDown className="h-4 w-4" />,
+//       'GENERATION': <FileText className="h-4 w-4" />,
+//       'RÉSOLUTION': <CheckCircle className="h-4 w-4" />,
+//       'NAVIGATION': <ExternalLink className="h-4 w-4" />,
+//       'LECTURE': <BookOpen className="h-4 w-4" />,
+//       'IMPORTATION': <Upload className="h-4 w-4" />,
+//       'VALIDATION': <CheckCircle className="h-4 w-4" />,
+//       'REJET': <XCircle className="h-4 w-4" />,
+//       'APPROBATION': <ShieldCheck className="h-4 w-4" />,
+//       'ARCHIVAGE': <Save className="h-4 w-4" />,
+//       'RESTAURATION': <History className="h-4 w-4" />
+//     };
+    
+//     return actionIcons[action] || <FileText className="h-4 w-4" />;
+//   };
+
+//   // Obtenir la description courte
+//   const getShortSummary = (item) => {
+//     return `${item.utilisateur} ${item.action.toLowerCase()} dans ${item.module}`;
+//   };
+
+//   // Basculer l'auto-refresh
+//   useEffect(() => {
+//     let interval;
+//     if (autoRefresh) {
+//       interval = setInterval(() => {
+//         loadHistorique(pagination.page);
+//         showNotification('Historique actualisé automatiquement', 'info');
+//       }, 30000);
+//     }
+//     return () => {
+//       if (interval) clearInterval(interval);
+//     };
+//   }, [autoRefresh, pagination.page, loadHistorique, showNotification]);
+
+//   // Charger au démarrage
+//   useEffect(() => {
+//     loadHistorique(pagination.page);
+    
+//     // Écouter les nouvelles actions
+//     const handleNewAction = () => {
+//       loadHistorique(pagination.page);
+//     };
+    
+//     window.addEventListener('action-logged', handleNewAction);
+    
+//     return () => {
+//       window.removeEventListener('action-logged', handleNewAction);
+//     };
+//   }, [loadHistorique, pagination.page]);
+
+//   // Générer rapport détaillé - CORRECTION DE L'ERREUR ICI
+//   const generateDetailedReport = () => {
+//     const doc = new jsPDF();
+    
+//     // En-tête
+//     doc.setFontSize(20);
+//     doc.text('RAPPORT STATISTIQUES AVANCÉES - DREN AA', 20, 20);
+    
+//     // Statistiques générales
+//     doc.setFontSize(12);
+//     doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, 20, 35);
+//     // CORRECTION: Échapper l'apostrophe avec \'
+//     doc.text(`Période analysée: ${filters.dateDebut || 'Début'} - ${filters.dateFin || 'Aujourd\'hui'}`, 20, 42);
+//     doc.text(`Total actions: ${advancedStats.totalActions}`, 20, 49);
+    
+//     // Tableau de bord
+//     doc.setFontSize(16);
+//     doc.text('TABLEAU DE BORD DES PERFORMANCES', 20, 65);
+    
+//     let yPos = 75;
+    
+//     // Indicateurs clés
+//     const keyStats = [
+//       ['Indicateur', 'Valeur', 'Statut'],
+//       ['Actions aujourd\'hui', advancedStats.actionsToday, advancedStats.actionsToday > 20 ? '🔴 Haut' : '🟢 Normal'],
+//       ['Taux de succès', `${advancedStats.successRate}%`, advancedStats.successRate > 90 ? '🟢 Excellent' : '🟡 Moyen'],
+//       ['Score sécurité', `${advancedStats.securityScore}/100`, advancedStats.securityScore > 80 ? '🟢 Sécurisé' : '🟡 À surveiller'],
+//       ['Productivité', `${advancedStats.productivityIndex}%`, advancedStats.productivityIndex > 70 ? '🟢 Bonne' : '🟡 Modérée'],
+//       ['Utilisateurs actifs', advancedStats.topUsers.length, '🟢 Actif']
+//     ];
+    
+//     autoTable(doc, {
+//       head: keyStats.slice(0, 1),
+//       body: keyStats.slice(1),
+//       startY: yPos,
+//       theme: 'grid'
+//     });
+    
+//     yPos = doc.lastAutoTable.finalY + 10;
+    
+//     // Top utilisateurs
+//     doc.setFontSize(14);
+//     doc.text('TOP 5 UTILISATEURS', 20, yPos);
+//     yPos += 10;
+    
+//     const userData = advancedStats.topUsers.map(user => [user.username, user.count, `${Math.round((user.count / advancedStats.totalActions) * 100)}%`]);
+    
+//     autoTable(doc, {
+//       head: [['Utilisateur', 'Actions', 'Part']],
+//       body: userData,
+//       startY: yPos,
+//       theme: 'striped'
+//     });
+    
+//     // Enregistrer
+//     doc.save(`rapport-statistiques-${new Date().toISOString().split('T')[0]}.pdf`);
+//     showNotification('Rapport PDF généré avec succès', 'success');
+//   };
+
+//   // Composant StatCard réutilisable
+//   const StatCard = ({ title, value, icon, color, subtitle, trend }) => (
+//     <div className={`stat bg-base-200 rounded-lg p-4 border-l-4 ${color}`}>
+//       <div className="stat-figure text-opacity-80">
+//         {icon}
+//       </div>
+//       <div className="stat-title">{title}</div>
+//       <div className="stat-value text-2xl md:text-3xl">{value}</div>
+//       {subtitle && <div className="stat-desc">{subtitle}</div>}
+//       {trend && (
+//         <div className={`stat-desc flex items-center gap-1 ${trend > 0 ? 'text-success' : 'text-error'}`}>
+//           <TrendingUp className="h-3 w-3" />
+//           {trend > 0 ? '+' : ''}{trend}%
+//         </div>
+//       )}
+//     </div>
+//   );
+
+//   return (
+//     <div className="p-4 md:p-6 bg-base-100 min-h-screen">
+//       {/* En-tête */}
+//       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+//         <div>
+//           <h1 className="text-2xl md:text-3xl font-bold text-base-content flex items-center gap-3">
+//             <BarChart3 className="h-8 w-8 text-primary" />
+//             Tableau de Bord Historique
+//             <span className="badge badge-primary badge-lg">Analytics</span>
+//           </h1>
+//           <p className="text-base-content opacity-70 mt-1">
+//             Surveillance avancée des performances et activités système
+//           </p>
+//         </div>
+//         <div className="flex flex-wrap gap-2">
+//           <div className="form-control">
+//             <label className="label cursor-pointer gap-2">
+//               <span className="label-text text-sm">Auto-refresh</span>
+//               <input 
+//                 type="checkbox" 
+//                 className="toggle toggle-primary toggle-sm"
+//                 checked={autoRefresh}
+//                 onChange={(e) => setAutoRefresh(e.target.checked)}
+//               />
+//             </label>
+//           </div>
+//           <select 
+//             className="select select-bordered select-sm"
+//             value={viewMode}
+//             onChange={(e) => setViewMode(e.target.value)}
+//           >
+//             <option value="table">📊 Tableau</option>
+//             <option value="cards">🃏 Cartes</option>
+//             <option value="timeline">📅 Timeline</option>
+//           </select>
+//           <button 
+//             onClick={generateDetailedReport}
+//             className="btn btn-primary btn-sm"
+//           >
+//             <FileText className="h-4 w-4 mr-2" />
+//             Rapport complet
+//           </button>
+//           <button 
+//             onClick={() => loadHistorique(1)}
+//             className="btn btn-outline btn-sm"
+//           >
+//             <RefreshCw className="h-4 w-4 mr-2" />
+//             Actualiser
+//           </button>
+//         </div>
+//       </div>
+
+//       {/* Indicateurs clés */}
+//       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+//         <StatCard
+//           title="Actions totales"
+//           value={advancedStats.totalActions}
+//           icon={<History className="h-6 w-6" />}
+//           color="border-l-primary"
+//           subtitle="Toutes opérations"
+//         />
+        
+//         <StatCard
+//           title="Aujourd'hui"
+//           value={advancedStats.actionsToday}
+//           icon={<Activity className="h-6 w-6" />}
+//           color="border-l-success"
+//           subtitle="Dernières 24h"
+//           trend={12}
+//         />
+        
+//         <StatCard
+//           title="Taux succès"
+//           value={`${advancedStats.successRate}%`}
+//           icon={<CheckCircle className="h-6 w-6" />}
+//           color="border-l-success"
+//           subtitle="Opérations réussies"
+//         />
+        
+//         <StatCard
+//           title="Productivité"
+//           value={`${advancedStats.productivityIndex}%`}
+//           icon={<TrendingUp className="h-6 w-6" />}
+//           color="border-l-warning"
+//           subtitle="Index performance"
+//         />
+        
+//         <StatCard
+//           title="Sécurité"
+//           value={`${advancedStats.securityScore}/100`}
+//           icon={<ShieldCheck className="h-6 w-6" />}
+//           color="border-l-error"
+//           subtitle="Score système"
+//         />
+        
+//         <StatCard
+//           title="Adoption"
+//           value={`${advancedStats.systemAdoptionRate}%`}
+//           icon={<UserCheck className="h-6 w-6" />}
+//           color="border-l-info"
+//           subtitle="Taux d'utilisation"
+//         />
+//       </div>
+
+//       {/* Statistiques détaillées */}
+//       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+//         {/* Top utilisateurs */}
+//         <div className="card bg-base-200 shadow-lg">
+//           <div className="card-body">
+//             <h2 className="card-title">
+//               <User className="h-5 w-5" />
+//               Top Utilisateurs
+//               <div className="badge badge-primary">{advancedStats.topUsers.length}</div>
+//             </h2>
+//             <div className="space-y-3">
+//               {advancedStats.topUsers.map((user, index) => (
+//                 <div key={user.username} className="flex items-center justify-between p-2 bg-base-100 rounded-lg">
+//                   <div className="flex items-center gap-3">
+//                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+//                       index === 0 ? 'bg-primary text-primary-content' : 'bg-base-300'
+//                     }`}>
+//                       {index + 1}
+//                     </div>
+//                     <div>
+//                       <div className="font-semibold">{user.username}</div>
+//                       <div className="text-xs opacity-70">{user.count} actions</div>
+//                     </div>
+//                   </div>
+//                   <div className="text-right">
+//                     <div className="text-sm font-semibold">
+//                       {Math.round((user.count / advancedStats.totalActions) * 100)}%
+//                     </div>
+//                     <progress 
+//                       className="progress progress-primary w-24" 
+//                       value={user.count} 
+//                       max={advancedStats.mostActiveUser.count || 1}
+//                     />
+//                   </div>
+//                 </div>
+//               ))}
+//             </div>
+//           </div>
+//         </div>
+
+//         {/* Distribution des modules */}
+//         <div className="card bg-base-200 shadow-lg">
+//           <div className="card-body">
+//             <h2 className="card-title">
+//               <Layers className="h-5 w-5" />
+//               Modules les plus utilisés
+//             </h2>
+//             <div className="space-y-3">
+//               {advancedStats.topModules.map((module, index) => (
+//                 <div key={module.module} className="flex items-center justify-between p-2 bg-base-100 rounded-lg">
+//                   <div className="flex items-center gap-3">
+//                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+//                       index === 0 ? 'bg-secondary text-secondary-content' : 'bg-base-300'
+//                     }`}>
+//                       {getModuleIcon(module.module)}
+//                     </div>
+//                     <div className="flex-1">
+//                       <div className="font-semibold">{module.module}</div>
+//                       <div className="text-xs opacity-70">
+//                         Taux succès: {advancedStats.moduleSuccessRate[module.module] || 0}%
+//                       </div>
+//                     </div>
+//                   </div>
+//                   <div className="text-right">
+//                     <div className="text-sm font-semibold">{module.count}</div>
+//                     <progress 
+//                       className="progress progress-secondary w-24" 
+//                       value={module.count} 
+//                       max={advancedStats.mostUsedModule.count || 1}
+//                     />
+//                   </div>
+//                 </div>
+//               ))}
+//             </div>
+//           </div>
+//         </div>
+
+//         {/* Analyse temporelle */}
+//         <div className="card bg-base-200 shadow-lg">
+//           <div className="card-body">
+//             <h2 className="card-title">
+//               <Clock3 className="h-5 w-5" />
+//               Analyse temporelle
+//             </h2>
+//             <div className="space-y-4">
+//               <div className="bg-base-100 p-3 rounded-lg">
+//                 <div className="flex justify-between mb-2">
+//                   <span className="text-sm font-semibold">Pic d'activité</span>
+//                   <span className="badge badge-primary">{advancedStats.peakHour}</span>
+//                 </div>
+//                 <div className="text-xs opacity-70">Heure de plus forte activité</div>
+//               </div>
+              
+//               <div className="bg-base-100 p-3 rounded-lg">
+//                 <div className="flex justify-between mb-2">
+//                   <span className="text-sm font-semibold">Moyenne journalière</span>
+//                   <span className="badge badge-secondary">{advancedStats.averageActionsPerDay}</span>
+//                 </div>
+//                 <div className="text-xs opacity-70">Actions par jour (30 derniers jours)</div>
+//               </div>
+              
+//               <div className="bg-base-100 p-3 rounded-lg">
+//                 <div className="flex justify-between mb-2">
+//                   <span className="text-sm font-semibold">Cette semaine</span>
+//                   <span className="badge badge-success">{advancedStats.actionsThisWeek}</span>
+//                 </div>
+//                 <div className="text-xs opacity-70">Actions sur 7 jours</div>
+//               </div>
+              
+//               <div className="bg-base-100 p-3 rounded-lg">
+//                 <div className="flex justify-between mb-2">
+//                   <span className="text-sm font-semibold">Ce mois</span>
+//                   <span className="badge badge-warning">{advancedStats.actionsThisMonth}</span>
+//                 </div>
+//                 <div className="text-xs opacity-70">Actions sur 30 jours</div>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Filtres */}
+//       <div className="card bg-base-200 shadow-xl mb-6">
+//         <div className="card-body">
+//           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+//             <h2 className="card-title text-base-content">
+//               <Filter className="h-5 w-5" />
+//               Filtres de recherche avancés
+//             </h2>
+//             <div className="flex gap-2">
+//               <button 
+//                 onClick={() => loadHistorique(1)}
+//                 className="btn btn-primary btn-sm"
+//               >
+//                 <Filter className="h-4 w-4 mr-2" />
+//                 Appliquer
+//               </button>
+//               <button 
+//                 onClick={() => {
+//                   setFilters({
+//                     search: '',
+//                     utilisateur: '',
+//                     action: '',
+//                     module: '',
+//                     dateDebut: '',
+//                     dateFin: '',
+//                     status: ''
+//                   });
+//                   setTimeout(() => loadHistorique(1), 100);
+//                 }}
+//                 className="btn btn-outline btn-sm"
+//               >
+//                 Réinitialiser
+//               </button>
+//             </div>
+//           </div>
+          
+//           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+//             {/* Recherche */}
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text flex items-center">
+//                   <Search className="h-4 w-4 mr-2" />
+//                   Recherche globale
+//                 </span>
+//               </label>
+//               <input
+//                 type="text"
+//                 placeholder="Rechercher dans tous les champs..."
+//                 className="input input-bordered bg-base-100"
+//                 value={filters.search}
+//                 onChange={(e) => setFilters({...filters, search: e.target.value})}
+//               />
+//             </div>
+
+//             {/* Utilisateur */}
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text flex items-center">
+//                   <User className="h-4 w-4 mr-2" />
+//                   Utilisateur
+//                 </span>
+//               </label>
+//               <select
+//                 className="select select-bordered bg-base-100"
+//                 value={filters.utilisateur}
+//                 onChange={(e) => setFilters({...filters, utilisateur: e.target.value})}
+//               >
+//                 <option value="">Tous les utilisateurs</option>
+//                 {Array.from(new Set(historique.map(h => h.utilisateur))).map(user => (
+//                   <option key={user} value={user}>{user}</option>
+//                 ))}
+//               </select>
+//             </div>
+
+//             {/* Action */}
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text">Type d'action</span>
+//               </label>
+//               <select
+//                 className="select select-bordered bg-base-100"
+//                 value={filters.action}
+//                 onChange={(e) => setFilters({...filters, action: e.target.value})}
+//               >
+//                 <option value="">Toutes les actions</option>
+//                 {availableActions.map(action => (
+//                   <option key={action} value={action}>{action}</option>
+//                 ))}
+//               </select>
+//             </div>
+
+//             {/* Module */}
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text">Module</span>
+//               </label>
+//               <select
+//                 className="select select-bordered bg-base-100"
+//                 value={filters.module}
+//                 onChange={(e) => setFilters({...filters, module: e.target.value})}
+//               >
+//                 <option value="">Tous les modules</option>
+//                 {availableModules.map(module => (
+//                   <option key={module} value={module}>{module}</option>
+//                 ))}
+//               </select>
+//             </div>
+//           </div>
+
+//           {/* Dates */}
+//           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text flex items-center">
+//                   <Calendar className="h-4 w-4 mr-2" />
+//                   Période de début
+//                 </span>
+//               </label>
+//               <input
+//                 type="date"
+//                 className="input input-bordered bg-base-100"
+//                 value={filters.dateDebut}
+//                 onChange={(e) => setFilters({...filters, dateDebut: e.target.value})}
+//               />
+//             </div>
+
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text flex items-center">
+//                   <Calendar className="h-4 w-4 mr-2" />
+//                   Période de fin
+//                 </span>
+//               </label>
+//               <input
+//                 type="date"
+//                 className="input input-bordered bg-base-100"
+//                 value={filters.dateFin}
+//                 onChange={(e) => setFilters({...filters, dateFin: e.target.value})}
+//               />
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Vue Tableau */}
+//       {viewMode === 'table' && (
+//         <div className="card bg-base-100 shadow-xl border border-base-300">
+//           <div className="card-body p-0">
+//             {loading ? (
+//               <div className="flex items-center justify-center py-12">
+//                 <div className="text-center">
+//                   <RefreshCw className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
+//                   <p className="text-lg">Chargement de l'historique...</p>
+//                 </div>
+//               </div>
+//             ) : error ? (
+//               <div className="alert alert-error m-4">
+//                 <AlertTriangle className="h-6 w-6" />
+//                 <div>
+//                   <h3 className="font-bold">Erreur de chargement</h3>
+//                   <div className="text-sm">{error}</div>
+//                 </div>
+//               </div>
+//             ) : historique.length === 0 ? (
+//               <div className="text-center py-12">
+//                 <History className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+//                 <h3 className="text-lg font-semibold mb-2">Aucune action enregistrée</h3>
+//                 <p className="text-gray-500 mb-4">Les actions CRUD apparaîtront ici automatiquement.</p>
+//               </div>
+//             ) : (
+//               <>
+//                 <div className="overflow-x-auto">
+//                   <table className="table table-zebra w-full">
+//                     <thead>
+//                       <tr className="bg-base-200">
+//                         <th>Date</th>
+//                         <th>Utilisateur</th>
+//                         <th>Action</th>
+//                         <th>Module</th>
+//                         <th>Description</th>
+//                         <th>Statut</th>
+//                       </tr>
+//                     </thead>
+//                     <tbody>
+//                       {historique.map((item) => (
+//                         <tr key={item.id} className="hover:bg-base-200">
+//                           <td className="whitespace-nowrap">
+//                             <div className="text-sm">{formatDate(item.date)}</div>
+//                           </td>
+//                           <td>
+//                             <div className="flex items-center gap-2">
+//                               <User className="h-4 w-4 opacity-70" />
+//                               <span className="font-medium">{item.utilisateur}</span>
+//                             </div>
+//                           </td>
+//                           <td>
+//                             <div className={`badge ${getActionColor(item.action)} gap-2`}>
+//                               {getActionIcon(item.action)}
+//                               {item.action}
+//                             </div>
+//                           </td>
+//                           <td>
+//                             <div className="badge badge-outline gap-2">
+//                               {getModuleIcon(item.module)}
+//                               {item.module}
+//                             </div>
+//                           </td>
+//                           <td>
+//                             <div className="text-sm">
+//                               {getShortSummary(item)}
+//                             </div>
+//                           </td>
+//                           <td>
+//                             <div className={`badge ${item.status === 'SUCCESS' ? 'badge-success' : 'badge-error'}`}>
+//                               {item.status || 'SUCCESS'}
+//                             </div>
+//                           </td>
+//                         </tr>
+//                       ))}
+//                     </tbody>
+//                   </table>
+//                 </div>
+
+//                 {/* Pagination */}
+//                 <div className="flex flex-col md:flex-row justify-between items-center p-4 border-t border-base-300 gap-4">
+//                   <div className="text-sm text-base-content opacity-70">
+//                     Affichage de {historique.length} sur {advancedStats.totalActions} actions
+//                   </div>
+//                   <div className="join">
+//                     <button
+//                       className="join-item btn btn-sm"
+//                       onClick={() => loadHistorique(pagination.page - 1)}
+//                       disabled={pagination.page <= 1}
+//                     >
+//                       «
+//                     </button>
+//                     <button className="join-item btn btn-sm">
+//                       Page {pagination.page} sur {pagination.totalPages}
+//                     </button>
+//                     <button
+//                       className="join-item btn btn-sm"
+//                       onClick={() => loadHistorique(pagination.page + 1)}
+//                       disabled={pagination.page >= pagination.totalPages}
+//                     >
+//                       »
+//                     </button>
+//                   </div>
+//                 </div>
+//               </>
+//             )}
+//           </div>
+//         </div>
+//       )}
+
+//       {/* Vue Cartes */}
+//       {viewMode === 'cards' && historique.length > 0 && (
+//         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+//           {historique.map((item) => (
+//             <div key={item.id} className="card bg-base-100 shadow-lg border border-base-300">
+//               <div className="card-body p-4">
+//                 <div className="flex justify-between items-start mb-3">
+//                   <div className={`badge ${getActionColor(item.action)} gap-2`}>
+//                     {getActionIcon(item.action)}
+//                     {item.action}
+//                   </div>
+//                   <div className={`badge ${item.status === 'SUCCESS' ? 'badge-success' : 'badge-error'}`}>
+//                     {item.status}
+//                   </div>
+//                 </div>
+                
+//                 <div className="flex items-center gap-3 mb-3">
+//                   <div className="avatar">
+//                     <div className="w-10 h-10 rounded-full bg-primary text-primary-content flex items-center justify-center">
+//                       <User className="h-5 w-5" />
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <h3 className="font-bold">{item.utilisateur}</h3>
+//                     <p className="text-sm opacity-70">{formatDate(item.date)}</p>
+//                   </div>
+//                 </div>
+                
+//                 <div className="mb-3">
+//                   <div className="badge badge-outline gap-2 mb-2">
+//                     {getModuleIcon(item.module)}
+//                     {item.module}
+//                   </div>
+//                   <p className="text-sm">{getShortSummary(item)}</p>
+//                 </div>
+                
+//                 <div className="card-actions justify-end">
+//                   <button 
+//                     onClick={() => {
+//                       const details = `${item.utilisateur} ${item.action.toLowerCase()} dans ${item.module}\nDate: ${formatDate(item.date)}\nStatut: ${item.status}`;
+//                       navigator.clipboard.writeText(details);
+//                       showNotification('Détails copiés', 'success');
+//                     }}
+//                     className="btn btn-ghost btn-sm"
+//                   >
+//                     <Copy className="h-4 w-4" />
+//                     Copier
+//                   </button>
+//                 </div>
+//               </div>
+//             </div>
+//           ))}
+//         </div>
+//       )}
+
+//       {/* Aide et informations */}
+//       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+//         <div className="card bg-base-200">
+//           <div className="card-body">
+//             <h3 className="card-title">
+//               <Info className="h-5 w-5" />
+//               Comment utiliser ces statistiques ?
+//             </h3>
+//             <ul className="space-y-2 text-sm">
+//               <li>• <strong>Actions totales</strong>: Volume global d'activités</li>
+//               <li>• <strong>Taux de succès</strong>: Indicateur de fiabilité</li>
+//               <li>• <strong>Productivité</strong>: Efficacité du système</li>
+//               <li>• <strong>Score sécurité</strong>: Niveau de protection</li>
+//               <li>• <strong>Top utilisateurs</strong>: Utilisateurs les plus actifs</li>
+//               <li>• <strong>Pic d'activité</strong>: Heure de charge maximale</li>
+//             </ul>
+//           </div>
+//         </div>
+        
+//         <div className="card bg-base-200">
+//           <div className="card-body">
+//             <h3 className="card-title">
+//               <BellRing className="h-5 w-5" />
+//               Alertes et recommandations
+//             </h3>
+//             <div className="space-y-2 text-sm">
+//               {advancedStats.failedLogins > 10 && (
+//                 <div className="alert alert-warning">
+//                   <AlertTriangle className="h-4 w-4" />
+//                   <span>⚠️ Nombre élevé de tentatives de connexion échouées</span>
+//                 </div>
+//               )}
+//               {advancedStats.successRate < 90 && (
+//                 <div className="alert alert-warning">
+//                   <AlertTriangle className="h-4 w-4" />
+//                   <span>⚠️ Taux de succès inférieur à 90%</span>
+//                 </div>
+//               )}
+//               {advancedStats.securityScore < 80 && (
+//                 <div className="alert alert-error">
+//                   <XCircle className="h-4 w-4" />
+//                   <span>❌ Score sécurité critique</span>
+//                 </div>
+//               )}
+//               {advancedStats.actionsToday > 50 && (
+//                 <div className="alert alert-info">
+//                   <Activity className="h-4 w-4" />
+//                   <span>📈 Forte activité aujourd'hui</span>
+//                 </div>
+//               )}
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// // Fonction pour obtenir l'icône du module
+// const getModuleIcon = (module) => {
+//   const icons = {
+//     'Matériels': <Monitor className="h-4 w-4" />,
+//     'Logiciels': <Package className="h-4 w-4" />,
+//     'Incidents': <AlertTriangle className="h-4 w-4" />,
+//     'Réparations': <Wrench className="h-4 w-4" />,
+//     'Alertes': <Bell className="h-4 w-4" />,
+//     'Fournisseurs': <UsersIcon className="h-4 w-4" />,
+//     'Utilisateurs': <User className="h-4 w-4" />,
+//     'Rapports': <FileSpreadsheet className="h-4 w-4" />,
+//     'Authentification': <Shield className="h-4 w-4" />,
+//     'Navigation': <ExternalLink className="h-4 w-4" />,
+//     'Système': <Cpu className="h-4 w-4" />,
+//     'Configuration': <Settings className="h-4 w-4" />,
+//     'Dashboard': <DatabaseIcon className="h-4 w-4" />,
+//     'Réseau': <Server className="h-4 w-4" />,
+//     'Stockage': <HardDrive className="h-4 w-4" />,
+//     'Sécurité': <ShieldCheck className="h-4 w-4" />,
+//     'Audit': <FileText className="h-4 w-4" />,
+//     'Maintenance': <Wrench className="h-4 w-4" />,
+//     'Backup': <Save className="h-4 w-4" />,
+//     'Monitoring': <Activity className="h-4 w-4" />
+//   };
+  
+//   return icons[module] || <FileText className="h-4 w-4" />;
+// };
+
+// export default Historique;

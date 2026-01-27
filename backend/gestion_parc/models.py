@@ -28,6 +28,14 @@ class Materiel(models.Model):
         ('en_panne', 'En panne'),
         ('repare', 'Réparé'),
         ('obsolete', 'Obsolète'),
+        ('fonctionnel', 'Fonctionnel'),
+        ('en_panne', 'En panne'),
+        ('repare', 'Réparé'),
+        ('obsolete', 'Obsolète'),
+        ('en_maintenance', 'En maintenance'),
+        ('en_amelioration', 'En amélioration'),
+        ('en_reparation', 'En réparation'),
+        ('hors_service', 'Hors service'),
     ]
     
     SERVICE_CHOICES = [
@@ -52,7 +60,7 @@ class Materiel(models.Model):
     )
     date_achat = models.DateField(verbose_name="Date d'achat")
     etat = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=ETAT_CHOICES,
         default='fonctionnel',
         verbose_name="État"
@@ -246,31 +254,7 @@ class Alerte(models.Model):
         verbose_name = "Alerte"
         verbose_name_plural = "Alertes"
         ordering = ['-date_alerte']
-
-class Reparation(models.Model):
-    TYPE_REPARATION = [
-        ('preventive', 'Préventive'),
-        ('corrective', 'Corrective'),
-        ('ameliorative', 'Améliorative'),
-    ]
-    
-    description = models.TextField()
-    date_debut = models.DateTimeField(auto_now_add=True)
-    date_fin = models.DateTimeField(null=True, blank=True)
-    type_reparation = models.CharField(max_length=20, choices=TYPE_REPARATION)
-    cout = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    
-    # Relations
-    materiel = models.ForeignKey(Materiel, on_delete=models.CASCADE)
-    incident = models.ForeignKey(Incident, on_delete=models.SET_NULL, null=True, blank=True)
-    
-    def __str__(self):
-        return f"Réparation {self.materiel.nom} - {self.date_debut.strftime('%d/%m/%Y')}"
-
-    class Meta:
-        verbose_name = "Réparation"
-        verbose_name_plural = "Réparations"
-
+        
 class ProfilUtilisateur(models.Model):
     # user = models.OneToOneField(User, on_delete=models.CASCADE)
     user = models.OneToOneField(
@@ -318,7 +302,117 @@ class ProfilUtilisateur(models.Model):
         
         
         
+# historique
+
+# Dans models.py - Ajoutez ce modèle
+from django.db import models
+from django.contrib.auth.models import User
+from django.utils import timezone
+
+class HistoriqueAction(models.Model):
+    TYPE_ACTION = [
+        ('creation', 'Création'),
+        ('modification', 'Modification'),
+        ('suppression', 'Suppression'),
+        ('consultation', 'Consultation'),
+        ('login', 'Connexion'),
+        ('logout', 'Déconnexion'),
+        ('autre', 'Autre'),
+    ]
+    
+    MODULE_CHOICES = [
+        ('materiel', 'Matériel'),
+        ('logiciel', 'Logiciel'),
+        ('installation_logiciel', 'Installation Logiciel'),
+        ('reseau', 'Réseau'),
+        ('incident', 'Incident'),
+        ('alerte', 'Alerte'),
+        ('reparation', 'Réparation'),
+        ('fournisseur', 'Fournisseur'),
+        ('profil_utilisateur', 'Profil Utilisateur'),
+        ('utilisateur', 'Utilisateur'),
+        ('dashboard', 'Tableau de bord'),
+        ('rapport', 'Rapport'),
+        ('systeme', 'Système'),
+    ]
+    
+    utilisateur = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=20, choices=TYPE_ACTION)
+    module = models.CharField(max_length=30, choices=MODULE_CHOICES)
+    objet_id = models.IntegerField(null=True, blank=True)
+    objet_nom = models.CharField(max_length=255, blank=True)
+    description = models.TextField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    date_action = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    donnees_avant = models.JSONField(null=True, blank=True)
+    donnees_apres = models.JSONField(null=True, blank=True)
+    
+    class Meta:
+        verbose_name = "Historique d'action"
+        verbose_name_plural = "Historiques d'actions"
+        ordering = ['-date_action']
+    
+    def __str__(self):
+        return f"{self.get_action_display()} - {self.get_module_display()}"
+    
+    
+    
+# Dans models.py - CORRECTION COMPLÈTE
+class Reparation(models.Model):
+    TYPE_REPARATION = [
+        ('preventive', 'Préventive'),
+        ('corrective', 'Corrective'),
+        ('ameliorative', 'Améliorative'),
+    ]
+    
+    description = models.TextField()
+    date_debut = models.DateTimeField(auto_now_add=True)
+    date_fin = models.DateTimeField(null=True, blank=True)
+    type_reparation = models.CharField(max_length=20, choices=TYPE_REPARATION)
+    cout = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # CORRECTION CRITIQUE ICI :
+    technicien_responsable = models.CharField(
+        max_length=200,
+        verbose_name="Technicien responsable",
+        default='Technicien non spécifié',  # Valeur par défaut
+        blank=False,  # Important : ne peut pas être vide
+        null=False,   # Important : ne peut pas être NULL
+    )
+    
+    # Relations
+    materiel = models.ForeignKey(
+        'Materiel', 
+        on_delete=models.CASCADE, 
+        related_name='reparations'
+    )
+    incident = models.ForeignKey(
+        'Incident', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='reparations'
+    )
+    
+    class Meta:
+        verbose_name = "Réparation"
+        verbose_name_plural = "Réparations"
+        ordering = ['-date_debut']
+    
+    def __str__(self):
+        return f"Réparation #{self.id} - {self.materiel.nom if self.materiel else 'Sans matériel'}"
+    
+    def save(self, *args, **kwargs):
+        """S'assurer que technicien_responsable n'est jamais vide"""
+        # S'assurer qu'il y a toujours une valeur
+        if not self.technicien_responsable or self.technicien_responsable.strip() == '':
+            self.technicien_responsable = 'Technicien non spécifié'
         
+        super().save(*args, **kwargs)
         
-        
-      
+        # Mettre à jour le matériel si la réparation est terminée
+        if self.date_fin and self.materiel:
+            self.materiel.etat = 'fonctionnel'
+            self.materiel.save()

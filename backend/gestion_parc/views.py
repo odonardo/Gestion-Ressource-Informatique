@@ -115,47 +115,124 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         
         return Response(data)
     
+# ============================================================================
+# MATERIEL VIEWSET - UNE SEULE DÉFINITION
+# ============================================================================
 class MaterielViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour gérer les matériels
+    """
+    # ATTRIBUT QUERYSET OBLIGATOIRE
     queryset = Materiel.objects.all()
     serializer_class = MaterielSerializer
-    permission_classes = [IsUser]  # Tous les utilisateurs connectés
+    permission_classes = [IsUser]
 
     def get_queryset(self):
+        """
+        Filtrer le queryset selon l'utilisateur connecté
+        """
+        # Base queryset
         queryset = Materiel.objects.all()
         
-        # Les utilisateurs standards ne voient que leurs matériels attribués
+        # Vérifier si l'utilisateur a un profil
         if hasattr(self.request.user, 'profilutilisateur'):
             user_profile = self.request.user.profilutilisateur
             if user_profile.role == 'user':
-                queryset = queryset.filter(utilisateur_attribue=self.request.user.get_full_name())
+                # Utilisateurs standards voient seulement leurs matériels
+                nom_utilisateur = self.request.user.get_full_name()
+                if nom_utilisateur:
+                    queryset = queryset.filter(utilisateur_attribue=nom_utilisateur)
         
-        # Filtres existants...
+        # Filtre par état
         etat = self.request.query_params.get('etat', None)
         if etat:
             queryset = queryset.filter(etat=etat)
-            
-        return queryset
+        
+        # Filtre par service
+        service = self.request.query_params.get('service', None)
+        if service:
+            queryset = queryset.filter(service_attribue=service)
+        
+        # Filtre par recherche
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(nom__icontains=search) | 
+                Q(reference__icontains=search) |
+                Q(utilisateur_attribue__icontains=search) |
+                Q(service_attribue__icontains=search)
+            )
+        
+        # Trier par date de création (plus récent en premier)
+        return queryset.order_by('-created_at')
+
+    # ==================== ACTIONS PERSONNALISÉES ====================
+
+    @action(detail=False, methods=['get'])
+    def en_panne(self, request):
+        """
+        Retourne uniquement les matériels en panne
+        """
+        materiels_en_panne = self.get_queryset().filter(etat='en_panne')
+        serializer = self.get_serializer(materiels_en_panne, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def logiciels(self, request, pk=None):
+        """Liste tous les logiciels installés sur un matériel"""
+        materiel = self.get_object()
+        installations = InstallationLogiciel.objects.filter(materiel=materiel, statut='actif')
+        serializer = InstallationLogicielSerializer(installations, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def incidents(self, request, pk=None):
+        """Liste tous les incidents d'un matériel"""
+        materiel = self.get_object()
+        incidents = Incident.objects.filter(materiel_concerne=materiel)
+        serializer = IncidentSerializer(incidents, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def statistiques(self, request, pk=None):
+        """Statistiques pour un matériel"""
+        materiel = self.get_object()
+        
+        data = {
+            'total_incidents': Incident.objects.filter(materiel_concerne=materiel).count(),
+            'incidents_ouverts': Incident.objects.filter(
+                materiel_concerne=materiel, 
+                statut__in=['ouvert', 'en_cours']
+            ).count(),
+            'logiciels_installes': InstallationLogiciel.objects.filter(
+                materiel=materiel, 
+                statut='actif'
+            ).count(),
+            'alertes_actuelles': Alerte.objects.filter(
+                materiel_source=materiel, 
+                statut='nouvelle'
+            ).count(),
+            'reparations': {
+                'total': Reparation.objects.filter(materiel=materiel).count(),
+                'en_cours': Reparation.objects.filter(materiel=materiel, date_fin__isnull=True).count(),
+                'terminees': Reparation.objects.filter(materiel=materiel, date_fin__isnull=False).count(),
+            }
+        }
+        
+        return Response(data)
 
     def create(self, request, *args, **kwargs):
-        # Seuls admin, technician, secretary peuvent créer
-        user_role = request.user.profilutilisateur.role
-        if user_role not in ['admin', 'technician', 'secretary']:
-            return Response(
-                {"detail": "Vous n'avez pas la permission de créer du matériel."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        """Création avec logging"""
+        print(f"🆕 Création matériel - Utilisateur: {request.user.username}")
+        print(f"📤 Données: {request.data}")
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        # Seuls admin, technician peuvent modifier
-        user_role = request.user.profilutilisateur.role
-        if user_role not in ['admin', 'technician']:
-            return Response(
-                {"detail": "Vous n'avez pas la permission de modifier du matériel."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        """Mise à jour avec logging"""
+        print(f"✏️ Mise à jour matériel - Utilisateur: {request.user.username}")
+        print(f"📤 Données: {request.data}")
         return super().update(request, *args, **kwargs)
-
+    
 class FournisseurViewSet(viewsets.ModelViewSet):
     queryset = Fournisseur.objects.all()
     serializer_class = FournisseurSerializer
@@ -171,45 +248,48 @@ class InstallationLogicielViewSet(viewsets.ModelViewSet):
     serializer_class = InstallationLogicielSerializer
     permission_classes = [IsTechnician | IsAdmin]  # Seuls techniciens et admin
 
+# Dans views.py - IncidentViewSet
+
 class IncidentViewSet(viewsets.ModelViewSet):
     queryset = Incident.objects.all()
     serializer_class = IncidentSerializer
     permission_classes = [IsUser]  # Tous les utilisateurs connectés
 
-    def get_queryset(self):
-        queryset = Incident.objects.all()
-        
-        if hasattr(self.request.user, 'profilutilisateur'):
-            user_profile = self.request.user.profilutilisateur
-            
-            # Les utilisateurs standards ne voient que leurs incidents
-            if user_profile.role == 'user':
-                queryset = queryset.filter(utilisateur_signaleur=self.request.user)
-            
-            # Les techniciens voient tous les incidents
-            elif user_profile.role == 'technician':
-                queryset = queryset.filter(statut__in=['ouvert', 'en_cours'])
-        
-        return queryset.order_by('-date_creation')
-
     def create(self, request, *args, **kwargs):
-        # Tous les utilisateurs peuvent créer des incidents
-        return super().create(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        # Seuls techniciens et admin peuvent modifier les incidents
-        user_role = request.user.profilutilisateur.role
-        if user_role not in ['admin', 'technician']:
-            return Response(
-                {"detail": "Seuls les techniciens peuvent modifier les incidents."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        return super().update(request, *args, **kwargs)
-
-class ReparationViewSet(viewsets.ModelViewSet):
-    queryset = Reparation.objects.all()
-    serializer_class = ReparationSerializer
-    permission_classes = [IsTechnician | IsAdmin]  # Seuls techniciens et admin
+        """
+        Création d'un incident avec validation du matériel
+        """
+        print(f"🚨 Création incident - Utilisateur connecté: {request.user.username}")
+        
+        mutable_data = request.data.copy()
+        
+        # Vérifier si un matériel est spécifié
+        materiel_id = mutable_data.get('materiel_concerne')
+        if materiel_id:
+            try:
+                materiel = Materiel.objects.get(id=materiel_id)
+                # Vérifier que le matériel est bien en panne
+                if materiel.etat != 'en_panne':
+                    return Response({
+                        'detail': f"Le matériel '{materiel.nom}' n'est pas en panne. État actuel: {materiel.etat}"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            except Materiel.DoesNotExist:
+                return Response({
+                    'detail': 'Matériel non trouvé'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # FORCER l'utilisateur connecté comme signaleur
+        mutable_data['utilisateur_signaleur'] = request.user.id
+        
+        # Créer le serializer
+        serializer = self.get_serializer(data=mutable_data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Sauvegarder
+        self.perform_create(serializer)
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 class AlerteViewSet(viewsets.ModelViewSet):
     queryset = Alerte.objects.all()
@@ -615,26 +695,9 @@ class AlerteViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(alerte)
         return Response(serializer.data)
-
-class ReparationViewSet(viewsets.ModelViewSet):
-    queryset = Reparation.objects.all()
-    serializer_class = ReparationSerializer
-    permission_classes = [AllowAny]  # Temporaire
-
-    @action(detail=True, methods=['post'])
-    def terminer(self, request, pk=None):
-        """Terminer une réparation"""
-        reparation = self.get_object()
-        reparation.date_fin = timezone.now()
-        reparation.save()
-        
-        # Mettre à jour l'état du matériel si nécessaire
-        if reparation.materiel:
-            reparation.materiel.etat = 'fonctionnel'
-            reparation.materiel.save()
-        
-        serializer = self.get_serializer(reparation)
-        return Response(serializer.data)
+    
+    
+    
 class ProfilUtilisateurViewSet(viewsets.ModelViewSet):
     queryset = ProfilUtilisateur.objects.select_related('user').all()
     serializer_class = ProfilUtilisateurSerializer
@@ -1508,5 +1571,684 @@ def debug_request(request):
     })
     
     
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_current_user_profile(request):
+    """
+    Récupère les informations complètes de l'utilisateur connecté
+    avec son profil (rôle, département, etc.)
+    """
+    user = request.user
+    
+    try:
+        profil = ProfilUtilisateur.objects.get(user=user)
+        role = profil.role
+        departement = profil.departement or 'Non spécifié'
+        telephone = profil.telephone or ''
+    except ProfilUtilisateur.DoesNotExist:
+        # Créer un profil par défaut si inexistant
+        profil = ProfilUtilisateur.objects.create(
+            user=user,
+            departement='À définir',
+            role='user',
+            telephone=''
+        )
+        role = 'user'
+        departement = 'À définir'
+        telephone = ''
+    
+    data = {
+        'id': user.id,
+        'username': user.username,
+        'email': user.email or f"{user.username}@example.com",
+        'first_name': user.first_name or '',
+        'last_name': user.last_name or '',
+        'full_name': f"{user.first_name or ''} {user.last_name or ''}".strip() or user.username,
+        'role': role,
+        'departement': departement,
+        'telephone': telephone,
+        'is_active': user.is_active,
+        'date_joined': user.date_joined,
+        'is_staff': user.is_staff,
+        'is_superuser': user.is_superuser
+    }
+    
+    return Response(data)
+
+# Dans views.py
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def debug_current_user(request):
+    """Endpoint pour déboguer l'utilisateur connecté"""
+    try:
+        profil = ProfilUtilisateur.objects.get(user=request.user)
+        role = profil.role
+    except:
+        role = 'unknown'
+    
+    return Response({
+        'user': {
+            'id': request.user.id,
+            'username': request.user.username,
+            'email': request.user.email,
+            'is_authenticated': request.user.is_authenticated,
+            'is_staff': request.user.is_staff,
+            'is_superuser': request.user.is_superuser,
+            'role': role
+        }
+    })
+    
+# historique
+
+# Dans views.py
+from .models import HistoriqueAction
+from .serializers import HistoriqueActionSerializer
+from .services.historique_service import HistoriqueService
+
+class HistoriqueActionViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet pour consulter l'historique des actions
+    Accessible seulement aux admin et directeur
+    """
+    queryset = HistoriqueAction.objects.all()
+    serializer_class = HistoriqueActionSerializer
+    permission_classes = [IsDirector | IsAdmin]  # Seuls directeurs et admin
+    
+    def get_queryset(self):
+        queryset = HistoriqueAction.objects.select_related('utilisateur').all()
+        
+        # Filtres
+        module = self.request.query_params.get('module', None)
+        if module:
+            queryset = queryset.filter(module=module)
+            
+        action = self.request.query_params.get('action', None)
+        if action:
+            queryset = queryset.filter(action=action)
+            
+        utilisateur_id = self.request.query_params.get('utilisateur_id', None)
+        if utilisateur_id:
+            queryset = queryset.filter(utilisateur_id=utilisateur_id)
+            
+        date_debut = self.request.query_params.get('date_debut', None)
+        date_fin = self.request.query_params.get('date_fin', None)
+        
+        if date_debut:
+            queryset = queryset.filter(date_action__gte=date_debut)
+        if date_fin:
+            queryset = queryset.filter(date_action__lte=date_fin)
+        
+        # Recherche
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(objet_nom__icontains=search) |
+                Q(description__icontains=search) |
+                Q(utilisateur__username__icontains=search) |
+                Q(utilisateur__first_name__icontains=search) |
+                Q(utilisateur__last_name__icontains=search)
+            )
+        
+        return queryset.order_by('-date_action')
+    
+    @action(detail=False, methods=['get'])
+    def statistiques(self, request):
+        """Retourne des statistiques sur l'historique"""
+        stats = HistoriqueService.get_statistiques()
+        return Response(stats)
+    
+    @action(detail=False, methods=['get'])
+    def mes_actions(self, request):
+        """Retourne l'historique des actions de l'utilisateur connecté"""
+        queryset = self.get_queryset().filter(utilisateur=request.user)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def modules(self, request):
+        """Retourne la liste des modules disponibles"""
+        modules = HistoriqueAction.MODULE_CHOICES
+        return Response(modules)
+    
+    @action(detail=False, methods=['get'])
+    def actions(self, request):
+        """Retourne la liste des types d'actions disponibles"""
+        actions = HistoriqueAction.TYPE_ACTION
+        return Response(actions)
+
+# Ajoutez cette vue pour les statistiques d'historique
+@api_view(['GET'])
+@permission_classes([IsDirector | IsAdmin])
+def historique_statistiques(request):
+    """Endpoint pour les statistiques d'historique"""
+    stats = HistoriqueService.get_statistiques()
+    return Response(stats)
+
+
+# Dans views.py - MODIFIEZ les ViewSets existants
+
+from .services.historique_service import HistoriqueService
+
+class MaterielViewSet(viewsets.ModelViewSet):
+    # ... code existant ...
+    
+    def create(self, request, *args, **kwargs):
+        # Code existant...
+        response = super().create(request, *args, **kwargs)
+        
+        # Enregistrer dans l'historique
+        if response.status_code == status.HTTP_201_CREATED:
+            data = response.data
+            HistoriqueService.enregistrer_creation(
+                request=request,
+                module='materiel',
+                objet_id=data['id'],
+                objet_nom=data['nom'],
+                donnees=data
+            )
+        
+        return response
+    
+    def update(self, request, *args, **kwargs):
+        # Récupérer les données avant modification
+        instance = self.get_object()
+        donnees_avant = MaterielSerializer(instance).data
+        
+        # Exécuter la modification
+        response = super().update(request, *args, **kwargs)
+        
+        # Enregistrer dans l'historique
+        if response.status_code == status.HTTP_200_OK:
+            HistoriqueService.enregistrer_modification(
+                request=request,
+                module='materiel',
+                objet_id=instance.id,
+                objet_nom=instance.nom,
+                donnees_avant=donnees_avant,
+                donnees_apres=response.data
+            )
+        
+        return response
+    
+    def destroy(self, request, *args, **kwargs):
+        # Récupérer les données avant suppression
+        instance = self.get_object()
+        donnees_avant = MaterielSerializer(instance).data
+        
+        # Exécuter la suppression
+        response = super().destroy(request, *args, **kwargs)
+        
+        # Enregistrer dans l'historique
+        if response.status_code == status.HTTP_204_NO_CONTENT:
+            HistoriqueService.enregistrer_suppression(
+                request=request,
+                module='materiel',
+                objet_id=instance.id,
+                objet_nom=instance.nom,
+                donnees_avant=donnees_avant
+            )
+        
+        return response
+
+# Appliquez le même pattern à tous les autres ViewSets:
+# LogicielViewSet, FournisseurViewSet, IncidentViewSet, etc.
+
+
+# Dans views.py - Ajoutez ces imports
+from .models import HistoriqueAction
+from .serializers import HistoriqueActionSerializer
+from django.db.models import Count, Q, Max
+from rest_framework.decorators import action
+from django.utils import timezone
+from datetime import timedelta
+
+# Ajoutez ce ViewSet à la fin de votre fichier
+class HistoriqueActionViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet pour consulter l'historique des actions
+    Accessible seulement aux admin et directeur
+    """
+    queryset = HistoriqueAction.objects.all()
+    serializer_class = HistoriqueActionSerializer
+    permission_classes = [IsDirector | IsAdmin]  # Seuls directeurs et admin
+    
+    def get_queryset(self):
+        queryset = HistoriqueAction.objects.select_related('utilisateur').all()
+        
+        # Filtres
+        module = self.request.query_params.get('module', None)
+        if module:
+            queryset = queryset.filter(module=module)
+            
+        action = self.request.query_params.get('action', None)
+        if action:
+            queryset = queryset.filter(action=action)
+            
+        utilisateur_id = self.request.query_params.get('utilisateur_id', None)
+        if utilisateur_id:
+            queryset = queryset.filter(utilisateur_id=utilisateur_id)
+            
+        date_debut = self.request.query_params.get('date_debut', None)
+        date_fin = self.request.query_params.get('date_fin', None)
+        
+        if date_debut:
+            queryset = queryset.filter(date_action__gte=date_debut)
+        if date_fin:
+            queryset = queryset.filter(date_action__lte=date_fin)
+        
+        # Recherche
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(objet_nom__icontains=search) |
+                Q(description__icontains=search) |
+                Q(utilisateur__username__icontains=search) |
+                Q(utilisateur__first_name__icontains=search) |
+                Q(utilisateur__last_name__icontains=search)
+            )
+        
+        return queryset.order_by('-date_action')
+    
+    @action(detail=False, methods=['get'])
+    def statistiques(self, request):
+        """Retourne des statistiques sur l'historique"""
+        total = HistoriqueAction.objects.count()
+        
+        par_module = HistoriqueAction.objects.values('module').annotate(
+            total=Count('id'),
+            creations=Count('id', filter=Q(action='creation')),
+            modifications=Count('id', filter=Q(action='modification')),
+            suppressions=Count('id', filter=Q(action='suppression'))
+        )
+        
+        # Pour les 30 derniers jours
+        trente_jours = timezone.now() - timedelta(days=30)
+        
+        par_jour = HistoriqueAction.objects.filter(
+            date_action__gte=trente_jours
+        ).extra(
+            select={'date': "DATE(date_action)"}
+        ).values('date').annotate(
+            total=Count('id')
+        ).order_by('-date')
+        
+        utilisateurs_actifs = HistoriqueAction.objects.values(
+            'utilisateur__username',
+            'utilisateur__first_name',
+            'utilisateur__last_name'
+        ).annotate(
+            total_actions=Count('id'),
+            derniere_action=Max('date_action')
+        ).order_by('-total_actions')[:10]
+        
+        data = {
+            'total': total,
+            'par_module': list(par_module),
+            'par_jour': list(par_jour),
+            'utilisateurs_actifs': list(utilisateurs_actifs)
+        }
+        
+        return Response(data)
+    
+    @action(detail=False, methods=['get'])
+    def mes_actions(self, request):
+        """Retourne l'historique des actions de l'utilisateur connecté"""
+        queryset = self.get_queryset().filter(utilisateur=request.user)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def modules(self, request):
+        """Retourne la liste des modules disponibles"""
+        modules = [
+            ['materiel', 'Matériel'],
+            ['logiciel', 'Logiciel'],
+            ['installation_logiciel', 'Installation Logiciel'],
+            ['reseau', 'Réseau'],
+            ['incident', 'Incident'],
+            ['alerte', 'Alerte'],
+            ['reparation', 'Réparation'],
+            ['fournisseur', 'Fournisseur'],
+            ['profil_utilisateur', 'Profil Utilisateur'],
+            ['utilisateur', 'Utilisateur'],
+            ['dashboard', 'Tableau de bord'],
+            ['rapport', 'Rapport'],
+            ['systeme', 'Système'],
+        ]
+        return Response(modules)
+    
+    @action(detail=False, methods=['get'])
+    def actions(self, request):
+        """Retourne la liste des types d'actions disponibles"""
+        actions = [
+            ['creation', 'Création'],
+            ['modification', 'Modification'],
+            ['suppression', 'Suppression'],
+            ['consultation', 'Consultation'],
+            ['login', 'Connexion'],
+            ['logout', 'Déconnexion'],
+            ['autre', 'Autre'],
+        ]
+        return Response(actions)
     
     
+    
+    
+# VOTRE views.py - À LA FIN DU FICHIER, GARDEZ CECI :
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_materiels_en_panne(request):
+    """
+    Endpoint pour récupérer UNIQUEMENT les matériels en panne
+    pour le formulaire d'incident
+    """
+    try:
+        # Filtrer strictement les matériels en panne
+        queryset = Materiel.objects.filter(etat='en_panne')
+        
+        # Pour utilisateur standard, ne voir que ses matériels
+        if hasattr(request.user, 'profilutilisateur'):
+            user_profile = request.user.profilutilisateur
+            if user_profile.role == 'user':
+                nom_utilisateur = request.user.get_full_name()
+                queryset = queryset.filter(utilisateur_attribue=nom_utilisateur)
+        
+        # Si aucun matériel en panne
+        if not queryset.exists():
+            return Response({
+                'success': True,
+                'message': 'Aucun matériel en panne trouvé',
+                'materiels': [],
+                'count': 0
+            })
+        
+        # Format simple pour le frontend
+        data = [
+            {
+                'id': materiel.id,
+                'nom': materiel.nom,
+                'reference': materiel.reference,
+                'utilisateur_attribue': materiel.utilisateur_attribue or 'Non attribué',
+                'service_attribue': materiel.service_attribue,
+                'label': f"{materiel.nom} ({materiel.reference})"
+            }
+            for materiel in queryset
+        ]
+        
+        return Response({
+            'success': True,
+            'count': len(data),
+            'materiels': data
+        })
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }, status=500)
+        
+        
+# AJOUTEZ CETTE CLASSE DANS views.py (vers la fin, avant les dernières fonctions)
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+class MaterielsEnPanneView(APIView):
+    """
+    Vue API pour récupérer exclusivement les matériels en panne
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Filtrer UNIQUEMENT les matériels en panne
+            queryset = Materiel.objects.filter(etat='en_panne')
+            
+            # Filtrer par service si spécifié
+            service = request.query_params.get('service', None)
+            if service:
+                queryset = queryset.filter(service_attribue=service)
+            
+            # Pour utilisateur standard, ne voir que ses matériels
+            if hasattr(request.user, 'profilutilisateur'):
+                user_profile = request.user.profilutilisateur
+                if user_profile.role == 'user':
+                    nom_utilisateur = request.user.get_full_name()
+                    queryset = queryset.filter(utilisateur_attribue=nom_utilisateur)
+            
+            # Si aucun matériel en panne
+            if not queryset.exists():
+                return Response({
+                    'success': True,
+                    'message': 'Aucun matériel en panne trouvé',
+                    'materiels': [],
+                    'count': 0
+                })
+            
+            # Format simple pour le frontend
+            data = [
+                {
+                    'id': materiel.id,
+                    'nom': materiel.nom,
+                    'reference': materiel.reference,
+                    'utilisateur_attribue': materiel.utilisateur_attribue or 'Non attribué',
+                    'service_attribue': materiel.service_attribue,
+                    'label': f"{materiel.nom} ({materiel.reference})"
+                }
+                for materiel in queryset
+            ]
+            
+            return Response({
+                'success': True,
+                'count': len(data),
+                'materiels': data
+            })
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'Erreur: {str(e)}'
+            }, status=500)
+            
+            
+# Option temporaire pour tester
+@api_view(['GET'])
+@permission_classes([AllowAny])  # ← Changez à AllowAny temporairement
+def get_materiels_en_panne(request):
+    """
+    Récupère uniquement les matériels en panne
+    Temporairement accessible sans authentification pour tester
+    """
+    # Filtrer uniquement les matériels en panne
+    materiels_en_panne = Materiel.objects.filter(etat='en_panne')
+    
+    # Format simple
+    data = [
+        {
+            'id': materiel.id,
+            'nom': materiel.nom,
+            'reference': materiel.reference,
+            'label': f"{materiel.nom} ({materiel.reference})"
+        }
+        for materiel in materiels_en_panne
+    ]
+    
+    return Response({
+        'success': True,
+        'message': 'Matériels en panne (test sans auth)',
+        'count': len(data),
+        'materiels': data
+    })
+    
+    
+# Fichier: votre_app/views.py
+
+from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.utils import timezone
+from .models import Reparation, Materiel
+from .serializers import ReparationSerializer
+
+# Dans views.py - REPLACE the ReparationViewSet with this
+class ReparationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour gérer les réparations.
+    """
+    queryset = Reparation.objects.all()
+    serializer_class = ReparationSerializer
+    permission_classes = [IsTechnician | IsAdmin]  # Seuls techniciens et admin
+    
+    def get_serializer_context(self):
+        """Ajouter le request au contexte du serializer"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
+    def create(self, request, *args, **kwargs):
+        """Surcharge de la création pour logger les données"""
+        print("🔍 DEBUG ReparationViewSet.create()")
+        print(f"   - request.data: {request.data}")
+        print(f"   - request.user: {request.user.username}")
+        
+        # Si date_fin est vide ou 'null' dans la requête, la mettre à None
+        data = request.data.copy()
+        date_fin = data.get('date_fin')
+        
+        if date_fin in ['', 'null', None]:
+            data['date_fin'] = None
+            print("   → date_fin définie à None (réparation en cours)")
+        else:
+            print(f"   → date_fin définie à: {date_fin}")
+        
+        # Créer le serializer avec les données modifiées
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        
+        # Appeler le parent
+        return super().create(request, *args, **kwargs)
+    
+    def perform_create(self, serializer):
+        """S'assurer que le technicien est bien assigné"""
+        user = self.request.user
+        
+        # Formater le nom du technicien
+        nom_complet = f"{user.first_name or ''} {user.last_name or ''}".strip()
+        if not nom_complet:
+            nom_complet = user.username
+        
+        print(f"   ✅ Technicien à assigner: {nom_complet}")
+        
+        # Ajouter le technicien aux données validées
+        serializer.validated_data['technicien_responsable'] = nom_complet
+        
+        # Sauvegarder
+        reparation = serializer.save()
+        
+        print(f"✅ Réparation #{reparation.id} créée avec technicien: {reparation.technicien_responsable}")
+        print(f"📊 Détails réparation: type={reparation.type_reparation}, date_fin={reparation.date_fin}")
+        return reparation
+    
+    def get_queryset(self):
+        """Filtrer les réparations"""
+        queryset = Reparation.objects.select_related('materiel', 'incident').all()
+        
+        # Filtres
+        materiel_id = self.request.query_params.get('materiel_id', None)
+        if materiel_id:
+            queryset = queryset.filter(materiel_id=materiel_id)
+        
+        statut = self.request.query_params.get('statut', None)
+        if statut == 'en_cours':
+            queryset = queryset.filter(date_fin__isnull=True)
+        elif statut == 'termine':
+            queryset = queryset.filter(date_fin__isnull=False)
+        
+        # Pour les techniciens, voir seulement leurs réparations
+        if hasattr(self.request.user, 'profilutilisateur'):
+            profil = self.request.user.profilutilisateur
+            if profil.role == 'technician':
+                nom_technicien = f"{self.request.user.first_name or ''} {self.request.user.last_name or ''}".strip()
+                if not nom_technicien:
+                    nom_technicien = self.request.user.username
+                queryset = queryset.filter(technicien_responsable=nom_technicien)
+        
+        return queryset.order_by('-date_debut')
+    
+    @action(detail=True, methods=['post'])
+    def terminer(self, request, pk=None):
+        """Terminer une réparation"""
+        reparation = self.get_object()
+        
+        # Mettre à jour le technicien
+        user = request.user
+        nom_complet = f"{user.first_name or ''} {user.last_name or ''}".strip()
+        if not nom_complet:
+            nom_complet = user.username
+        
+        reparation.date_fin = timezone.now()
+        reparation.technicien_responsable = nom_complet
+        reparation.save()
+        
+        serializer = self.get_serializer(reparation)
+        return Response(serializer.data)
+    
+    
+# À la fin de views.py - Endpoint de test
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def test_reparation(request):
+    """Endpoint de test pour déboguer la création de réparation"""
+    print("🧪 TEST REPARATION ENDPOINT")
+    print(f"   - Méthode: {request.method}")
+    print(f"   - User: {request.user.username}")
+    print(f"   - Données brutes: {request.data}")
+    print(f"   - Headers: {dict(request.headers)}")
+    
+    # Tester avec des données minimales
+    test_data = {
+        'description': 'Test réparation',
+        'type_reparation': 'preventive',
+        'cout': 100,
+        'technicien_responsable': f"Test {request.user.username}",
+        'materiel': 1  # ID existant
+    }
+    
+    serializer = ReparationSerializer(data=test_data, context={'request': request})
+    
+    if serializer.is_valid():
+        print("✅ Serializer valide")
+        print(f"   - Données validées: {serializer.validated_data}")
+        
+        # Créer
+        reparation = serializer.save()
+        
+        return Response({
+            'success': True,
+            'message': f'Réparation test #{reparation.id} créée',
+            'data': ReparationSerializer(reparation).data
+        })
+    else:
+        print("❌ Serializer invalide")
+        print(f"   - Erreurs: {serializer.errors}")
+        
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=400)

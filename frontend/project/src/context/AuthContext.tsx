@@ -2489,6 +2489,7 @@ interface AuthProviderProps {
 }
 
 const API_BASE_URL = 'https://gestion-ressource-informatique.onrender.com';
+// const API_BASE_URL = 'http://localhost:8000';
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

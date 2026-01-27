@@ -1,0 +1,3590 @@
+
+// // import React, { useState, useEffect } from 'react';
+// // import { X, Wrench, Calendar, Clock, DollarSign, Package, AlertTriangle, Search, User, Loader2, AlertCircle } from 'lucide-react';
+// // import { Reparation, Incident, Materiel } from '../types';
+// // import { incidentsAPI, materielsAPI } from '../services/api';
+
+// // interface ReparationFormProps {
+// //   isOpen: boolean;
+// //   onClose: () => void;
+// //   onSubmit: (reparationData: Omit<Reparation, 'id' | 'materiel_nom'>) => void;
+// //   reparation?: Reparation;
+// // }
+
+// // interface IncidentAvecMateriel extends Incident {
+// //   materiel_details?: Materiel;
+// // }
+
+// // const ReparationForm: React.FC<ReparationFormProps> = ({
+// //   isOpen,
+// //   onClose,
+// //   onSubmit,
+// //   reparation
+// // }) => {
+// //   const [formData, setFormData] = useState({
+// //     description: '',
+// //     date_fin: '',
+// //     heure_fin: '',
+// //     type_reparation: '' as '' | 'preventive' | 'corrective' | 'ameliorative',
+// //     cout: 0,
+// //     materiel: 0,
+// //     incident: 0,
+// //     technicien_responsable: ''
+// //   });
+
+// //   const [loading, setLoading] = useState(false);
+// //   const [errors, setErrors] = useState<Record<string, string>>({});
+// //   const [incidentsActifs, setIncidentsActifs] = useState<IncidentAvecMateriel[]>([]);
+// //   const [materielsEnPanne, setMaterielsEnPanne] = useState<Materiel[]>([]);
+// //   const [recherche, setRecherche] = useState('');
+
+// //   // Heures prédéfinies
+// //   const heuresPredefinies = [
+// //     { value: '00:00', label: 'Minuit' },
+// //     { value: '06:00', label: '6:00' },
+// //     { value: '12:00', label: 'Midi' },
+// //     { value: '18:00', label: '18:00' }
+// //   ];
+
+// //   // Fonction pour vérifier si un matériel est en panne
+// //   const isMaterielEnPanne = (materiel: Materiel): boolean => {
+// //     if (!materiel) return false;
+    
+// //     const etat = (materiel.etat || '').toLowerCase().trim();
+// //     const statut = (materiel.statut || '').toLowerCase().trim();
+    
+// //     const etatsPanne = [
+// //       'en_panne',
+// //       'en panne',
+// //       'panne',
+// //       'broken',
+// //       'out of order',
+// //       'hors service',
+// //       'defective',
+// //       'faulty',
+// //       'défectueux',
+// //       'ne fonctionne pas'
+// //     ];
+    
+// //     return etatsPanne.some(panneEtat => 
+// //       etat.includes(panneEtat) || statut.includes(panneEtat)
+// //     );
+// //   };
+
+// //   // Charger les données
+// //   const chargerDonnees = async () => {
+// //     setLoading(true);
+// //     try {
+// //       console.log('🔄 Chargement des données...');
+      
+// //       // Récupérer tous les incidents
+// //       const responseIncidents = await incidentsAPI.getAll();
+// //       const incidentsData = Array.isArray(responseIncidents) 
+// //         ? responseIncidents 
+// //         : responseIncidents.data || [];
+      
+// //       console.log(`✅ ${incidentsData.length} incidents récupérés`);
+      
+// //       // Récupérer tous les matériels
+// //       const responseMateriels = await materielsAPI.getAll();
+// //       const materielsData = Array.isArray(responseMateriels)
+// //         ? responseMateriels
+// //         : responseMateriels.data || [];
+      
+// //       console.log(`✅ ${materielsData.length} matériels récupérés`);
+      
+// //       // Filtrer les incidents actifs (ouverts ou en cours)
+// //       const incidentsActifsFiltres = incidentsData.filter((incident: any) => 
+// //         incident.statut === 'ouvert' || incident.statut === 'en_cours'
+// //       );
+      
+// //       // Enrichir chaque incident actif avec les détails du matériel
+// //       const incidentsEnrichis = await Promise.all(
+// //         incidentsActifsFiltres.map(async (incident: any) => {
+// //           let materielDetails = null;
+          
+// //           // Si l'incident a un matériel associé, chercher ses détails
+// //           if (incident.materiel) {
+// //             try {
+// //               const materielResponse = await materielsAPI.getById(incident.materiel);
+// //               materielDetails = Array.isArray(materielResponse)
+// //                 ? materielResponse[0]
+// //                 : materielResponse.data || null;
+// //             } catch (error) {
+// //               console.warn(`⚠️ Impossible de récupérer le matériel ${incident.materiel} pour l'incident ${incident.id}`);
+// //             }
+// //           }
+          
+// //           return {
+// //             ...incident,
+// //             materiel_details: materielDetails
+// //           };
+// //         })
+// //       );
+      
+// //       // Filtrer les matériels en panne
+// //       const materielsPanne = materielsData.filter((materiel: any) => 
+// //         isMaterielEnPanne(materiel)
+// //       );
+      
+// //       console.log(`📊 Résultats: ${incidentsEnrichis.length} incidents actifs, ${materielsPanne.length} matériels en panne`);
+      
+// //       setIncidentsActifs(incidentsEnrichis);
+// //       setMaterielsEnPanne(materielsPanne);
+      
+// //       // Initialiser le formulaire
+// //       const now = new Date();
+// //       const today = now.toISOString().split('T')[0];
+// //       const currentTime = now.toTimeString().slice(0, 5);
+      
+// //       let initialMateriel = 0;
+// //       let initialIncident = 0;
+// //       let initialDescription = '';
+      
+// //       // Si édition, utiliser les données existantes
+// //       if (reparation) {
+// //         let dateFin = '';
+// //         let heureFin = '';
+
+// //         if (reparation.date_fin) {
+// //           const dateObj = new Date(reparation.date_fin);
+// //           dateFin = dateObj.toISOString().split('T')[0];
+// //           heureFin = dateObj.toTimeString().slice(0, 5);
+// //         }
+
+// //         setFormData({
+// //           description: reparation.description || '',
+// //           date_fin: dateFin,
+// //           heure_fin: heureFin,
+// //           type_reparation: reparation.type_reparation || '',
+// //           cout: reparation.cout || 0,
+// //           materiel: reparation.materiel || 0,
+// //           incident: reparation.incident || 0,
+// //           technicien_responsable: reparation.technicien_responsable || 'Technicien'
+// //         });
+// //       } else {
+// //         // Si nouvel enregistrement, suggérer le premier élément disponible
+// //         if (incidentsEnrichis.length > 0) {
+// //           const premierIncident = incidentsEnrichis[0];
+// //           initialIncident = premierIncident.id;
+          
+// //           if (premierIncident.materiel_details) {
+// //             initialMateriel = premierIncident.materiel_details.id;
+// //             initialDescription = `Réparation pour incident #${premierIncident.id} - ${premierIncident.materiel_details.nom}`;
+// //           } else if (materielsPanne.length > 0) {
+// //             // S'il n'y a pas de matériel dans l'incident, utiliser un matériel en panne
+// //             const premierMaterielPanne = materielsPanne[0];
+// //             initialMateriel = premierMaterielPanne.id;
+// //             initialDescription = `Réparation pour matériel en panne - ${premierMaterielPanne.nom}`;
+// //           }
+// //         } else if (materielsPanne.length > 0) {
+// //           // Pas d'incidents actifs, mais il y a des matériels en panne
+// //           const premierMaterielPanne = materielsPanne[0];
+// //           initialMateriel = premierMaterielPanne.id;
+// //           initialDescription = `Réparation corrective pour matériel en panne - ${premierMaterielPanne.nom}`;
+// //         }
+        
+// //         setFormData({
+// //           description: initialDescription,
+// //           date_fin: today,
+// //           heure_fin: currentTime,
+// //           type_reparation: initialDescription.includes('panne') ? 'corrective' : '',
+// //           cout: 0,
+// //           materiel: initialMateriel,
+// //           incident: initialIncident,
+// //           technicien_responsable: 'Technicien'
+// //         });
+// //       }
+      
+// //     } catch (error) {
+// //       console.error('❌ Erreur chargement données:', error);
+// //     } finally {
+// //       setLoading(false);
+// //     }
+// //   };
+
+// //   useEffect(() => {
+// //     if (isOpen) {
+// //       chargerDonnees();
+// //     }
+// //   }, [isOpen]);
+
+// //   // Filtrer les incidents par recherche
+// //   const incidentsFiltres = incidentsActifs.filter(incident => {
+// //     if (!recherche) return true;
+    
+// //     const searchLower = recherche.toLowerCase();
+// //     return (
+// //       (incident.description?.toLowerCase() || '').includes(searchLower) ||
+// //       (incident.id?.toString() || '').includes(searchLower) ||
+// //       (incident.materiel_details?.nom?.toLowerCase() || '').includes(searchLower) ||
+// //       (incident.materiel_details?.reference?.toLowerCase() || '').includes(searchLower)
+// //     );
+// //   });
+
+// //   const validateForm = () => {
+// //     const newErrors: Record<string, string> = {};
+
+// //     if (!formData.description.trim()) {
+// //       newErrors.description = 'La description de la réparation est requise';
+// //     }
+// //     if (!formData.type_reparation) {
+// //       newErrors.type_reparation = 'Le type de réparation est requis';
+// //     }
+// //     if (formData.cout < 0) {
+// //       newErrors.cout = 'Le coût ne peut pas être négatif';
+// //     }
+// //     // Validation du format d'heure
+// //     if (formData.heure_fin && !/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(formData.heure_fin)) {
+// //       newErrors.heure_fin = 'Format d\'heure invalide (HH:MM)';
+// //     }
+
+// //     setErrors(newErrors);
+// //     return Object.keys(newErrors).length === 0;
+// //   };
+
+// //   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+// //     const { name, value } = e.target;
+// //     setFormData(prev => ({
+// //       ...prev,
+// //       [name]: name === 'cout' ? parseFloat(value) || 0 : 
+// //               ['materiel', 'incident'].includes(name) ? parseInt(value) || 0 : value
+// //     }));
+
+// //     if (errors[name]) {
+// //       setErrors(prev => ({ ...prev, [name]: '' }));
+// //     }
+// //   };
+
+// //   const handleSelectionMateriel = (materielId: number, materielNom?: string) => {
+// //     setFormData(prev => ({
+// //       ...prev,
+// //       materiel: materielId,
+// //       description: materielNom ? `Réparation pour ${materielNom}` : prev.description
+// //     }));
+// //   };
+
+// //   const handleSelectionIncident = (incidentId: number, incidentDescription?: string, materielNom?: string) => {
+// //     setFormData(prev => ({
+// //       ...prev,
+// //       incident: incidentId,
+// //       description: incidentDescription || prev.description
+// //     }));
+    
+// //     // Trouver le matériel associé à cet incident
+// //     const incidentSelectionne = incidentsActifs.find(i => i.id === incidentId);
+// //     if (incidentSelectionne?.materiel_details) {
+// //       setFormData(prev => ({
+// //         ...prev,
+// //         materiel: incidentSelectionne.materiel_details!.id
+// //       }));
+// //     }
+// //   };
+
+// //   const handleSubmit = (e: React.FormEvent) => {
+// //     e.preventDefault();
+    
+// //     if (validateForm()) {
+// //       let reparationData;
+// //       if (formData.date_fin && formData.heure_fin) {
+// //         const dateTimeString = `${formData.date_fin}T${formData.heure_fin}`;
+// //         reparationData = {
+// //           ...formData,
+// //           date_fin: dateTimeString
+// //         };
+// //       } else {
+// //         reparationData = formData;
+// //       }
+
+// //       onSubmit(reparationData);
+// //     }
+// //   };
+
+// //   const handleClose = () => {
+// //     setFormData({
+// //       description: '',
+// //       date_fin: '',
+// //       heure_fin: '',
+// //       type_reparation: '',
+// //       cout: 0,
+// //       materiel: 0,
+// //       incident: 0,
+// //       technicien_responsable: ''
+// //     });
+// //     setErrors({});
+// //     setRecherche('');
+// //     setIncidentsActifs([]);
+// //     setMaterielsEnPanne([]);
+// //     onClose();
+// //   };
+
+// //   const getTypeReparationText = (type: string) => {
+// //     switch (type) {
+// //       case 'preventive': return 'Préventive';
+// //       case 'corrective': return 'Corrective';
+// //       case 'ameliorative': return 'Améliorative';
+// //       default: return type;
+// //     }
+// //   };
+
+// //   const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
+// //     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+// //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+// //     </svg>
+// //   );
+
+// //   if (!isOpen) return null;
+
+// //   return (
+// //     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+// //       <div className="bg-base-100 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+// //         <div className="flex justify-between items-center p-6 border-b border-base-300">
+// //           <h2 className="text-xl font-bold text-base-content">
+// //             {reparation ? 'Modifier la réparation' : 'Ajouter une Réparation'}
+// //           </h2>
+// //           <button
+// //             onClick={handleClose}
+// //             className="btn btn-ghost btn-sm btn-circle"
+// //           >
+// //             <X className="h-4 w-4" />
+// //           </button>
+// //         </div>
+
+// //         {loading ? (
+// //           <div className="flex justify-center items-center p-12">
+// //             <div className="flex flex-col items-center gap-4">
+// //               <Loader2 className="h-8 w-8 text-primary animate-spin" />
+// //               <span className="text-base-content">Chargement des données...</span>
+// //             </div>
+// //           </div>
+// //         ) : (
+// //           <form onSubmit={handleSubmit} className="p-6 space-y-4">
+// //             {/* Statistiques */}
+// //             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+// //               <div className="stats shadow bg-base-200">
+// //                 <div className="stat">
+// //                   <div className="stat-title">Incidents actifs</div>
+// //                   <div className="stat-value text-primary">{incidentsActifs.length}</div>
+// //                   <div className="stat-desc">À réparer</div>
+// //                 </div>
+// //               </div>
+              
+// //               <div className="stats shadow bg-base-200">
+// //                 <div className="stat">
+// //                   <div className="stat-title">Matériels en panne</div>
+// //                   <div className="stat-value text-warning">{materielsEnPanne.length}</div>
+// //                   <div className="stat-desc">Sans incident</div>
+// //                 </div>
+// //               </div>
+              
+// //               <div className="stats shadow bg-base-200">
+// //                 <div className="stat">
+// //                   <div className="stat-title">Sélectionné</div>
+// //                   <div className="stat-value text-success">
+// //                     {formData.incident ? `Incident #${formData.incident}` : 
+// //                      formData.materiel ? 'Matériel' : 'Aucun'}
+// //                   </div>
+// //                   <div className="stat-desc">
+// //                     {formData.materiel ? `ID: ${formData.materiel}` : 'Sélectionnez un élément'}
+// //                   </div>
+// //                 </div>
+// //               </div>
+// //             </div>
+
+// //             {/* Section de sélection */}
+// //             <div className="border rounded-lg p-4 bg-base-200">
+// //               <div className="flex items-center justify-between mb-4">
+// //                 <h3 className="font-bold text-lg">Sélectionner un élément à réparer</h3>
+// //                 <div className="text-sm">
+// //                   <span className="font-medium">{incidentsFiltres.length}</span>
+// //                   <span className="opacity-70"> incident(s) filtré(s)</span>
+// //                 </div>
+// //               </div>
+
+// //               {/* Barre de recherche */}
+// //               <div className="mb-4">
+// //                 <div className="relative">
+// //                   <Search className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+// //                   <input
+// //                     type="text"
+// //                     placeholder="Rechercher un incident ou matériel..."
+// //                     className="input input-bordered w-full pl-10"
+// //                     value={recherche}
+// //                     onChange={(e) => setRecherche(e.target.value)}
+// //                   />
+// //                 </div>
+// //               </div>
+
+// //               {/* Liste des incidents actifs */}
+// //               <div className="space-y-3 max-h-60 overflow-y-auto p-2">
+// //                 {incidentsFiltres.length === 0 ? (
+// //                   <div className="alert alert-info">
+// //                     <AlertCircle className="h-5 w-5" />
+// //                     <div>
+// //                       <p className="font-medium">Aucun incident actif trouvé</p>
+// //                       <p className="text-sm mt-1">Tous les incidents sont résolus ou fermés</p>
+// //                     </div>
+// //                   </div>
+// //                 ) : (
+// //                   incidentsFiltres.map((incident) => (
+// //                     <div 
+// //                       key={incident.id}
+// //                       className={`p-3 rounded-lg border cursor-pointer transition-all ${
+// //                         formData.incident === incident.id 
+// //                           ? 'border-primary bg-primary/10 ring-2 ring-primary/20' 
+// //                           : 'border-base-300 hover:border-primary/50 hover:bg-base-100'
+// //                       }`}
+// //                       onClick={() => handleSelectionIncident(
+// //                         incident.id, 
+// //                         incident.description,
+// //                         incident.materiel_details?.nom
+// //                       )}
+// //                     >
+// //                       <div className="flex items-start justify-between">
+// //                         <div>
+// //                           <div className="flex items-center gap-2">
+// //                             <span className="font-bold">Incident #{incident.id}</span>
+// //                             <span className={`badge ${
+// //                               incident.priorite === 'critique' ? 'badge-error' :
+// //                               incident.priorite === 'elevee' ? 'badge-warning' :
+// //                               incident.priorite === 'moyenne' ? 'badge-info' : 'badge-success'
+// //                             } badge-sm`}>
+// //                               {incident.priorite}
+// //                             </span>
+// //                             <span className={`badge ${
+// //                               incident.statut === 'ouvert' ? 'badge-error' : 'badge-warning'
+// //                             } badge-sm`}>
+// //                               {incident.statut}
+// //                             </span>
+// //                           </div>
+// //                           <p className="text-sm text-gray-700 mt-1">{incident.description}</p>
+                          
+// //                           {incident.materiel_details && (
+// //                             <div className="mt-2 text-xs bg-base-100 p-2 rounded">
+// //                               <span className="font-medium">Matériel: </span>
+// //                               <span className="text-primary">{incident.materiel_details.nom}</span>
+// //                               <span className="ml-2 opacity-70">({incident.materiel_details.reference})</span>
+// //                               {isMaterielEnPanne(incident.materiel_details) && (
+// //                                 <span className="badge badge-warning badge-xs ml-2">🚨 En panne</span>
+// //                               )}
+// //                             </div>
+// //                           )}
+// //                         </div>
+// //                         <div className="text-xs text-gray-500 whitespace-nowrap">
+// //                           {new Date(incident.date_creation).toLocaleDateString('fr-FR')}
+// //                         </div>
+// //                       </div>
+// //                     </div>
+// //                   ))
+// //                 )}
+// //               </div>
+
+// //               {/* Matériels en panne sans incident */}
+// //               {materielsEnPanne.length > 0 && (
+// //                 <div className="mt-6">
+// //                   <h4 className="font-bold text-lg mb-3 text-warning">🚨 Matériels en panne sans incident</h4>
+// //                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+// //                     {materielsEnPanne.map((materiel) => (
+// //                       <div 
+// //                         key={materiel.id}
+// //                         className={`p-3 rounded-lg border cursor-pointer transition-all ${
+// //                           formData.materiel === materiel.id && formData.incident === 0
+// //                             ? 'border-warning bg-warning/10 ring-2 ring-warning/20' 
+// //                             : 'border-base-300 hover:border-warning/50 hover:bg-base-100'
+// //                         }`}
+// //                         onClick={() => handleSelectionMateriel(materiel.id, materiel.nom)}
+// //                       >
+// //                         <div className="flex items-center gap-3">
+// //                           <Package className="h-5 w-5 text-warning" />
+// //                           <div>
+// //                             <div className="font-medium">{materiel.nom}</div>
+// //                             <div className="text-xs text-gray-500">{materiel.reference}</div>
+// //                             <div className="text-xs mt-1">
+// //                               <span className="opacity-70">État: </span>
+// //                               <span className="text-warning font-medium">{materiel.etat}</span>
+// //                             </div>
+// //                           </div>
+// //                         </div>
+// //                       </div>
+// //                     ))}
+// //                   </div>
+// //                 </div>
+// //               )}
+// //             </div>
+
+// //             {/* Description */}
+// //             <div className="form-control">
+// //               <label className="label">
+// //                 <span className="label-text">Description :</span>
+// //               </label>
+// //               <textarea
+// //                 name="description"
+// //                 value={formData.description}
+// //                 onChange={handleChange}
+// //                 className={`textarea textarea-bordered h-24 ${errors.description ? 'textarea-error' : ''}`}
+// //                 placeholder="Description détaillée de la réparation effectuée..."
+// //                 required
+// //               />
+// //               {errors.description && <span className="text-error text-sm mt-1">{errors.description}</span>}
+// //             </div>
+
+// //             {/* Date et Heure de fin */}
+// //             <div className="form-control">
+// //               <label className="label">
+// //                 <span className="label-text">Date fin :</span>
+// //               </label>
+// //               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+// //                 {/* Date */}
+// //                 <div className="form-control">
+// //                   <label className="label">
+// //                     <span className="label-text">Date :</span>
+// //                   </label>
+// //                   <div className="flex items-center gap-3">
+// //                     <div className="relative flex-1">
+// //                       <Calendar className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+// //                       <input
+// //                         type="date"
+// //                         name="date_fin"
+// //                         value={formData.date_fin}
+// //                         onChange={handleChange}
+// //                         className="input input-bordered w-full pl-10"
+// //                       />
+// //                     </div>
+// //                     <div className="badge badge-outline">Aujourd'hui</div>
+// //                   </div>
+// //                 </div>
+
+// //                 {/* Heure */}
+// //                 <div className="form-control">
+// //                   <label className="label">
+// //                     <span className="label-text">Heure :</span>
+// //                   </label>
+// //                   <div className="flex items-center gap-2">
+// //                     <div className="relative flex-1">
+// //                       <Clock className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+// //                       <input
+// //                         type="text"
+// //                         name="heure_fin"
+// //                         value={formData.heure_fin}
+// //                         onChange={handleChange}
+// //                         className={`input input-bordered w-full pl-10 ${errors.heure_fin ? 'input-error' : ''}`}
+// //                         placeholder="HH:MM (ex: 14:30)"
+// //                         maxLength={5}
+// //                       />
+// //                     </div>
+// //                     <div className="badge badge-outline">Maintenant</div>
+// //                   </div>
+// //                   {errors.heure_fin && (
+// //                     <span className="text-error text-sm mt-1">{errors.heure_fin}</span>
+// //                   )}
+// //                 </div>
+// //               </div>
+// //             </div>
+
+// //             {/* Type réparation et Coût */}
+// //             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+// //               <div className="form-control">
+// //                 <label className="label">
+// //                   <span className="label-text">Type réparation :</span>
+// //                 </label>
+// //                 <select
+// //                   name="type_reparation"
+// //                   value={formData.type_reparation}
+// //                   onChange={handleChange}
+// //                   className={`select select-bordered w-full ${errors.type_reparation ? 'select-error' : ''}`}
+// //                   required
+// //                 >
+// //                   <option value="">---------</option>
+// //                   <option value="preventive">Préventive</option>
+// //                   <option value="corrective">Corrective</option>
+// //                   <option value="ameliorative">Améliorative</option>
+// //                 </select>
+// //                 {errors.type_reparation && <span className="text-error text-sm mt-1">{errors.type_reparation}</span>}
+// //               </div>
+
+// //               <div className="form-control">
+// //                 <label className="label">
+// //                   <span className="label-text">Coût (Ar) :</span>
+// //                 </label>
+// //                 <div className="relative">
+// //                   <DollarSign className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+// //                   <input
+// //                     type="number"
+// //                     name="cout"
+// //                     value={formData.cout}
+// //                     onChange={handleChange}
+// //                     className={`input input-bordered w-full pl-10 ${errors.cout ? 'input-error' : ''}`}
+// //                     placeholder="0.00"
+// //                     min="0"
+// //                     step="0.01"
+// //                   />
+// //                 </div>
+// //                 {errors.cout && <span className="text-error text-sm mt-1">{errors.cout}</span>}
+// //               </div>
+// //             </div>
+
+// //             {/* Technicien responsable */}
+// //             <div className="form-control">
+// //               <label className="label">
+// //                 <span className="label-text">Technicien responsable :</span>
+// //               </label>
+// //               <div className="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
+// //                 <User className="h-5 w-5 text-primary" />
+// //                 <input
+// //                   type="text"
+// //                   name="technicien_responsable"
+// //                   value={formData.technicien_responsable}
+// //                   onChange={handleChange}
+// //                   className="input input-bordered flex-1"
+// //                   placeholder="Nom du technicien"
+// //                 />
+// //               </div>
+// //             </div>
+
+// //             <div className="flex justify-end space-x-3 pt-4">
+// //               <button
+// //                 type="button"
+// //                 onClick={handleClose}
+// //                 className="btn btn-ghost"
+// //               >
+// //                 Annuler
+// //               </button>
+// //               <button
+// //                 type="submit"
+// //                 className="btn btn-primary"
+// //                 disabled={!formData.materiel || !formData.type_reparation}
+// //               >
+// //                 {reparation ? 'Modifier' : 'Créer'} la réparation
+// //               </button>
+// //             </div>
+// //           </form>
+// //         )}
+// //       </div>
+// //     </div>
+// //   );
+// // };
+
+// // export default ReparationForm;
+
+
+
+
+// import React, { useState, useEffect } from 'react';
+// import { X, Wrench, Calendar, Clock, DollarSign, Package, AlertTriangle, Search, User, Loader2, AlertCircle } from 'lucide-react';
+// import { Reparation, Incident, Materiel } from '../types';
+// import { incidentsAPI, materielsAPI } from '../services/api';
+// import { useAuth } from '../context/AuthContext'; // Importer le contexte d'authentification
+
+// interface ReparationFormProps {
+//   isOpen: boolean;
+//   onClose: () => void;
+//   onSubmit: (reparationData: Omit<Reparation, 'id' | 'materiel_nom'>) => void;
+//   reparation?: Reparation;
+// }
+
+// interface IncidentAvecMateriel extends Incident {
+//   materiel_details?: Materiel;
+// }
+
+// const ReparationForm: React.FC<ReparationFormProps> = ({
+//   isOpen,
+//   onClose,
+//   onSubmit,
+//   reparation
+// }) => {
+//   const { user } = useAuth(); // Récupérer l'utilisateur connecté
+  
+//   const [formData, setFormData] = useState({
+//     description: '',
+//     date_fin: '',
+//     heure_fin: '',
+//     type_reparation: '' as '' | 'preventive' | 'corrective' | 'ameliorative',
+//     cout: 0,
+//     materiel: 0,
+//     incident: 0,
+//     technicien_responsable: ''
+//   });
+
+//   const [loading, setLoading] = useState(false);
+//   const [errors, setErrors] = useState<Record<string, string>>({});
+//   const [incidentsActifs, setIncidentsActifs] = useState<IncidentAvecMateriel[]>([]);
+//   const [materielsEnPanne, setMaterielsEnPanne] = useState<Materiel[]>([]);
+//   const [recherche, setRecherche] = useState('');
+
+//   // Heures prédéfinies
+//   const heuresPredefinies = [
+//     { value: '00:00', label: 'Minuit' },
+//     { value: '06:00', label: '6:00' },
+//     { value: '12:00', label: 'Midi' },
+//     { value: '18:00', label: '18:00' }
+//   ];
+
+//   // Fonction pour obtenir le nom complet de l'utilisateur
+//   const getNomTechnicien = () => {
+//     if (!user) return 'Technicien Inconnu';
+    
+//     // Essayer différents formats de nom
+//     if (user.nom_complet) return user.nom_complet;
+//     if (user.full_name) return user.full_name;
+//     if (user.first_name && user.last_name) return `${user.first_name} ${user.last_name}`;
+//     if (user.name) return user.name;
+//     if (user.username) return user.username;
+    
+//     return 'Technicien';
+//   };
+
+//   // Fonction pour vérifier si un matériel est en panne
+//   const isMaterielEnPanne = (materiel: Materiel): boolean => {
+//     if (!materiel) return false;
+    
+//     const etat = (materiel.etat || '').toLowerCase().trim();
+//     const statut = (materiel.statut || '').toLowerCase().trim();
+    
+//     const etatsPanne = [
+//       'en_panne',
+//       'en panne',
+//       'panne',
+//       'broken',
+//       'out of order',
+//       'hors service',
+//       'defective',
+//       'faulty',
+//       'défectueux',
+//       'ne fonctionne pas'
+//     ];
+    
+//     return etatsPanne.some(panneEtat => 
+//       etat.includes(panneEtat) || statut.includes(panneEtat)
+//     );
+//   };
+
+//   // Charger les données
+//   const chargerDonnees = async () => {
+//     setLoading(true);
+//     try {
+//       console.log('🔄 Chargement des données...');
+      
+//       // Récupérer tous les incidents
+//       const responseIncidents = await incidentsAPI.getAll();
+//       const incidentsData = Array.isArray(responseIncidents) 
+//         ? responseIncidents 
+//         : responseIncidents.data || [];
+      
+//       console.log(`✅ ${incidentsData.length} incidents récupérés`);
+      
+//       // Récupérer tous les matériels
+//       const responseMateriels = await materielsAPI.getAll();
+//       const materielsData = Array.isArray(responseMateriels)
+//         ? responseMateriels
+//         : responseMateriels.data || [];
+      
+//       console.log(`✅ ${materielsData.length} matériels récupérés`);
+      
+//       // Filtrer les incidents actifs (ouverts ou en cours)
+//       const incidentsActifsFiltres = incidentsData.filter((incident: any) => 
+//         incident.statut === 'ouvert' || incident.statut === 'en_cours'
+//       );
+      
+//       // Enrichir chaque incident actif avec les détails du matériel
+//       const incidentsEnrichis = await Promise.all(
+//         incidentsActifsFiltres.map(async (incident: any) => {
+//           let materielDetails = null;
+          
+//           // Si l'incident a un matériel associé, chercher ses détails
+//           if (incident.materiel) {
+//             try {
+//               const materielResponse = await materielsAPI.getById(incident.materiel);
+//               materielDetails = Array.isArray(materielResponse)
+//                 ? materielResponse[0]
+//                 : materielResponse.data || null;
+//             } catch (error) {
+//               console.warn(`⚠️ Impossible de récupérer le matériel ${incident.materiel} pour l'incident ${incident.id}`);
+//             }
+//           }
+          
+//           return {
+//             ...incident,
+//             materiel_details: materielDetails
+//           };
+//         })
+//       );
+      
+//       // Filtrer les matériels en panne
+//       const materielsPanne = materielsData.filter((materiel: any) => 
+//         isMaterielEnPanne(materiel)
+//       );
+      
+//       console.log(`📊 Résultats: ${incidentsEnrichis.length} incidents actifs, ${materielsPanne.length} matériels en panne`);
+      
+//       setIncidentsActifs(incidentsEnrichis);
+//       setMaterielsEnPanne(materielsPanne);
+      
+//       // Initialiser le formulaire
+//       const now = new Date();
+//       const today = now.toISOString().split('T')[0];
+//       const currentTime = now.toTimeString().slice(0, 5);
+      
+//       let initialMateriel = 0;
+//       let initialIncident = 0;
+//       let initialDescription = '';
+      
+//       // Obtenir le nom du technicien (utilisateur connecté)
+//       const nomTechnicien = getNomTechnicien();
+//       console.log(`👤 Technicien détecté: ${nomTechnicien}`);
+      
+//       // Si édition, utiliser les données existantes
+//       if (reparation) {
+//         let dateFin = '';
+//         let heureFin = '';
+
+//         if (reparation.date_fin) {
+//           const dateObj = new Date(reparation.date_fin);
+//           dateFin = dateObj.toISOString().split('T')[0];
+//           heureFin = dateObj.toTimeString().slice(0, 5);
+//         }
+
+//         setFormData({
+//           description: reparation.description || '',
+//           date_fin: dateFin,
+//           heure_fin: heureFin,
+//           type_reparation: reparation.type_reparation || '',
+//           cout: reparation.cout || 0,
+//           materiel: reparation.materiel || 0,
+//           incident: reparation.incident || 0,
+//           technicien_responsable: reparation.technicien_responsable || nomTechnicien
+//         });
+//       } else {
+//         // Si nouvel enregistrement, suggérer le premier élément disponible
+//         if (incidentsEnrichis.length > 0) {
+//           const premierIncident = incidentsEnrichis[0];
+//           initialIncident = premierIncident.id;
+          
+//           if (premierIncident.materiel_details) {
+//             initialMateriel = premierIncident.materiel_details.id;
+//             initialDescription = `Réparation pour incident #${premierIncident.id} - ${premierIncident.materiel_details.nom}`;
+//           } else if (materielsPanne.length > 0) {
+//             // S'il n'y a pas de matériel dans l'incident, utiliser un matériel en panne
+//             const premierMaterielPanne = materielsPanne[0];
+//             initialMateriel = premierMaterielPanne.id;
+//             initialDescription = `Réparation pour matériel en panne - ${premierMaterielPanne.nom}`;
+//           }
+//         } else if (materielsPanne.length > 0) {
+//           // Pas d'incidents actifs, mais il y a des matériels en panne
+//           const premierMaterielPanne = materielsPanne[0];
+//           initialMateriel = premierMaterielPanne.id;
+//           initialDescription = `Réparation corrective pour matériel en panne - ${premierMaterielPanne.nom}`;
+//         }
+        
+//         setFormData({
+//           description: initialDescription,
+//           date_fin: today,
+//           heure_fin: currentTime,
+//           type_reparation: initialDescription.includes('panne') ? 'corrective' : '',
+//           cout: 0,
+//           materiel: initialMateriel,
+//           incident: initialIncident,
+//           technicien_responsable: nomTechnicien // Automatiquement rempli avec l'utilisateur connecté
+//         });
+//       }
+      
+//     } catch (error) {
+//       console.error('❌ Erreur chargement données:', error);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   useEffect(() => {
+//     if (isOpen) {
+//       chargerDonnees();
+//     }
+//   }, [isOpen, user]); // Recharger quand l'utilisateur change
+
+//   // Filtrer les incidents par recherche
+//   const incidentsFiltres = incidentsActifs.filter(incident => {
+//     if (!recherche) return true;
+    
+//     const searchLower = recherche.toLowerCase();
+//     return (
+//       (incident.description?.toLowerCase() || '').includes(searchLower) ||
+//       (incident.id?.toString() || '').includes(searchLower) ||
+//       (incident.materiel_details?.nom?.toLowerCase() || '').includes(searchLower) ||
+//       (incident.materiel_details?.reference?.toLowerCase() || '').includes(searchLower)
+//     );
+//   });
+
+//   const validateForm = () => {
+//     const newErrors: Record<string, string> = {};
+
+//     if (!formData.description.trim()) {
+//       newErrors.description = 'La description de la réparation est requise';
+//     }
+//     if (!formData.type_reparation) {
+//       newErrors.type_reparation = 'Le type de réparation est requis';
+//     }
+//     if (formData.cout < 0) {
+//       newErrors.cout = 'Le coût ne peut pas être négatif';
+//     }
+//     // Validation du format d'heure
+//     if (formData.heure_fin && !/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(formData.heure_fin)) {
+//       newErrors.heure_fin = 'Format d\'heure invalide (HH:MM)';
+//     }
+
+//     setErrors(newErrors);
+//     return Object.keys(newErrors).length === 0;
+//   };
+
+//   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+//     const { name, value } = e.target;
+//     setFormData(prev => ({
+//       ...prev,
+//       [name]: name === 'cout' ? parseFloat(value) || 0 : 
+//               ['materiel', 'incident'].includes(name) ? parseInt(value) || 0 : value
+//     }));
+
+//     if (errors[name]) {
+//       setErrors(prev => ({ ...prev, [name]: '' }));
+//     }
+//   };
+
+//   const handleSelectionMateriel = (materielId: number, materielNom?: string) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       materiel: materielId,
+//       description: materielNom ? `Réparation pour ${materielNom}` : prev.description
+//     }));
+//   };
+
+//   const handleSelectionIncident = (incidentId: number, incidentDescription?: string, materielNom?: string) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       incident: incidentId,
+//       description: incidentDescription || prev.description
+//     }));
+    
+//     // Trouver le matériel associé à cet incident
+//     const incidentSelectionne = incidentsActifs.find(i => i.id === incidentId);
+//     if (incidentSelectionne?.materiel_details) {
+//       setFormData(prev => ({
+//         ...prev,
+//         materiel: incidentSelectionne.materiel_details!.id
+//       }));
+//     }
+//   };
+
+//   const handleSubmit = (e: React.FormEvent) => {
+//     e.preventDefault();
+    
+//     if (validateForm()) {
+//       let reparationData;
+//       if (formData.date_fin && formData.heure_fin) {
+//         const dateTimeString = `${formData.date_fin}T${formData.heure_fin}`;
+//         reparationData = {
+//           ...formData,
+//           date_fin: dateTimeString
+//         };
+//       } else {
+//         reparationData = formData;
+//       }
+
+//       // Ajouter des logs pour débogage
+//       console.log('📤 Soumission réparation:', {
+//         ...reparationData,
+//         technicien: getNomTechnicien(),
+//         utilisateur_id: user?.id
+//       });
+
+//       onSubmit(reparationData);
+//     }
+//   };
+
+//   const handleClose = () => {
+//     setFormData({
+//       description: '',
+//       date_fin: '',
+//       heure_fin: '',
+//       type_reparation: '',
+//       cout: 0,
+//       materiel: 0,
+//       incident: 0,
+//       technicien_responsable: getNomTechnicien() // Réinitialiser avec le nom du technicien
+//     });
+//     setErrors({});
+//     setRecherche('');
+//     setIncidentsActifs([]);
+//     setMaterielsEnPanne([]);
+//     onClose();
+//   };
+
+//   const getTypeReparationText = (type: string) => {
+//     switch (type) {
+//       case 'preventive': return 'Préventive';
+//       case 'corrective': return 'Corrective';
+//       case 'ameliorative': return 'Améliorative';
+//       default: return type;
+//     }
+//   };
+
+//   const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
+//     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+//     </svg>
+//   );
+
+//   if (!isOpen) return null;
+
+//   return (
+//     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+//       <div className="bg-base-100 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+//         <div className="flex justify-between items-center p-6 border-b border-base-300">
+//           <div className="flex items-center gap-3">
+//             <Wrench className="h-6 w-6 text-success" />
+//             <div>
+//               <h2 className="text-xl font-bold text-base-content">
+//                 {reparation ? 'Modifier la réparation' : 'Nouvelle Réparation'}
+//               </h2>
+//               <p className="text-sm text-base-content opacity-60 mt-1">
+//                 Connecté en tant que: {getNomTechnicien()}
+//               </p>
+//             </div>
+//           </div>
+//           <button
+//             onClick={handleClose}
+//             className="btn btn-ghost btn-sm btn-circle"
+//           >
+//             <X className="h-4 w-4" />
+//           </button>
+//         </div>
+
+//         {loading ? (
+//           <div className="flex justify-center items-center p-12">
+//             <div className="flex flex-col items-center gap-4">
+//               <Loader2 className="h-8 w-8 text-primary animate-spin" />
+//               <span className="text-base-content">Chargement des données...</span>
+//             </div>
+//           </div>
+//         ) : (
+//           <form onSubmit={handleSubmit} className="p-6 space-y-4">
+//             {/* Statistiques */}
+//             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+//               <div className="stats shadow bg-base-200">
+//                 <div className="stat">
+//                   <div className="stat-title">Incidents actifs</div>
+//                   <div className="stat-value text-primary">{incidentsActifs.length}</div>
+//                   <div className="stat-desc">À réparer</div>
+//                 </div>
+//               </div>
+              
+//               <div className="stats shadow bg-base-200">
+//                 <div className="stat">
+//                   <div className="stat-title">Matériels en panne</div>
+//                   <div className="stat-value text-warning">{materielsEnPanne.length}</div>
+//                   <div className="stat-desc">Sans incident</div>
+//                 </div>
+//               </div>
+              
+//               <div className="stats shadow bg-base-200">
+//                 <div className="stat">
+//                   <div className="stat-title">Technicien</div>
+//                   <div className="stat-value text-success text-lg truncate">{getNomTechnicien()}</div>
+//                   <div className="stat-desc">Connecté automatiquement</div>
+//                 </div>
+//               </div>
+//             </div>
+
+//             {/* Technicien responsable (affichage seulement) */}
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text font-semibold">Technicien responsable :</span>
+//               </label>
+//               <div className="flex items-center gap-3 p-3 bg-success/10 rounded-lg border border-success/20">
+//                 <User className="h-5 w-5 text-success" />
+//                 <div>
+//                   <span className="font-semibold text-success">{getNomTechnicien()}</span>
+//                   <p className="text-xs text-success opacity-70">
+//                     Ce champ est automatiquement rempli avec votre compte
+//                   </p>
+//                 </div>
+//               </div>
+//               <div className="text-xs text-base-content opacity-50 mt-1">
+//                 Vous ne pouvez pas modifier ce champ car vous êtes le technicien responsable de cette réparation
+//               </div>
+//             </div>
+
+//             {/* Section de sélection */}
+//             <div className="border rounded-lg p-4 bg-base-200">
+//               <div className="flex items-center justify-between mb-4">
+//                 <h3 className="font-bold text-lg">Sélectionner un élément à réparer</h3>
+//                 <div className="text-sm">
+//                   <span className="font-medium">{incidentsFiltres.length}</span>
+//                   <span className="opacity-70"> incident(s) filtré(s)</span>
+//                 </div>
+//               </div>
+
+//               {/* Barre de recherche */}
+//               <div className="mb-4">
+//                 <div className="relative">
+//                   <Search className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+//                   <input
+//                     type="text"
+//                     placeholder="Rechercher un incident ou matériel..."
+//                     className="input input-bordered w-full pl-10"
+//                     value={recherche}
+//                     onChange={(e) => setRecherche(e.target.value)}
+//                   />
+//                 </div>
+//               </div>
+
+//               {/* Liste des incidents actifs */}
+//               <div className="space-y-3 max-h-60 overflow-y-auto p-2">
+//                 {incidentsFiltres.length === 0 ? (
+//                   <div className="alert alert-info">
+//                     <AlertCircle className="h-5 w-5" />
+//                     <div>
+//                       <p className="font-medium">Aucun incident actif trouvé</p>
+//                       <p className="text-sm mt-1">Tous les incidents sont résolus ou fermés</p>
+//                     </div>
+//                   </div>
+//                 ) : (
+//                   incidentsFiltres.map((incident) => (
+//                     <div 
+//                       key={incident.id}
+//                       className={`p-3 rounded-lg border cursor-pointer transition-all ${
+//                         formData.incident === incident.id 
+//                           ? 'border-primary bg-primary/10 ring-2 ring-primary/20' 
+//                           : 'border-base-300 hover:border-primary/50 hover:bg-base-100'
+//                       }`}
+//                       onClick={() => handleSelectionIncident(
+//                         incident.id, 
+//                         incident.description,
+//                         incident.materiel_details?.nom
+//                       )}
+//                     >
+//                       <div className="flex items-start justify-between">
+//                         <div>
+//                           <div className="flex items-center gap-2">
+//                             <span className="font-bold">Incident #{incident.id}</span>
+//                             <span className={`badge ${
+//                               incident.priorite === 'critique' ? 'badge-error' :
+//                               incident.priorite === 'elevee' ? 'badge-warning' :
+//                               incident.priorite === 'moyenne' ? 'badge-info' : 'badge-success'
+//                             } badge-sm`}>
+//                               {incident.priorite}
+//                             </span>
+//                             <span className={`badge ${
+//                               incident.statut === 'ouvert' ? 'badge-error' : 'badge-warning'
+//                             } badge-sm`}>
+//                               {incident.statut}
+//                             </span>
+//                           </div>
+//                           <p className="text-sm text-gray-700 mt-1">{incident.description}</p>
+                          
+//                           {incident.materiel_details && (
+//                             <div className="mt-2 text-xs bg-base-100 p-2 rounded">
+//                               <span className="font-medium">Matériel: </span>
+//                               <span className="text-primary">{incident.materiel_details.nom}</span>
+//                               <span className="ml-2 opacity-70">({incident.materiel_details.reference})</span>
+//                               {isMaterielEnPanne(incident.materiel_details) && (
+//                                 <span className="badge badge-warning badge-xs ml-2">🚨 En panne</span>
+//                               )}
+//                             </div>
+//                           )}
+//                         </div>
+//                         <div className="text-xs text-gray-500 whitespace-nowrap">
+//                           {new Date(incident.date_creation).toLocaleDateString('fr-FR')}
+//                         </div>
+//                       </div>
+//                     </div>
+//                   ))
+//                 )}
+//               </div>
+
+//               {/* Matériels en panne sans incident */}
+//               {materielsEnPanne.length > 0 && (
+//                 <div className="mt-6">
+//                   <h4 className="font-bold text-lg mb-3 text-warning">🚨 Matériels en panne sans incident</h4>
+//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+//                     {materielsEnPanne.map((materiel) => (
+//                       <div 
+//                         key={materiel.id}
+//                         className={`p-3 rounded-lg border cursor-pointer transition-all ${
+//                           formData.materiel === materiel.id && formData.incident === 0
+//                             ? 'border-warning bg-warning/10 ring-2 ring-warning/20' 
+//                             : 'border-base-300 hover:border-warning/50 hover:bg-base-100'
+//                         }`}
+//                         onClick={() => handleSelectionMateriel(materiel.id, materiel.nom)}
+//                       >
+//                         <div className="flex items-center gap-3">
+//                           <Package className="h-5 w-5 text-warning" />
+//                           <div>
+//                             <div className="font-medium">{materiel.nom}</div>
+//                             <div className="text-xs text-gray-500">{materiel.reference}</div>
+//                             <div className="text-xs mt-1">
+//                               <span className="opacity-70">État: </span>
+//                               <span className="text-warning font-medium">{materiel.etat}</span>
+//                             </div>
+//                           </div>
+//                         </div>
+//                       </div>
+//                     ))}
+//                   </div>
+//                 </div>
+//               )}
+//             </div>
+
+//             {/* Description */}
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text font-semibold">Description :</span>
+//                 <span className="label-text-alt text-error">*</span>
+//               </label>
+//               <textarea
+//                 name="description"
+//                 value={formData.description}
+//                 onChange={handleChange}
+//                 className={`textarea textarea-bordered h-24 ${errors.description ? 'textarea-error' : ''}`}
+//                 placeholder="Description détaillée de la réparation effectuée..."
+//                 required
+//               />
+//               {errors.description && <span className="text-error text-sm mt-1">{errors.description}</span>}
+//             </div>
+
+//             {/* Date et Heure de fin */}
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//               {/* Date */}
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Date de fin :</span>
+//                 </label>
+//                 <div className="flex items-center gap-2">
+//                   <div className="relative flex-1">
+//                     <Calendar className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+//                     <input
+//                       type="date"
+//                       name="date_fin"
+//                       value={formData.date_fin}
+//                       onChange={handleChange}
+//                       className="input input-bordered w-full pl-10"
+//                     />
+//                   </div>
+//                   <button
+//                     type="button"
+//                     onClick={() => {
+//                       const today = new Date().toISOString().split('T')[0];
+//                       setFormData(prev => ({ ...prev, date_fin: today }));
+//                     }}
+//                     className="btn btn-outline btn-sm"
+//                   >
+//                     Aujourd'hui
+//                   </button>
+//                 </div>
+//               </div>
+
+//               {/* Heure */}
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Heure de fin :</span>
+//                 </label>
+//                 <div className="flex items-center gap-2">
+//                   <div className="relative flex-1">
+//                     <Clock className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+//                     <input
+//                       type="text"
+//                       name="heure_fin"
+//                       value={formData.heure_fin}
+//                       onChange={handleChange}
+//                       className={`input input-bordered w-full pl-10 ${errors.heure_fin ? 'input-error' : ''}`}
+//                       placeholder="HH:MM (ex: 14:30)"
+//                       maxLength={5}
+//                     />
+//                   </div>
+//                   <button
+//                     type="button"
+//                     onClick={() => {
+//                       const now = new Date();
+//                       const currentTime = now.toTimeString().slice(0, 5);
+//                       setFormData(prev => ({ ...prev, heure_fin: currentTime }));
+//                     }}
+//                     className="btn btn-outline btn-sm"
+//                   >
+//                     Maintenant
+//                   </button>
+//                 </div>
+//                 {errors.heure_fin && (
+//                   <span className="text-error text-sm mt-1">{errors.heure_fin}</span>
+//                 )}
+//                 <div className="text-xs text-base-content opacity-50 mt-1">
+//                   Format: HH:MM (24h)
+//                 </div>
+//               </div>
+//             </div>
+
+//             {/* Type réparation et Coût */}
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Type réparation :</span>
+//                   <span className="label-text-alt text-error">*</span>
+//                 </label>
+//                 <select
+//                   name="type_reparation"
+//                   value={formData.type_reparation}
+//                   onChange={handleChange}
+//                   className={`select select-bordered w-full ${errors.type_reparation ? 'select-error' : ''}`}
+//                   required
+//                 >
+//                   <option value="">Sélectionnez...</option>
+//                   <option value="preventive">Préventive (maintenance)</option>
+//                   <option value="corrective">Corrective (réparation)</option>
+//                   <option value="ameliorative">Améliorative (optimisation)</option>
+//                 </select>
+//                 {errors.type_reparation && <span className="text-error text-sm mt-1">{errors.type_reparation}</span>}
+//               </div>
+
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Coût (Ar) :</span>
+//                 </label>
+//                 <div className="relative">
+//                   <DollarSign className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+//                   <input
+//                     type="number"
+//                     name="cout"
+//                     value={formData.cout}
+//                     onChange={handleChange}
+//                     className={`input input-bordered w-full pl-10 ${errors.cout ? 'input-error' : ''}`}
+//                     placeholder="0.00"
+//                     min="0"
+//                     step="0.01"
+//                   />
+//                 </div>
+//                 {errors.cout && <span className="text-error text-sm mt-1">{errors.cout}</span>}
+//               </div>
+//             </div>
+
+//             {/* Technicien responsable (champ caché pour soumission) */}
+//             <input
+//               type="hidden"
+//               name="technicien_responsable"
+//               value={getNomTechnicien()}
+//             />
+
+//             <div className="flex justify-end space-x-3 pt-4 border-t border-base-300">
+//               <button
+//                 type="button"
+//                 onClick={handleClose}
+//                 className="btn btn-ghost"
+//               >
+//                 Annuler
+//               </button>
+//               <button
+//                 type="submit"
+//                 className="btn btn-success"
+//                 disabled={!formData.materiel || !formData.type_reparation}
+//               >
+//                 {reparation ? 'Modifier' : 'Créer'} la réparation
+//               </button>
+//             </div>
+//           </form>
+//         )}
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default ReparationForm;
+
+
+
+
+
+
+// import React, { useState, useEffect } from 'react';
+// import { X, Save, AlertCircle, Calendar, DollarSign, Wrench, Package, FileText, User } from 'lucide-react';
+// import { Reparation } from '../types';
+
+// interface ReparationFormProps {
+//   isOpen: boolean;
+//   onClose: () => void;
+//   onSubmit: (data: any) => void;
+//   reparation?: Reparation;
+//   materiels: any[];
+//   incidents: any[];
+//   userName: string; // Nom de l'utilisateur connecté
+// }
+
+// const ReparationForm: React.FC<ReparationFormProps> = ({
+//   isOpen,
+//   onClose,
+//   onSubmit,
+//   reparation,
+//   materiels,
+//   incidents,
+//   userName
+// }) => {
+//   const [formData, setFormData] = useState({
+//     materiel: '',
+//     incident: '',
+//     type_reparation: 'corrective',
+//     date_debut: '',
+//     date_fin: '',
+//     cout: '',
+//     technicien_responsable: '',
+//     description: ''
+//   });
+
+//   const [errors, setErrors] = useState<Record<string, string>>({});
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+
+//   // Initialiser le formulaire avec les données de la réparation à modifier
+//   useEffect(() => {
+//     if (reparation) {
+//       // Formatage des dates pour l'input type="date"
+//       const formatDateForInput = (dateString?: string) => {
+//         if (!dateString) return '';
+//         try {
+//           const date = new Date(dateString);
+//           return date.toISOString().split('T')[0];
+//         } catch (e) {
+//           return '';
+//         }
+//       };
+
+//       setFormData({
+//         materiel: reparation.materiel?.toString() || reparation.materiel_id?.toString() || '',
+//         incident: reparation.incident?.toString() || reparation.incident_id?.toString() || '',
+//         type_reparation: reparation.type_reparation || 'corrective',
+//         date_debut: formatDateForInput(reparation.date_debut),
+//         date_fin: formatDateForInput(reparation.date_fin),
+//         cout: reparation.cout?.toString() || '',
+//         technicien_responsable: reparation.technicien_responsable || userName,
+//         description: reparation.description || ''
+//       });
+//     } else {
+//       // Nouvelle réparation - valeurs par défaut
+//       const today = new Date().toISOString().split('T')[0];
+//       setFormData({
+//         materiel: '',
+//         incident: '',
+//         type_reparation: 'corrective',
+//         date_debut: today,
+//         date_fin: '',
+//         cout: '',
+//         technicien_responsable: userName, // Utiliser le nom de l'utilisateur par défaut
+//         description: ''
+//       });
+//     }
+//   }, [reparation, userName]);
+
+//   // Fermer le modal avec la touche Escape
+//   useEffect(() => {
+//     const handleEscape = (e: KeyboardEvent) => {
+//       if (e.key === 'Escape' && isOpen) {
+//         onClose();
+//       }
+//     };
+//     window.addEventListener('keydown', handleEscape);
+//     return () => window.removeEventListener('keydown', handleEscape);
+//   }, [isOpen, onClose]);
+
+//   // Validation du formulaire
+//   const validateForm = () => {
+//     const newErrors: Record<string, string> = {};
+
+//     if (!formData.materiel.trim()) {
+//       newErrors.materiel = 'Le matériel est requis';
+//     }
+
+//     if (!formData.type_reparation) {
+//       newErrors.type_reparation = 'Le type de réparation est requis';
+//     }
+
+//     if (!formData.date_debut) {
+//       newErrors.date_debut = 'La date de début est requise';
+//     }
+
+//     if (formData.date_fin && formData.date_debut) {
+//       const dateDebut = new Date(formData.date_debut);
+//       const dateFin = new Date(formData.date_fin);
+      
+//       if (dateFin < dateDebut) {
+//         newErrors.date_fin = 'La date de fin ne peut pas être antérieure à la date de début';
+//       }
+//     }
+
+//     if (formData.cout) {
+//       const coutValue = parseFloat(formData.cout);
+//       if (isNaN(coutValue) || coutValue < 0) {
+//         newErrors.cout = 'Le coût doit être un nombre positif';
+//       }
+//     }
+
+//     if (!formData.technicien_responsable.trim()) {
+//       newErrors.technicien_responsable = 'Le technicien responsable est requis';
+//     }
+
+//     setErrors(newErrors);
+//     return Object.keys(newErrors).length === 0;
+//   };
+
+//   // Gérer les changements dans le formulaire
+//   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+//     const { name, value } = e.target;
+//     setFormData(prev => ({
+//       ...prev,
+//       [name]: value
+//     }));
+    
+//     // Effacer l'erreur pour ce champ s'il existe
+//     if (errors[name]) {
+//       setErrors(prev => {
+//         const newErrors = { ...prev };
+//         delete newErrors[name];
+//         return newErrors;
+//       });
+//     }
+//   };
+
+//   // Gérer la soumission du formulaire
+//   const handleSubmitForm = async (e: React.FormEvent) => {
+//     e.preventDefault();
+    
+//     if (!validateForm()) {
+//       return;
+//     }
+
+//     setIsSubmitting(true);
+
+//     try {
+//       // Préparer les données pour l'API
+//       const submissionData = {
+//         ...formData,
+//         cout: formData.cout ? parseFloat(formData.cout) : 0,
+//         // Assurer que date_fin est null si vide
+//         date_fin: formData.date_fin || null,
+//         // Utiliser l'incident seulement s'il est sélectionné
+//         incident: formData.incident || null
+//       };
+
+//       await onSubmit(submissionData);
+      
+//       // Réinitialiser le formulaire après soumission réussie
+//       if (!reparation) {
+//         const today = new Date().toISOString().split('T')[0];
+//         setFormData({
+//           materiel: '',
+//           incident: '',
+//           type_reparation: 'corrective',
+//           date_debut: today,
+//           date_fin: '',
+//           cout: '',
+//           technicien_responsable: userName,
+//           description: ''
+//         });
+//       }
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+//   // Obtenir le nom du matériel pour l'affichage
+//   const getMaterielName = (materielId: string) => {
+//     const materiel = materiels.find(m => 
+//       m.id?.toString() === materielId || 
+//       m._id?.toString() === materielId
+//     );
+//     return materiel?.nom || materiel?.name || materiel?.modele || `Matériel #${materielId}`;
+//   };
+
+//   // Obtenir la description de l'incident
+//   const getIncidentDescription = (incidentId: string) => {
+//     const incident = incidents.find(i => 
+//       i.id?.toString() === incidentId || 
+//       i._id?.toString() === incidentId
+//     );
+//     return incident?.description || incident?.titre || `Incident #${incidentId}`;
+//   };
+
+//   if (!isOpen) return null;
+
+//   return (
+//     <div className="fixed inset-0 z-50 overflow-y-auto">
+//       {/* Overlay */}
+//       <div 
+//         className="fixed inset-0 bg-black/50 transition-opacity"
+//         onClick={onClose}
+//       />
+      
+//       {/* Modal */}
+//       <div className="flex min-h-screen items-center justify-center p-4">
+//         <div className="relative w-full max-w-4xl bg-base-100 rounded-lg shadow-2xl">
+//           {/* En-tête */}
+//           <div className="flex items-center justify-between p-6 border-b border-base-300">
+//             <div className="flex items-center gap-3">
+//               <div className="p-2 bg-primary/10 rounded-lg">
+//                 <Wrench className="h-6 w-6 text-primary" />
+//               </div>
+//               <div>
+//                 <h2 className="text-2xl font-bold text-base-content">
+//                   {reparation ? '✏️ Modifier la réparation' : '🛠️ Nouvelle réparation'}
+//                 </h2>
+//                 <p className="text-sm opacity-60 mt-1">
+//                   {reparation 
+//                     ? 'Modifiez les détails de la réparation existante' 
+//                     : 'Remplissez les détails de la nouvelle réparation'
+//                   }
+//                 </p>
+//               </div>
+//             </div>
+//             <button
+//               onClick={onClose}
+//               className="btn btn-ghost btn-circle btn-sm"
+//               aria-label="Fermer"
+//             >
+//               <X className="h-5 w-5" />
+//             </button>
+//           </div>
+
+//           {/* Formulaire */}
+//           <form onSubmit={handleSubmitForm}>
+//             <div className="p-6 space-y-6">
+//               {/* Informations de base */}
+//               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//                 {/* Matériel */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <Package className="h-4 w-4" />
+//                       Matériel *
+//                     </span>
+//                   </label>
+//                   <select
+//                     name="materiel"
+//                     value={formData.materiel}
+//                     onChange={handleChange}
+//                     className={`select select-bordered w-full ${errors.materiel ? 'select-error' : ''}`}
+//                     required
+//                   >
+//                     <option value="">Sélectionner un matériel</option>
+//                     {materiels.map(materiel => {
+//                       const id = materiel.id || materiel._id;
+//                       const nom = materiel.nom || materiel.name || materiel.modele || `Matériel #${id}`;
+//                       return (
+//                         <option key={id} value={id}>
+//                           {nom} 
+//                           {materiel.numero_serie ? ` (SN: ${materiel.numero_serie})` : ''}
+//                           {materiel.emplacement ? ` - ${materiel.emplacement}` : ''}
+//                         </option>
+//                       );
+//                     })}
+//                   </select>
+//                   {errors.materiel && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.materiel}
+//                     </div>
+//                   )}
+//                   {formData.materiel && (
+//                     <div className="mt-2 text-xs opacity-60">
+//                       Matériel sélectionné: <strong>{getMaterielName(formData.materiel)}</strong>
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {/* Incident (optionnel) */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <FileText className="h-4 w-4" />
+//                       Incident associé
+//                     </span>
+//                     <span className="label-text-alt opacity-60">Optionnel</span>
+//                   </label>
+//                   <select
+//                     name="incident"
+//                     value={formData.incident}
+//                     onChange={handleChange}
+//                     className="select select-bordered w-full"
+//                   >
+//                     <option value="">Aucun incident associé</option>
+//                     {incidents.map(incident => {
+//                       const id = incident.id || incident._id;
+//                       const titre = incident.titre || incident.description || `Incident #${id}`;
+//                       return (
+//                         <option key={id} value={id}>
+//                           {titre.substring(0, 50)}
+//                           {titre.length > 50 ? '...' : ''}
+//                         </option>
+//                       );
+//                     })}
+//                   </select>
+//                   {formData.incident && (
+//                     <div className="mt-2 text-xs opacity-60">
+//                       Incident: <strong>{getIncidentDescription(formData.incident)}</strong>
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {/* Type de réparation */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <Wrench className="h-4 w-4" />
+//                       Type de réparation *
+//                     </span>
+//                   </label>
+//                   <div className="grid grid-cols-3 gap-2">
+//                     {[
+//                       { value: 'preventive', label: 'Préventive', color: 'bg-blue-500/20 text-blue-600 border-blue-500/30' },
+//                       { value: 'corrective', label: 'Corrective', color: 'bg-orange-500/20 text-orange-600 border-orange-500/30' },
+//                       { value: 'ameliorative', label: 'Améliorative', color: 'bg-green-500/20 text-green-600 border-green-500/30' }
+//                     ].map(type => (
+//                       <button
+//                         key={type.value}
+//                         type="button"
+//                         onClick={() => {
+//                           setFormData(prev => ({ ...prev, type_reparation: type.value }));
+//                           if (errors.type_reparation) {
+//                             setErrors(prev => {
+//                               const newErrors = { ...prev };
+//                               delete newErrors.type_reparation;
+//                               return newErrors;
+//                             });
+//                           }
+//                         }}
+//                         className={`btn btn-outline ${formData.type_reparation === type.value ? 'btn-active ' + type.color : ''}`}
+//                       >
+//                         {type.label}
+//                       </button>
+//                     ))}
+//                   </div>
+//                   <input
+//                     type="hidden"
+//                     name="type_reparation"
+//                     value={formData.type_reparation}
+//                   />
+//                   {errors.type_reparation && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.type_reparation}
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {/* Technicien responsable */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <User className="h-4 w-4" />
+//                       Technicien responsable *
+//                     </span>
+//                     <span className="label-text-alt opacity-60">(Vous êtes connecté)</span>
+//                   </label>
+//                   <div className="relative">
+//                     <input
+//                       type="text"
+//                       name="technicien_responsable"
+//                       value={formData.technicien_responsable}
+//                       onChange={handleChange}
+//                       className={`input input-bordered w-full ${errors.technicien_responsable ? 'input-error' : ''}`}
+//                       placeholder="Nom du technicien"
+//                       required
+//                     />
+//                     {formData.technicien_responsable === userName && (
+//                       <div className="absolute right-3 top-3">
+//                         <div className="badge badge-success badge-sm">
+//                           VOUS
+//                         </div>
+//                       </div>
+//                     )}
+//                   </div>
+//                   {errors.technicien_responsable && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.technicien_responsable}
+//                     </div>
+//                   )}
+//                   <div className="text-xs opacity-60 mt-2">
+//                     👤 Utilisateur actuel: <strong className="text-success">{userName}</strong>
+//                   </div>
+//                 </div>
+
+//                 {/* Dates */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <Calendar className="h-4 w-4" />
+//                       Date de début *
+//                     </span>
+//                   </label>
+//                   <input
+//                     type="date"
+//                     name="date_debut"
+//                     value={formData.date_debut}
+//                     onChange={handleChange}
+//                     className={`input input-bordered w-full ${errors.date_debut ? 'input-error' : ''}`}
+//                     required
+//                   />
+//                   {errors.date_debut && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.date_debut}
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <Calendar className="h-4 w-4" />
+//                       Date de fin
+//                     </span>
+//                     <span className="label-text-alt opacity-60">Laissez vide si en cours</span>
+//                   </label>
+//                   <input
+//                     type="date"
+//                     name="date_fin"
+//                     value={formData.date_fin}
+//                     onChange={handleChange}
+//                     className={`input input-bordered w-full ${errors.date_fin ? 'input-error' : ''}`}
+//                     min={formData.date_debut}
+//                   />
+//                   {errors.date_fin && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.date_fin}
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {/* Coût */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <DollarSign className="h-4 w-4" />
+//                       Coût (Ar)
+//                     </span>
+//                     <span className="label-text-alt opacity-60">En Ariary</span>
+//                   </label>
+//                   <div className="relative">
+//                     <input
+//                       type="number"
+//                       name="cout"
+//                       value={formData.cout}
+//                       onChange={handleChange}
+//                       className={`input input-bordered w-full pl-10 ${errors.cout ? 'input-error' : ''}`}
+//                       placeholder="0"
+//                       min="0"
+//                       step="0.01"
+//                     />
+//                     <div className="absolute left-3 top-3 text-base-content opacity-60">
+//                       Ar
+//                     </div>
+//                   </div>
+//                   {errors.cout && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.cout}
+//                     </div>
+//                   )}
+//                   {formData.cout && (
+//                     <div className="mt-2 text-xs opacity-60">
+//                       Montant: <strong>{parseFloat(formData.cout).toLocaleString('fr-FR')} Ar</strong>
+//                     </div>
+//                   )}
+//                 </div>
+//               </div>
+
+//               {/* Description */}
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Description de la réparation</span>
+//                   <span className="label-text-alt opacity-60">Détails des travaux effectués</span>
+//                 </label>
+//                 <textarea
+//                   name="description"
+//                   value={formData.description}
+//                   onChange={handleChange}
+//                   className="textarea textarea-bordered h-32"
+//                   placeholder="Décrivez les travaux de réparation effectués, les pièces remplacées, les observations..."
+//                 />
+//                 <div className="label">
+//                   <span className="label-text-alt opacity-60">
+//                     {formData.description.length}/500 caractères
+//                   </span>
+//                 </div>
+//               </div>
+
+//               {/* Résumé */}
+//               <div className="bg-base-200 p-4 rounded-lg">
+//                 <h3 className="font-semibold mb-2 text-base-content">📋 Récapitulatif</h3>
+//                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+//                   <div>
+//                     <span className="opacity-60">Matériel:</span>
+//                     <div className="font-medium truncate">
+//                       {formData.materiel ? getMaterielName(formData.materiel) : 'Non sélectionné'}
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-60">Type:</span>
+//                     <div className="font-medium">
+//                       {formData.type_reparation === 'preventive' && 'Préventive'}
+//                       {formData.type_reparation === 'corrective' && 'Corrective'}
+//                       {formData.type_reparation === 'ameliorative' && 'Améliorative'}
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-60">Technicien:</span>
+//                     <div className="font-medium truncate">
+//                       {formData.technicien_responsable || 'Non spécifié'}
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-60">Statut:</span>
+//                     <div className="font-medium">
+//                       {formData.date_fin ? 'Terminée' : 'En cours'}
+//                     </div>
+//                   </div>
+//                 </div>
+//               </div>
+//             </div>
+
+//             {/* Pied de page */}
+//             <div className="flex justify-end gap-3 p-6 border-t border-base-300">
+//               <button
+//                 type="button"
+//                 onClick={onClose}
+//                 className="btn btn-outline btn-sm md:btn-md"
+//                 disabled={isSubmitting}
+//               >
+//                 Annuler
+//               </button>
+//               <button
+//                 type="submit"
+//                 className="btn btn-primary btn-sm md:btn-md gap-2"
+//                 disabled={isSubmitting}
+//               >
+//                 {isSubmitting ? (
+//                   <>
+//                     <span className="loading loading-spinner loading-sm"></span>
+//                     Enregistrement...
+//                   </>
+//                 ) : (
+//                   <>
+//                     <Save className="h-4 w-4" />
+//                     {reparation ? 'Mettre à jour' : 'Créer la réparation'}
+//                   </>
+//                 )}
+//               </button>
+//             </div>
+//           </form>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default ReparationForm;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import React, { useState, useEffect } from 'react';
+// import { X, Save, AlertCircle, Calendar, DollarSign, Wrench, Package, FileText, User, Info, CheckCircle, Clock } from 'lucide-react';
+// import { Reparation } from '../types';
+
+// interface ReparationFormProps {
+//   isOpen: boolean;
+//   onClose: () => void;
+//   onSubmit: (data: any) => void;
+//   reparation?: Reparation;
+//   materiels: any[];
+//   incidents: any[];
+//   userName: string;
+// }
+
+// const ReparationForm: React.FC<ReparationFormProps> = ({
+//   isOpen,
+//   onClose,
+//   onSubmit,
+//   reparation,
+//   materiels,
+//   incidents,
+//   userName
+// }) => {
+//   const [formData, setFormData] = useState({
+//     materiel: '',
+//     incident: '',
+//     type_reparation: 'corrective',
+//     date_debut: '',
+//     date_fin: '',
+//     cout: '',
+//     description: ''
+//   });
+
+//   const [errors, setErrors] = useState<Record<string, string>>({});
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+//   const [showMaterielInfo, setShowMaterielInfo] = useState(false);
+//   const [selectedMateriel, setSelectedMateriel] = useState<any>(null);
+//   const [isEditingDateFin, setIsEditingDateFin] = useState(false); // Nouvel état
+
+//   // Initialiser le formulaire
+//   useEffect(() => {
+//     if (reparation) {
+//       // Formatage des dates
+//       const formatDateForInput = (dateString?: string) => {
+//         if (!dateString) return '';
+//         try {
+//           const date = new Date(dateString);
+//           return date.toISOString().split('T')[0];
+//         } catch (e) {
+//           return '';
+//         }
+//       };
+
+//       setFormData({
+//         materiel: reparation.materiel?.toString() || '',
+//         incident: reparation.incident?.toString() || '',
+//         type_reparation: reparation.type_reparation || 'corrective',
+//         date_debut: formatDateForInput(reparation.date_debut),
+//         date_fin: formatDateForInput(reparation.date_fin),
+//         cout: reparation.cout?.toString() || '',
+//         description: reparation.description || ''
+//       });
+
+//       // Si la réparation a une date de fin, on active l'édition de date_fin
+//       setIsEditingDateFin(!!reparation.date_fin);
+
+//       // Trouver le matériel sélectionné
+//       if (reparation.materiel) {
+//         const materiel = materiels.find(m => 
+//           (m.id?.toString() === reparation.materiel?.toString()) || 
+//           (m._id?.toString() === reparation.materiel?.toString())
+//         );
+//         setSelectedMateriel(materiel);
+//       }
+//     } else {
+//       const today = new Date().toISOString().split('T')[0];
+//       setFormData({
+//         materiel: '',
+//         incident: '',
+//         type_reparation: 'corrective',
+//         date_debut: today,
+//         date_fin: '',
+//         cout: '',
+//         description: ''
+//       });
+//       setIsEditingDateFin(false); // Nouvelle réparation = pas de date_fin
+//       setSelectedMateriel(null);
+//     }
+//   }, [reparation, materiels]);
+
+//   // Mettre à jour le matériel sélectionné quand il change
+//   useEffect(() => {
+//     if (formData.materiel) {
+//       const materiel = materiels.find(m => 
+//         (m.id?.toString() === formData.materiel) || 
+//         (m._id?.toString() === formData.materiel)
+//       );
+//       setSelectedMateriel(materiel);
+//     } else {
+//       setSelectedMateriel(null);
+//     }
+//   }, [formData.materiel, materiels]);
+
+//   // Fermer avec Escape
+//   useEffect(() => {
+//     const handleEscape = (e: KeyboardEvent) => {
+//       if (e.key === 'Escape' && isOpen) onClose();
+//     };
+//     window.addEventListener('keydown', handleEscape);
+//     return () => window.removeEventListener('keydown', handleEscape);
+//   }, [isOpen, onClose]);
+
+//   // Validation du formulaire
+//   const validateForm = () => {
+//     const newErrors: Record<string, string> = {};
+
+//     if (!formData.materiel.trim()) newErrors.materiel = 'Le matériel est requis';
+//     if (!formData.type_reparation) newErrors.type_reparation = 'Le type de réparation est requis';
+//     if (!formData.date_debut) newErrors.date_debut = 'La date de début est requise';
+
+//     if (formData.date_fin && formData.date_debut) {
+//       const dateDebut = new Date(formData.date_debut);
+//       const dateFin = new Date(formData.date_fin);
+//       if (dateFin < dateDebut) newErrors.date_fin = 'La date de fin ne peut pas être antérieure à la date de début';
+//     }
+
+//     if (formData.cout) {
+//       const coutValue = parseFloat(formData.cout);
+//       if (isNaN(coutValue) || coutValue < 0) newErrors.cout = 'Le coût doit être un nombre positif';
+//     }
+
+//     setErrors(newErrors);
+//     return Object.keys(newErrors).length === 0;
+//   };
+
+//   // Gérer les changements
+//   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+//     const { name, value } = e.target;
+//     setFormData(prev => ({
+//       ...prev,
+//       [name]: value
+//     }));
+    
+//     if (errors[name]) {
+//       setErrors(prev => {
+//         const newErrors = { ...prev };
+//         delete newErrors[name];
+//         return newErrors;
+//       });
+//     }
+//   };
+
+//   // Gérer la soumission
+//   const handleSubmitForm = async (e: React.FormEvent) => {
+//     e.preventDefault();
+    
+//     if (!validateForm()) {
+//       return;
+//     }
+
+//     setIsSubmitting(true);
+
+//     try {
+//       // Préparer les données avec validation renforcée
+//       const submissionData: any = {
+//         materiel: formData.materiel,
+//         type_reparation: formData.type_reparation,
+//         date_debut: formData.date_debut,
+//         cout: formData.cout ? parseFloat(formData.cout) : 0,
+//         technicien_responsable: userName, // Toujours l'utilisateur connecté
+//         description: formData.description || 'Réparation effectuée'
+//       };
+      
+//       // CRITIQUE : Ne pas envoyer date_fin si vide ou si l'utilisateur ne veut pas la définir
+//       if (isEditingDateFin && formData.date_fin && formData.date_fin.trim() !== '') {
+//         submissionData.date_fin = formData.date_fin;
+//       } else {
+//         // Si l'utilisateur a désactivé la date de fin, envoyer explicitement null
+//         submissionData.date_fin = null;
+//       }
+      
+//       // Gérer incident proprement
+//       if (formData.incident && formData.incident !== '' && formData.incident !== 'null') {
+//         submissionData.incident = formData.incident;
+//       }
+      
+//       console.log('📤 Soumission données réparation:', submissionData);
+//       console.log('✅ Technicien automatique:', userName);
+//       console.log('📅 Date fin envoyée:', submissionData.date_fin ? submissionData.date_fin : 'null (réparation en cours)');
+      
+//       await onSubmit(submissionData);
+      
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+//   // Obtenir le nom du matériel
+//   const getMaterielName = (materielId: string) => {
+//     const materiel = materiels.find(m => 
+//       (m.id?.toString() === materielId) || 
+//       (m._id?.toString() === materielId)
+//     );
+//     return materiel?.nom || materiel?.name || materiel?.modele || `Matériel #${materielId}`;
+//   };
+
+//   // Toggle pour activer/désactiver la date de fin
+//   const toggleDateFin = () => {
+//     if (isEditingDateFin) {
+//       // Désactiver la date de fin
+//       setIsEditingDateFin(false);
+//       setFormData(prev => ({ ...prev, date_fin: '' }));
+//     } else {
+//       // Activer la date de fin
+//       setIsEditingDateFin(true);
+//       if (!formData.date_fin) {
+//         const today = new Date().toISOString().split('T')[0];
+//         setFormData(prev => ({ ...prev, date_fin: today }));
+//       }
+//     }
+//   };
+
+//   if (!isOpen) return null;
+
+//   return (
+//     <div className="fixed inset-0 z-50 overflow-y-auto">
+//       <div 
+//         className="fixed inset-0 bg-black/50 transition-opacity"
+//         onClick={onClose}
+//       />
+      
+//       <div className="flex min-h-screen items-center justify-center p-4">
+//         <div className="relative w-full max-w-4xl bg-base-100 rounded-lg shadow-2xl">
+//           {/* En-tête */}
+//           <div className="flex items-center justify-between p-6 border-b border-base-300">
+//             <div className="flex items-center gap-3">
+//               <div className="p-2 bg-primary/10 rounded-lg">
+//                 <Wrench className="h-6 w-6 text-primary" />
+//               </div>
+//               <div>
+//                 <h2 className="text-2xl font-bold text-base-content">
+//                   {reparation ? '✏️ Modifier la réparation' : '🛠️ Nouvelle réparation'}
+//                 </h2>
+//                 <p className="text-sm opacity-60 mt-1">
+//                   {reparation 
+//                     ? 'Modifiez les détails de la réparation existante' 
+//                     : 'Remplissez les détails de la nouvelle réparation'
+//                   }
+//                 </p>
+//               </div>
+//             </div>
+//             <button
+//               onClick={onClose}
+//               className="btn btn-ghost btn-circle btn-sm"
+//               aria-label="Fermer"
+//             >
+//               <X className="h-5 w-5" />
+//             </button>
+//           </div>
+
+//           {/* Informations utilisateur */}
+//           <div className="bg-success/10 p-4 mx-6 mt-4 rounded-lg">
+//             <div className="flex items-center gap-3">
+//               <User className="h-5 w-5 text-success" />
+//               <div>
+//                 <h3 className="font-bold text-success">Utilisateur Connecté</h3>
+//                 <p className="text-sm">
+//                   Vous êtes connecté en tant que: <span className="font-bold">{userName}</span>
+//                 </p>
+//                 <p className="text-xs opacity-70 mt-1">
+//                   ⚡ Ce nom sera automatiquement utilisé comme "technicien responsable" pour cette réparation.
+//                 </p>
+//               </div>
+//               <div className="badge badge-success ml-auto">
+//                 VOUS
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* Formulaire */}
+//           <form onSubmit={handleSubmitForm}>
+//             <div className="p-6 space-y-6">
+//               {/* Informations de base */}
+//               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//                 {/* Matériel */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <Package className="h-4 w-4" />
+//                       Matériel *
+//                     </span>
+//                   </label>
+//                   <select
+//                     name="materiel"
+//                     value={formData.materiel}
+//                     onChange={handleChange}
+//                     className={`select select-bordered w-full ${errors.materiel ? 'select-error' : ''}`}
+//                     required
+//                   >
+//                     <option value="">Sélectionner un matériel</option>
+//                     {materiels.map(materiel => {
+//                       const id = materiel.id || materiel._id;
+//                       const nom = materiel.nom || materiel.name || materiel.modele || `Matériel #${id}`;
+//                       const etat = materiel.etat || 'inconnu';
+//                       const reference = materiel.reference || materiel.numero_serie || '';
+                      
+//                       return (
+//                         <option key={id} value={id}>
+//                           {nom} - État: {etat}
+//                           {reference ? ` (${reference})` : ''}
+//                         </option>
+//                       );
+//                     })}
+//                   </select>
+//                   {errors.materiel && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.materiel}
+//                     </div>
+//                   )}
+//                   {selectedMateriel && (
+//                     <div className="mt-2">
+//                       <button
+//                         type="button"
+//                         onClick={() => setShowMaterielInfo(!showMaterielInfo)}
+//                         className="btn btn-ghost btn-xs gap-1"
+//                       >
+//                         <Info className="h-3 w-3" />
+//                         {showMaterielInfo ? 'Masquer' : 'Afficher'} les détails
+//                       </button>
+//                       {showMaterielInfo && (
+//                         <div className="mt-2 p-3 bg-base-200 rounded-lg text-xs">
+//                           <div className="grid grid-cols-2 gap-2">
+//                             <div>
+//                               <strong>Nom:</strong> {selectedMateriel.nom}
+//                             </div>
+//                             <div>
+//                               <strong>État actuel:</strong> 
+//                               <span className={`badge badge-xs ml-2 ${
+//                                 selectedMateriel.etat === 'fonctionnel' ? 'badge-success' :
+//                                 selectedMateriel.etat === 'en_panne' ? 'badge-error' :
+//                                 selectedMateriel.etat === 'repare' ? 'badge-warning' :
+//                                 'badge-neutral'
+//                               }`}>
+//                                 {selectedMateriel.etat}
+//                               </span>
+//                             </div>
+//                             <div>
+//                               <strong>Référence:</strong> {selectedMateriel.reference || 'N/A'}
+//                             </div>
+//                             <div>
+//                               <strong>Service:</strong> {selectedMateriel.service_attribue || 'N/A'}
+//                             </div>
+//                           </div>
+//                         </div>
+//                       )}
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {/* Incident (optionnel) */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <FileText className="h-4 w-4" />
+//                       Incident associé
+//                     </span>
+//                     <span className="label-text-alt opacity-60">Optionnel</span>
+//                   </label>
+//                   <select
+//                     name="incident"
+//                     value={formData.incident}
+//                     onChange={handleChange}
+//                     className="select select-bordered w-full"
+//                   >
+//                     <option value="">Aucun incident associé</option>
+//                     {incidents
+//                       .filter(incident => incident.statut !== 'resolu' && incident.statut !== 'ferme')
+//                       .map(incident => {
+//                         const id = incident.id || incident._id;
+//                         const titre = incident.titre || incident.description || `Incident #${id}`;
+//                         const statut = incident.statut || 'inconnu';
+//                         return (
+//                           <option key={id} value={id}>
+//                             {titre.substring(0, 40)} - {statut}
+//                             {titre.length > 40 ? '...' : ''}
+//                           </option>
+//                         );
+//                       })}
+//                   </select>
+//                 </div>
+
+//                 {/* Type de réparation */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <Wrench className="h-4 w-4" />
+//                       Type de réparation *
+//                     </span>
+//                   </label>
+//                   <div className="grid grid-cols-3 gap-2">
+//                     {[
+//                       { value: 'preventive', label: 'Préventive', color: 'btn-info' },
+//                       { value: 'corrective', label: 'Corrective', color: 'btn-warning' },
+//                       { value: 'ameliorative', label: 'Améliorative', color: 'btn-success' }
+//                     ].map(type => (
+//                       <button
+//                         key={type.value}
+//                         type="button"
+//                         onClick={() => {
+//                           setFormData(prev => ({ ...prev, type_reparation: type.value }));
+//                           if (errors.type_reparation) {
+//                             setErrors(prev => {
+//                               const newErrors = { ...prev };
+//                               delete newErrors.type_reparation;
+//                               return newErrors;
+//                             });
+//                           }
+//                         }}
+//                         className={`btn btn-sm ${formData.type_reparation === type.value ? type.color + ' btn-active' : 'btn-outline'}`}
+//                       >
+//                         {type.label}
+//                       </button>
+//                     ))}
+//                   </div>
+//                   <input
+//                     type="hidden"
+//                     name="type_reparation"
+//                     value={formData.type_reparation}
+//                   />
+//                   {errors.type_reparation && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.type_reparation}
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {/* Dates */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <Calendar className="h-4 w-4" />
+//                       Date de début *
+//                     </span>
+//                   </label>
+//                   <input
+//                     type="date"
+//                     name="date_debut"
+//                     value={formData.date_debut}
+//                     onChange={handleChange}
+//                     className={`input input-bordered w-full ${errors.date_debut ? 'input-error' : ''}`}
+//                     required
+//                   />
+//                   {errors.date_debut && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.date_debut}
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {/* NOUVELLE SECTION : Date de fin avec toggle */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <CheckCircle className="h-4 w-4" />
+//                       Date de fin
+//                     </span>
+//                     <span className="label-text-alt opacity-60">
+//                       {isEditingDateFin ? 'Renseignez la date de fin' : 'Laissez en cours'}
+//                     </span>
+//                   </label>
+                  
+//                   {/* Toggle pour activer/désactiver la date de fin */}
+//                   <div className="flex items-center gap-3 mb-2">
+//                     <div className="flex items-center">
+//                       <input
+//                         type="checkbox"
+//                         id="toggle-date-fin"
+//                         checked={isEditingDateFin}
+//                         onChange={toggleDateFin}
+//                         className="toggle toggle-sm toggle-primary mr-2"
+//                       />
+//                       <label htmlFor="toggle-date-fin" className="text-sm">
+//                         {isEditingDateFin ? 'Définir une date de fin' : 'Laisser en cours'}
+//                       </label>
+//                     </div>
+                    
+//                     {isEditingDateFin ? (
+//                       <span className="badge badge-success badge-sm">Terminée</span>
+//                     ) : (
+//                       <span className="badge badge-warning badge-sm">En cours</span>
+//                     )}
+//                   </div>
+
+//                   {/* Champ date de fin (visible seulement si activé) */}
+//                   {isEditingDateFin && (
+//                     <>
+//                       <input
+//                         type="date"
+//                         name="date_fin"
+//                         value={formData.date_fin}
+//                         onChange={handleChange}
+//                         className={`input input-bordered w-full ${errors.date_fin ? 'input-error' : ''}`}
+//                         min={formData.date_debut}
+//                       />
+//                       {errors.date_fin && (
+//                         <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                           <AlertCircle className="h-4 w-4" />
+//                           {errors.date_fin}
+//                         </div>
+//                       )}
+//                     </>
+//                   )}
+                  
+//                   {/* Aide */}
+//                   <div className="text-xs opacity-60 mt-2">
+//                     {isEditingDateFin 
+//                       ? '⚠️ Une date de fin rendra la réparation "terminée" et mettra à jour l\'état du matériel.'
+//                       : '✅ Sans date de fin, la réparation reste "en cours" et le bouton "Terminer" sera visible dans le tableau.'
+//                     }
+//                   </div>
+//                 </div>
+
+//                 {/* Coût */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <DollarSign className="h-4 w-4" />
+//                       Coût (Ar)
+//                     </span>
+//                     <span className="label-text-alt opacity-60">En Ariary</span>
+//                   </label>
+//                   <div className="relative">
+//                     <input
+//                       type="number"
+//                       name="cout"
+//                       value={formData.cout}
+//                       onChange={handleChange}
+//                       className={`input input-bordered w-full pl-10 ${errors.cout ? 'input-error' : ''}`}
+//                       placeholder="0"
+//                       min="0"
+//                       step="0.01"
+//                     />
+//                     <div className="absolute left-3 top-3 text-base-content opacity-60">
+//                       Ar
+//                     </div>
+//                   </div>
+//                   {errors.cout && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.cout}
+//                     </div>
+//                   )}
+//                   {formData.cout && (
+//                     <div className="mt-2 text-xs opacity-60">
+//                       Montant: <strong>{parseFloat(formData.cout).toLocaleString('fr-FR')} Ar</strong>
+//                     </div>
+//                   )}
+//                 </div>
+//               </div>
+
+//               {/* Description */}
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Description de la réparation</span>
+//                   <span className="label-text-alt opacity-60">Détails des travaux effectués</span>
+//                 </label>
+//                 <textarea
+//                   name="description"
+//                   value={formData.description}
+//                   onChange={handleChange}
+//                   className="textarea textarea-bordered h-32"
+//                   placeholder="Décrivez les travaux de réparation effectués, les pièces remplacées, les observations..."
+//                   maxLength={500}
+//                 />
+//                 <div className="label">
+//                   <span className="label-text-alt opacity-60">
+//                     {formData.description.length}/500 caractères
+//                   </span>
+//                 </div>
+//               </div>
+
+//               {/* Impact sur le matériel */}
+//               {formData.materiel && (
+//                 <div className={`p-4 rounded-lg border ${isEditingDateFin ? 'bg-success/10 border-success/20' : 'bg-warning/10 border-warning/20'}`}>
+//                   <div className="flex items-center gap-2 mb-2">
+//                     {isEditingDateFin ? (
+//                       <CheckCircle className="h-5 w-5 text-success" />
+//                     ) : (
+//                       <Clock className="h-5 w-5 text-warning" />
+//                     )}
+//                     <h3 className="font-bold">
+//                       {isEditingDateFin ? '✅ Impact après réparation terminée' : '⏳ Impact pour réparation en cours'}
+//                     </h3>
+//                   </div>
+//                   <div className="text-sm">
+//                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                       <div>
+//                         <p><strong>Matériel:</strong> {getMaterielName(formData.materiel)}</p>
+//                         <p className="mt-1"><strong>État actuel:</strong> 
+//                           <span className="badge badge-xs ml-2">
+//                             {selectedMateriel?.etat || 'inconnu'}
+//                           </span>
+//                         </p>
+//                       </div>
+//                       <div>
+//                         <p><strong>État après enregistrement:</strong></p>
+//                         {isEditingDateFin ? (
+//                           <div className="badge badge-success mt-1">
+//                             {formData.type_reparation === 'corrective' ? 'RÉPARÉ' : 'FONCTIONNEL'}
+//                           </div>
+//                         ) : (
+//                           <div className={`badge ${
+//                             formData.type_reparation === 'corrective' ? 'badge-warning' :
+//                             formData.type_reparation === 'preventive' ? 'badge-info' : 
+//                             'badge-primary'
+//                           } mt-1`}>
+//                             {formData.type_reparation === 'corrective' ? 'EN PANNE' :
+//                              formData.type_reparation === 'preventive' ? 'EN MAINTENANCE' : 
+//                              'EN AMÉLIORATION'}
+//                           </div>
+//                         )}
+//                       </div>
+//                     </div>
+//                     <p className="text-xs opacity-70 mt-3">
+//                       {isEditingDateFin 
+//                         ? (formData.type_reparation === 'corrective' 
+//                           ? '✅ Le matériel sera marqué comme "réparé". Le bouton "Terminer" disparaîtra.' 
+//                           : '✅ Le matériel sera marqué comme "fonctionnel". Le bouton "Terminer" disparaîtra.')
+//                         : '⏳ Le matériel aura un état temporaire. Le bouton "Terminer" sera visible dans le tableau.'
+//                       }
+//                     </p>
+//                   </div>
+//                 </div>
+//               )}
+
+//               {/* Résumé */}
+//               <div className="bg-base-200 p-4 rounded-lg">
+//                 <h3 className="font-semibold mb-2 text-base-content">📋 Récapitulatif</h3>
+//                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+//                   <div>
+//                     <span className="opacity-60">Matériel:</span>
+//                     <div className="font-medium truncate">
+//                       {formData.materiel ? getMaterielName(formData.materiel) : 'Non sélectionné'}
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-60">Type:</span>
+//                     <div className="font-medium">
+//                       {formData.type_reparation === 'preventive' && 'Préventive'}
+//                       {formData.type_reparation === 'corrective' && 'Corrective'}
+//                       {formData.type_reparation === 'ameliorative' && 'Améliorative'}
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-60">Technicien:</span>
+//                     <div className="font-medium truncate text-success">
+//                       {userName}
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-60">Statut:</span>
+//                     <div className="font-medium">
+//                       {isEditingDateFin ? (
+//                         <span className="text-success">Terminée</span>
+//                       ) : (
+//                         <span className="text-warning">En cours</span>
+//                       )}
+//                     </div>
+//                   </div>
+//                 </div>
+//               </div>
+//             </div>
+
+//             {/* Pied de page */}
+//             <div className="flex justify-end gap-3 p-6 border-t border-base-300">
+//               <button
+//                 type="button"
+//                 onClick={onClose}
+//                 className="btn btn-outline btn-sm md:btn-md"
+//                 disabled={isSubmitting}
+//               >
+//                 Annuler
+//               </button>
+//               <button
+//                 type="submit"
+//                 className="btn btn-primary btn-sm md:btn-md gap-2"
+//                 disabled={isSubmitting}
+//               >
+//                 {isSubmitting ? (
+//                   <>
+//                     <span className="loading loading-spinner loading-sm"></span>
+//                     Enregistrement...
+//                   </>
+//                 ) : (
+//                   <>
+//                     <Save className="h-4 w-4" />
+//                     {reparation ? 'Mettre à jour' : 'Créer la réparation'}
+//                   </>
+//                 )}
+//               </button>
+//             </div>
+//           </form>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default ReparationForm;
+
+
+
+
+
+
+
+// import React, { useState, useEffect } from 'react';
+// import { X, Save, AlertCircle, Calendar, DollarSign, Wrench, Package, FileText, User, Info, CheckCircle, Clock, Cpu, HardDrive, Monitor } from 'lucide-react';
+// import { Reparation } from '../types';
+
+// interface ReparationFormProps {
+//   isOpen: boolean;
+//   onClose: () => void;
+//   onSubmit: (data: any) => void;
+//   reparation?: Reparation;
+//   materiels: any[];
+//   incidents: any[];
+//   userName: string;
+// }
+
+// const ReparationForm: React.FC<ReparationFormProps> = ({
+//   isOpen,
+//   onClose,
+//   onSubmit,
+//   reparation,
+//   materiels,
+//   incidents,
+//   userName
+// }) => {
+//   const [formData, setFormData] = useState({
+//     materiel: '',
+//     incident: '',
+//     type_reparation: 'corrective',
+//     date_debut: '',
+//     date_fin: '',
+//     cout: '',
+//     description: '',
+//     technicien_responsable: ''
+//   });
+
+//   const [errors, setErrors] = useState<Record<string, string>>({});
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+//   const [showMaterielInfo, setShowMaterielInfo] = useState(false);
+//   const [selectedMateriel, setSelectedMateriel] = useState<any>(null);
+//   const [isEditingDateFin, setIsEditingDateFin] = useState(false);
+//   const [filteredIncidents, setFilteredIncidents] = useState<any[]>([]);
+
+//   // Déterminer l'état après réparation
+//   const getEtatApresReparation = () => {
+//     if (!isEditingDateFin) {
+//       // Si réparation en cours
+//       switch(formData.type_reparation) {
+//         case 'corrective':
+//           return { etat: 'en_reparation_corrective', label: 'EN RÉPARATION', badgeClass: 'badge-warning' };
+//         case 'preventive':
+//           return { etat: 'en_maintenance', label: 'EN MAINTENANCE', badgeClass: 'badge-info' };
+//         case 'ameliorative':
+//           return { etat: 'en_amelioration', label: 'EN AMÉLIORATION', badgeClass: 'badge-primary' };
+//         default:
+//           return { etat: 'en_reparation', label: 'EN RÉPARATION', badgeClass: 'badge-warning' };
+//       }
+//     } else {
+//       // Si réparation terminée
+//       switch(formData.type_reparation) {
+//         case 'corrective':
+//           return { etat: 'repare', label: 'RÉPARÉ', badgeClass: 'badge-success' };
+//         case 'preventive':
+//           return { etat: 'fonctionnel', label: 'FONCTIONNEL', badgeClass: 'badge-success' };
+//         case 'ameliorative':
+//           return { etat: 'ameliore', label: 'AMÉLIORÉ', badgeClass: 'badge-success' };
+//         default:
+//           return { etat: 'fonctionnel', label: 'FONCTIONNEL', badgeClass: 'badge-success' };
+//       }
+//     }
+//   };
+
+//   // Initialiser le formulaire
+//   useEffect(() => {
+//     if (reparation) {
+//       const formatDateForInput = (dateString?: string) => {
+//         if (!dateString) return '';
+//         try {
+//           const date = new Date(dateString);
+//           return date.toISOString().split('T')[0];
+//         } catch (e) {
+//           return '';
+//         }
+//       };
+
+//       const date_fin = reparation.date_fin ? formatDateForInput(reparation.date_fin) : '';
+      
+//       setFormData({
+//         materiel: reparation.materiel?.toString() || '',
+//         incident: reparation.incident?.toString() || '',
+//         type_reparation: reparation.type_reparation || 'corrective',
+//         date_debut: formatDateForInput(reparation.date_debut),
+//         date_fin: date_fin,
+//         cout: reparation.cout?.toString() || '',
+//         description: reparation.description || '',
+//         technicien_responsable: reparation.technicien_responsable || userName
+//       });
+
+//       setIsEditingDateFin(!!date_fin);
+
+//       if (reparation.materiel) {
+//         const materiel = materiels.find(m => 
+//           (m.id?.toString() === reparation.materiel?.toString()) || 
+//           (m._id?.toString() === reparation.materiel?.toString())
+//         );
+//         setSelectedMateriel(materiel);
+//       }
+//     } else {
+//       const today = new Date().toISOString().split('T')[0];
+//       setFormData({
+//         materiel: '',
+//         incident: '',
+//         type_reparation: 'corrective',
+//         date_debut: today,
+//         date_fin: '',
+//         cout: '',
+//         description: '',
+//         technicien_responsable: userName
+//       });
+//       setIsEditingDateFin(false);
+//       setSelectedMateriel(null);
+//     }
+//   }, [reparation, materiels, userName]);
+
+//   // Mettre à jour le matériel sélectionné et filtrer les incidents
+//   useEffect(() => {
+//     if (formData.materiel) {
+//       const materiel = materiels.find(m => 
+//         (m.id?.toString() === formData.materiel) || 
+//         (m._id?.toString() === formData.materiel)
+//       );
+//       setSelectedMateriel(materiel);
+      
+//       // Filtrer les incidents pour ce matériel
+//       if (materiel) {
+//         const materielId = materiel.id || materiel._id;
+//         const filtered = incidents.filter(incident => {
+//           // Vérifier si l'incident est lié à ce matériel
+//           if (incident.materiel) {
+//             const incidentMaterielId = incident.materiel.id || incident.materiel._id || incident.materiel;
+//             return incidentMaterielId.toString() === materielId.toString();
+//           }
+//           // Vérifier dans la description
+//           if (incident.description) {
+//             const materielNom = materiel.nom || materiel.name || '';
+//             if (materielNom) {
+//               return incident.description.toLowerCase().includes(materielNom.toLowerCase());
+//             }
+//           }
+//           return false;
+//         });
+        
+//         setFilteredIncidents(filtered);
+        
+//         // Réinitialiser la sélection d'incident si aucun incident filtré
+//         if (filtered.length === 0) {
+//           setFormData(prev => ({ ...prev, incident: '' }));
+//         }
+//         // Pour nouvelle réparation avec un seul incident, sélectionner automatiquement
+//         else if (!reparation && filtered.length === 1) {
+//           const incidentId = filtered[0].id || filtered[0]._id;
+//           setFormData(prev => ({ ...prev, incident: incidentId.toString() }));
+//         }
+//       }
+//     } else {
+//       setSelectedMateriel(null);
+//       setFilteredIncidents([]);
+//       setFormData(prev => ({ ...prev, incident: '' }));
+//     }
+//   }, [formData.materiel, materiels, incidents, reparation]);
+
+//   // Fermer avec Escape
+//   useEffect(() => {
+//     const handleEscape = (e: KeyboardEvent) => {
+//       if (e.key === 'Escape' && isOpen) onClose();
+//     };
+//     window.addEventListener('keydown', handleEscape);
+//     return () => window.removeEventListener('keydown', handleEscape);
+//   }, [isOpen, onClose]);
+
+//   // Validation du formulaire
+//   const validateForm = () => {
+//     const newErrors: Record<string, string> = {};
+
+//     if (!formData.materiel.trim()) newErrors.materiel = 'Le matériel est requis';
+//     if (!formData.type_reparation) newErrors.type_reparation = 'Le type de réparation est requis';
+//     if (!formData.date_debut) newErrors.date_debut = 'La date de début est requise';
+//     if (!formData.technicien_responsable.trim()) newErrors.technicien_responsable = 'Le technicien responsable est requis';
+
+//     if (formData.date_fin && formData.date_debut) {
+//       const dateDebut = new Date(formData.date_debut);
+//       const dateFin = new Date(formData.date_fin);
+//       if (dateFin < dateDebut) newErrors.date_fin = 'La date de fin ne peut pas être antérieure à la date de début';
+//     }
+
+//     if (formData.cout) {
+//       const coutValue = parseFloat(formData.cout);
+//       if (isNaN(coutValue) || coutValue < 0) newErrors.cout = 'Le coût doit être un nombre positif';
+//     }
+
+//     setErrors(newErrors);
+//     return Object.keys(newErrors).length === 0;
+//   };
+
+//   // Gérer les changements
+//   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+//     const { name, value } = e.target;
+//     setFormData(prev => ({
+//       ...prev,
+//       [name]: value
+//     }));
+    
+//     if (errors[name]) {
+//       setErrors(prev => {
+//         const newErrors = { ...prev };
+//         delete newErrors[name];
+//         return newErrors;
+//       });
+//     }
+//   };
+
+//   // Gérer la soumission
+//   const handleSubmitForm = async (e: React.FormEvent) => {
+//     e.preventDefault();
+    
+//     if (!validateForm()) {
+//       return;
+//     }
+
+//     setIsSubmitting(true);
+
+//     try {
+//       // Préparer les données avec l'état calculé
+//       const etatApres = getEtatApresReparation();
+      
+//       const submissionData: any = {
+//         materiel: formData.materiel,
+//         type_reparation: formData.type_reparation,
+//         date_debut: formData.date_debut,
+//         cout: formData.cout ? parseFloat(formData.cout) : 0,
+//         technicien_responsable: formData.technicien_responsable,
+//         description: formData.description || 'Réparation effectuée',
+//         etat_apres_reparation: etatApres.etat // Ajouter l'état calculé
+//       };
+      
+//       // Ajouter date_fin seulement si défini
+//       if (isEditingDateFin && formData.date_fin && formData.date_fin.trim() !== '') {
+//         submissionData.date_fin = formData.date_fin;
+//       }
+      
+//       // Ajouter incident si sélectionné
+//       if (formData.incident && formData.incident.trim() !== '') {
+//         submissionData.incident = formData.incident;
+//       }
+      
+//       console.log('📤 Données à envoyer:', submissionData);
+//       await onSubmit(submissionData);
+      
+//     } catch (error) {
+//       console.error('Erreur lors de la soumission:', error);
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+//   // Obtenir le nom du matériel
+//   const getMaterielName = (materielId: string) => {
+//     const materiel = materiels.find(m => 
+//       (m.id?.toString() === materielId) || 
+//       (m._id?.toString() === materielId)
+//     );
+//     return materiel?.nom || materiel?.name || materiel?.modele || `Matériel #${materielId}`;
+//   };
+
+//   // Obtenir le nom de l'incident
+//   const getIncidentName = (incidentId: string) => {
+//     const incident = incidents.find(i => 
+//       (i.id?.toString() === incidentId) || 
+//       (i._id?.toString() === incidentId)
+//     );
+//     return incident?.titre || incident?.description || `Incident #${incidentId}`;
+//   };
+
+//   // Formater l'état pour l'affichage
+//   const formatEtat = (etat: string) => {
+//     const etatsMap: Record<string, { label: string, badge: string }> = {
+//       'fonctionnel': { label: 'Fonctionnel', badge: 'badge-success' },
+//       'en_panne': { label: 'En panne', badge: 'badge-error' },
+//       'repare': { label: 'Réparé', badge: 'badge-success' },
+//       'en_reparation': { label: 'En réparation', badge: 'badge-warning' },
+//       'en_reparation_corrective': { label: 'En réparation corrective', badge: 'badge-warning' },
+//       'en_maintenance': { label: 'En maintenance', badge: 'badge-info' },
+//       'en_amelioration': { label: 'En amélioration', badge: 'badge-primary' },
+//       'ameliore': { label: 'Amélioré', badge: 'badge-success' },
+//       'hors_service': { label: 'Hors service', badge: 'badge-error' }
+//     };
+    
+//     return etatsMap[etat] || { label: etat, badge: 'badge-neutral' };
+//   };
+
+//   // Obtenir l'icône du matériel
+//   const getMaterielIcon = (type?: string) => {
+//     if (!type) return <Package className="h-4 w-4" />;
+    
+//     const typeLower = type.toLowerCase();
+//     if (typeLower.includes('ordi') || typeLower.includes('pc') || typeLower.includes('laptop')) {
+//       return <Cpu className="h-4 w-4" />;
+//     } else if (typeLower.includes('serveur') || typeLower.includes('nas') || typeLower.includes('stockage')) {
+//       return <HardDrive className="h-4 w-4" />;
+//     } else if (typeLower.includes('écran') || typeLower.includes('monitor') || typeLower.includes('screen')) {
+//       return <Monitor className="h-4 w-4" />;
+//     }
+//     return <Package className="h-4 w-4" />;
+//   };
+
+//   // Toggle pour activer/désactiver la date de fin
+//   const toggleDateFin = () => {
+//     if (isEditingDateFin) {
+//       setIsEditingDateFin(false);
+//       setFormData(prev => ({ ...prev, date_fin: '' }));
+//     } else {
+//       setIsEditingDateFin(true);
+//       if (!formData.date_fin) {
+//         const today = new Date().toISOString().split('T')[0];
+//         setFormData(prev => ({ ...prev, date_fin: today }));
+//       }
+//     }
+//   };
+
+//   if (!isOpen) return null;
+
+//   const etatApres = getEtatApresReparation();
+//   const etatActuel = selectedMateriel ? formatEtat(selectedMateriel.etat || 'inconnu') : null;
+
+//   return (
+//     <div className="fixed inset-0 z-50 overflow-y-auto">
+//       <div 
+//         className="fixed inset-0 bg-black/50 transition-opacity"
+//         onClick={onClose}
+//       />
+      
+//       <div className="flex min-h-screen items-center justify-center p-4">
+//         <div className="relative w-full max-w-4xl bg-base-100 rounded-lg shadow-2xl">
+//           {/* En-tête */}
+//           <div className="flex items-center justify-between p-6 border-b border-base-300">
+//             <div className="flex items-center gap-3">
+//               <div className="p-2 bg-primary/10 rounded-lg">
+//                 <Wrench className="h-6 w-6 text-primary" />
+//               </div>
+//               <div>
+//                 <h2 className="text-2xl font-bold text-base-content">
+//                   {reparation ? '✏️ Modifier la réparation' : '🛠️ Nouvelle réparation'}
+//                 </h2>
+//                 <p className="text-sm opacity-60 mt-1">
+//                   {reparation 
+//                     ? 'Modifiez les détails de la réparation existante' 
+//                     : 'Remplissez les détails de la nouvelle réparation'
+//                   }
+//                 </p>
+//               </div>
+//             </div>
+//             <button
+//               onClick={onClose}
+//               className="btn btn-ghost btn-circle btn-sm"
+//               aria-label="Fermer"
+//             >
+//               <X className="h-5 w-5" />
+//             </button>
+//           </div>
+
+//           {/* Formulaire */}
+//           <form onSubmit={handleSubmitForm}>
+//             <div className="p-6 space-y-6">
+//               {/* Informations de base */}
+//               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//                 {/* Matériel */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <Package className="h-4 w-4" />
+//                       Matériel *
+//                     </span>
+//                   </label>
+//                   <select
+//                     name="materiel"
+//                     value={formData.materiel}
+//                     onChange={handleChange}
+//                     className={`select select-bordered w-full ${errors.materiel ? 'select-error' : ''}`}
+//                     required
+//                   >
+//                     <option value="">Sélectionner un matériel</option>
+//                     {materiels.map(materiel => {
+//                       const id = materiel.id || materiel._id;
+//                       const nom = materiel.nom || materiel.name || materiel.modele || `Matériel #${id}`;
+//                       const type = materiel.type || materiel.categorie || 'matériel';
+//                       const etat = materiel.etat || 'inconnu';
+//                       const reference = materiel.reference || materiel.numero_serie || materiel.marque || '';
+                      
+//                       return (
+//                         <option key={id} value={id}>
+//                           <div className="flex items-center gap-2">
+//                             <span className="opacity-70">{getMaterielIcon(type)}</span>
+//                             <span>{nom}</span>
+//                             <span className="badge badge-xs ml-auto">{etat}</span>
+//                           </div>
+//                         </option>
+//                       );
+//                     })}
+//                   </select>
+//                   {errors.materiel && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.materiel}
+//                     </div>
+//                   )}
+//                   {selectedMateriel && (
+//                     <div className="mt-2">
+//                       <button
+//                         type="button"
+//                         onClick={() => setShowMaterielInfo(!showMaterielInfo)}
+//                         className="btn btn-ghost btn-xs gap-1"
+//                       >
+//                         <Info className="h-3 w-3" />
+//                         {showMaterielInfo ? 'Masquer' : 'Afficher'} les détails
+//                       </button>
+//                       {showMaterielInfo && (
+//                         <div className="mt-2 p-3 bg-base-200 rounded-lg text-xs">
+//                           <div className="grid grid-cols-2 gap-2">
+//                             <div>
+//                               <strong>Nom:</strong> {selectedMateriel.nom}
+//                             </div>
+//                             <div>
+//                               <strong>État actuel:</strong> 
+//                               <span className={`badge badge-xs ml-2 ${formatEtat(selectedMateriel.etat || 'inconnu').badge}`}>
+//                                 {formatEtat(selectedMateriel.etat || 'inconnu').label}
+//                               </span>
+//                             </div>
+//                             <div>
+//                               <strong>Type:</strong> {selectedMateriel.type || selectedMateriel.categorie || 'N/A'}
+//                             </div>
+//                             <div>
+//                               <strong>Référence:</strong> {selectedMateriel.reference || selectedMateriel.numero_serie || 'N/A'}
+//                             </div>
+//                             {selectedMateriel.service_attribue && (
+//                               <div className="col-span-2">
+//                                 <strong>Service:</strong> {selectedMateriel.service_attribue}
+//                               </div>
+//                             )}
+//                           </div>
+//                         </div>
+//                       )}
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {/* Incident (optionnel) */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <FileText className="h-4 w-4" />
+//                       Incident associé
+//                     </span>
+//                     <span className="label-text-alt opacity-60">Optionnel</span>
+//                     {selectedMateriel && (
+//                       <span className="label-text-alt text-info">
+//                         ({filteredIncidents.length} incidents)
+//                       </span>
+//                     )}
+//                   </label>
+//                   <select
+//                     name="incident"
+//                     value={formData.incident}
+//                     onChange={handleChange}
+//                     className="select select-bordered w-full"
+//                   >
+//                     <option value="">
+//                       {!formData.materiel 
+//                         ? 'Sélectionnez un matériel d\'abord' 
+//                         : filteredIncidents.length === 0 
+//                           ? 'Aucun incident pour ce matériel' 
+//                           : 'Choisir un incident'}
+//                     </option>
+                    
+//                     {/* Incidents filtrés (liés au matériel) */}
+//                     {filteredIncidents.map(incident => {
+//                       const id = incident.id || incident._id;
+//                       const titre = incident.titre || incident.description || `Incident #${id}`;
+//                       const statut = incident.statut || 'inconnu';
+//                       return (
+//                         <option key={id} value={id}>
+//                           ✅ {titre.substring(0, 40)} - Statut: {statut}
+//                           {titre.length > 40 ? '...' : ''}
+//                         </option>
+//                       );
+//                     })}
+                    
+//                     {/* Tous les autres incidents */}
+//                     {incidents
+//                       .filter(incident => {
+//                         if (!formData.materiel) return true;
+//                         const isInFiltered = filteredIncidents.some(fi => 
+//                           (fi.id === incident.id) || (fi._id === incident._id)
+//                         );
+//                         return !isInFiltered;
+//                       })
+//                       .filter(incident => incident.statut !== 'resolu' && incident.statut !== 'ferme')
+//                       .map(incident => {
+//                         const id = incident.id || incident._id;
+//                         const titre = incident.titre || incident.description || `Incident #${id}`;
+//                         const statut = incident.statut || 'inconnu';
+//                         return (
+//                           <option key={id} value={id}>
+//                             {titre.substring(0, 40)} - Statut: {statut}
+//                             {titre.length > 40 ? '...' : ''}
+//                           </option>
+//                         );
+//                       })}
+//                   </select>
+//                 </div>
+
+//                 {/* Technicien responsable */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <User className="h-4 w-4" />
+//                       Technicien responsable *
+//                     </span>
+//                     {!reparation && (
+//                       <span className="label-text-alt text-success">(vous)</span>
+//                     )}
+//                   </label>
+//                   <input
+//                     type="text"
+//                     name="technicien_responsable"
+//                     value={formData.technicien_responsable}
+//                     onChange={handleChange}
+//                     className={`input input-bordered w-full ${errors.technicien_responsable ? 'input-error' : ''}`}
+//                     placeholder="Nom du technicien"
+//                     required
+//                   />
+//                   {errors.technicien_responsable && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.technicien_responsable}
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {/* Type de réparation */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <Wrench className="h-4 w-4" />
+//                       Type de réparation *
+//                     </span>
+//                   </label>
+//                   <div className="grid grid-cols-3 gap-2">
+//                     {[
+//                       { value: 'preventive', label: 'Préventive', color: 'btn-info', desc: 'Maintenance régulière' },
+//                       { value: 'corrective', label: 'Corrective', color: 'btn-warning', desc: 'Réparation de panne' },
+//                       { value: 'ameliorative', label: 'Améliorative', color: 'btn-success', desc: 'Amélioration' }
+//                     ].map(type => (
+//                       <button
+//                         key={type.value}
+//                         type="button"
+//                         onClick={() => {
+//                           setFormData(prev => ({ ...prev, type_reparation: type.value }));
+//                           if (errors.type_reparation) {
+//                             setErrors(prev => {
+//                               const newErrors = { ...prev };
+//                               delete newErrors.type_reparation;
+//                               return newErrors;
+//                             });
+//                           }
+//                         }}
+//                         className={`btn btn-sm ${formData.type_reparation === type.value ? type.color + ' btn-active' : 'btn-outline'}`}
+//                         title={type.desc}
+//                       >
+//                         {type.label}
+//                       </button>
+//                     ))}
+//                   </div>
+//                   {errors.type_reparation && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.type_reparation}
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {/* Dates */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <Calendar className="h-4 w-4" />
+//                       Date de début *
+//                     </span>
+//                   </label>
+//                   <input
+//                     type="date"
+//                     name="date_debut"
+//                     value={formData.date_debut}
+//                     onChange={handleChange}
+//                     className={`input input-bordered w-full ${errors.date_debut ? 'input-error' : ''}`}
+//                     required
+//                   />
+//                   {errors.date_debut && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.date_debut}
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {/* Date de fin avec toggle */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <CheckCircle className="h-4 w-4" />
+//                       Date de fin
+//                     </span>
+//                     <span className="label-text-alt opacity-60">
+//                       {isEditingDateFin ? 'Renseignez la date de fin' : 'Laissez en cours'}
+//                     </span>
+//                   </label>
+                  
+//                   <div className="flex items-center gap-3 mb-2">
+//                     <div className="flex items-center">
+//                       <input
+//                         type="checkbox"
+//                         id="toggle-date-fin"
+//                         checked={isEditingDateFin}
+//                         onChange={toggleDateFin}
+//                         className="toggle toggle-sm toggle-primary mr-2"
+//                       />
+//                       <label htmlFor="toggle-date-fin" className="text-sm">
+//                         {isEditingDateFin ? 'Définir une date de fin' : 'Laisser en cours'}
+//                       </label>
+//                     </div>
+                    
+//                     {isEditingDateFin ? (
+//                       <span className="badge badge-success badge-sm">Terminée</span>
+//                     ) : (
+//                       <span className="badge badge-warning badge-sm">En cours</span>
+//                     )}
+//                   </div>
+
+//                   {isEditingDateFin && (
+//                     <>
+//                       <input
+//                         type="date"
+//                         name="date_fin"
+//                         value={formData.date_fin}
+//                         onChange={handleChange}
+//                         className={`input input-bordered w-full ${errors.date_fin ? 'input-error' : ''}`}
+//                         min={formData.date_debut}
+//                       />
+//                       {errors.date_fin && (
+//                         <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                           <AlertCircle className="h-4 w-4" />
+//                           {errors.date_fin}
+//                         </div>
+//                       )}
+//                     </>
+//                   )}
+//                 </div>
+
+//                 {/* Coût */}
+//                 <div className="form-control">
+//                   <label className="label">
+//                     <span className="label-text flex items-center gap-2 font-semibold">
+//                       <DollarSign className="h-4 w-4" />
+//                       Coût (Ar)
+//                     </span>
+//                     <span className="label-text-alt opacity-60">En Ariary</span>
+//                   </label>
+//                   <div className="relative">
+//                     <input
+//                       type="number"
+//                       name="cout"
+//                       value={formData.cout}
+//                       onChange={handleChange}
+//                       className={`input input-bordered w-full pl-10 ${errors.cout ? 'input-error' : ''}`}
+//                       placeholder="0"
+//                       min="0"
+//                       step="0.01"
+//                     />
+//                     <div className="absolute left-3 top-3 text-base-content opacity-60">
+//                       Ar
+//                     </div>
+//                   </div>
+//                   {errors.cout && (
+//                     <div className="flex items-center gap-1 mt-2 text-error text-sm">
+//                       <AlertCircle className="h-4 w-4" />
+//                       {errors.cout}
+//                     </div>
+//                   )}
+//                 </div>
+//               </div>
+
+//               {/* Description */}
+//               <div className="form-control">
+//                 <label className="label">
+//                   <span className="label-text font-semibold">Description de la réparation</span>
+//                   <span className="label-text-alt opacity-60">Détails des travaux effectués</span>
+//                 </label>
+//                 <textarea
+//                   name="description"
+//                   value={formData.description}
+//                   onChange={handleChange}
+//                   className="textarea textarea-bordered h-32"
+//                   placeholder="Décrivez les travaux de réparation effectués, les pièces remplacées, les observations..."
+//                   maxLength={500}
+//                 />
+//                 <div className="label">
+//                   <span className="label-text-alt opacity-60">
+//                     {formData.description.length}/500 caractères
+//                   </span>
+//                 </div>
+//               </div>
+
+//               {/* Impact sur le matériel */}
+//               {formData.materiel && selectedMateriel && (
+//                 <div className={`p-4 rounded-lg border ${isEditingDateFin ? 'bg-success/10 border-success/20' : 'bg-warning/10 border-warning/20'}`}>
+//                   <div className="flex items-center gap-2 mb-2">
+//                     {isEditingDateFin ? (
+//                       <CheckCircle className="h-5 w-5 text-success" />
+//                     ) : (
+//                       <Clock className="h-5 w-5 text-warning" />
+//                     )}
+//                     <h3 className="font-bold">
+//                       {isEditingDateFin ? '✅ Impact après réparation terminée' : '⏳ Impact pour réparation en cours'}
+//                     </h3>
+//                   </div>
+//                   <div className="text-sm">
+//                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                       <div>
+//                         <p><strong>Matériel:</strong> {getMaterielName(formData.materiel)}</p>
+//                         <p className="mt-1">
+//                           <strong>État actuel:</strong>
+//                           <span className={`badge badge-xs ml-2 ${etatActuel?.badge}`}>
+//                             {etatActuel?.label}
+//                           </span>
+//                         </p>
+//                         <p className="mt-1 text-xs opacity-70">
+//                           Avant réparation
+//                         </p>
+//                       </div>
+//                       <div>
+//                         <p><strong>État après enregistrement:</strong></p>
+//                         <div className={`badge ${etatApres.badgeClass} mt-1`}>
+//                           {etatApres.label}
+//                         </div>
+//                         <p className="mt-1 text-xs opacity-70">
+//                           {isEditingDateFin ? 'Après réparation terminée' : 'Pendant la réparation'}
+//                         </p>
+//                       </div>
+//                     </div>
+//                     <p className="text-xs opacity-70 mt-3">
+//                       {isEditingDateFin 
+//                         ? '✅ Le matériel sera automatiquement mis à jour avec l\'état "' + etatApres.label + '" après enregistrement.'
+//                         : '⏳ Le matériel sera marqué "' + etatApres.label + '" pendant la durée de la réparation.'
+//                       }
+//                     </p>
+//                   </div>
+//                 </div>
+//               )}
+
+//               {/* Résumé */}
+//               <div className="bg-base-200 p-4 rounded-lg">
+//                 <h3 className="font-semibold mb-2 text-base-content">📋 Récapitulatif</h3>
+//                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+//                   <div>
+//                     <span className="opacity-60">Matériel:</span>
+//                     <div className="font-medium truncate">
+//                       {formData.materiel ? getMaterielName(formData.materiel) : 'Non sélectionné'}
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-60">État actuel:</span>
+//                     <div className="font-medium">
+//                       {etatActuel ? (
+//                         <span className={`badge badge-xs ${etatActuel.badge}`}>
+//                           {etatActuel.label}
+//                         </span>
+//                       ) : (
+//                         <span className="opacity-60">N/A</span>
+//                       )}
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-60">État après:</span>
+//                     <div className="font-medium">
+//                       <span className={`badge badge-xs ${etatApres.badgeClass}`}>
+//                         {etatApres.label}
+//                       </span>
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-60">Statut:</span>
+//                     <div className="font-medium">
+//                       {isEditingDateFin ? (
+//                         <span className="text-success">Terminée</span>
+//                       ) : (
+//                         <span className="text-warning">En cours</span>
+//                       )}
+//                     </div>
+//                   </div>
+//                 </div>
+//                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mt-4">
+//                   <div>
+//                     <span className="opacity-60">Incident:</span>
+//                     <div className="font-medium truncate">
+//                       {formData.incident ? getIncidentName(formData.incident) : 'Aucun'}
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-60">Technicien:</span>
+//                     <div className="font-medium truncate text-success">
+//                       {formData.technicien_responsable}
+//                     </div>
+//                   </div>
+//                   <div>
+//                     <span className="opacity-60">Type:</span>
+//                     <div className="font-medium">
+//                       {formData.type_reparation === 'preventive' && 'Préventive'}
+//                       {formData.type_reparation === 'corrective' && 'Corrective'}
+//                       {formData.type_reparation === 'ameliorative' && 'Améliorative'}
+//                     </div>
+//                   </div>
+//                 </div>
+//               </div>
+//             </div>
+
+//             {/* Pied de page */}
+//             <div className="flex justify-end gap-3 p-6 border-t border-base-300">
+//               <button
+//                 type="button"
+//                 onClick={onClose}
+//                 className="btn btn-outline btn-sm md:btn-md"
+//                 disabled={isSubmitting}
+//               >
+//                 Annuler
+//               </button>
+//               <button
+//                 type="submit"
+//                 className="btn btn-primary btn-sm md:btn-md gap-2"
+//                 disabled={isSubmitting}
+//               >
+//                 {isSubmitting ? (
+//                   <>
+//                     <span className="loading loading-spinner loading-sm"></span>
+//                     Enregistrement...
+//                   </>
+//                 ) : (
+//                   <>
+//                     <Save className="h-4 w-4" />
+//                     {reparation ? 'Mettre à jour' : 'Créer la réparation'}
+//                   </>
+//                 )}
+//               </button>
+//             </div>
+//           </form>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default ReparationForm;

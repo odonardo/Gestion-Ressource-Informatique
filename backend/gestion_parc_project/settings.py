@@ -120,9 +120,10 @@ REST_FRAMEWORK = {
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    # "http://127.0.0.1:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
     "http://localhost:5173", 
-    "https://gestion-ressources-informatiques-dren-aa.onrender.com",  # TON FRONTEND
+    # "https://gestion-ressources-informatiques-dren-aa.onrender.com",  # TON FRONTEND
     # "https://gestion-ressources-informatiques.onrender.com",  # TON BACKEND
     # https://gestion-ressource-informatique.onrender.com/
     "https://gestion-ressource-informatique.onrender.com",  # TON BACKEND

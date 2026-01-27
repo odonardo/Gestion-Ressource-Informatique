@@ -7,11 +7,45 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 
 class UserSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
+    departement = serializers.SerializerMethodField()
+    telephone = serializers.SerializerMethodField()
+    full_name = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'date_joined']
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name', 
+            'full_name', 'role', 'departement', 'telephone',
+            'is_active', 'date_joined', 'is_staff', 'is_superuser'
+        ]
         read_only_fields = ['id', 'is_active', 'date_joined']
-
+    
+    def get_role(self, obj):
+        try:
+            profil = ProfilUtilisateur.objects.get(user=obj)
+            return profil.role
+        except ProfilUtilisateur.DoesNotExist:
+            return 'user'
+    
+    def get_departement(self, obj):
+        try:
+            profil = ProfilUtilisateur.objects.get(user=obj)
+            return profil.departement or 'Non spécifié'
+        except ProfilUtilisateur.DoesNotExist:
+            return 'À définir'
+    
+    def get_telephone(self, obj):
+        try:
+            profil = ProfilUtilisateur.objects.get(user=obj)
+            return profil.telephone or ''
+        except ProfilUtilisateur.DoesNotExist:
+            return ''
+    
+    def get_full_name(self, obj):
+        full_name = f"{obj.first_name or ''} {obj.last_name or ''}".strip()
+        return full_name or obj.username
+    
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
@@ -61,13 +95,39 @@ class ReseauSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class IncidentSerializer(serializers.ModelSerializer):
-    materiel_nom = serializers.CharField(source='materiel_concerne.nom', read_only=True)
-    logiciel_nom = serializers.CharField(source='logiciel_concerne.nom', read_only=True)
-    utilisateur_nom = serializers.CharField(source='utilisateur_signaleur.get_full_name', read_only=True)
+    # Ajoutez ces lignes si elles n'existent pas
+    utilisateur_signaleur_info = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = Incident
         fields = '__all__'
+        # OU si vous avez une liste de fields spécifique :
+        fields = [
+            'id', 'description', 'date_creation', 'date_resolution',
+            'priorite', 'statut', 'type_incident', 'utilisateur_signaleur',
+            'materiel_concerne', 'logiciel_concerne', 'reseau_concerne',
+            'utilisateur_signaleur_info'  # Champ supplémentaire pour affichage
+        ]
+        # Rendre le champ utilisateur_signaleur en lecture seule lors de la création
+        read_only_fields = ['utilisateur_signaleur', 'date_creation']
+    
+    def get_utilisateur_signaleur_info(self, obj):
+        """Retourne les informations formatées de l'utilisateur signaleur"""
+        if obj.utilisateur_signaleur:
+            return {
+                'id': obj.utilisateur_signaleur.id,
+                'username': obj.utilisateur_signaleur.username,
+                'full_name': f"{obj.utilisateur_signaleur.first_name} {obj.utilisateur_signaleur.last_name}".strip() or obj.utilisateur_signaleur.username,
+                'email': obj.utilisateur_signaleur.email
+            }
+        return None
+    
+    def create(self, validated_data):
+        # S'assurer que l'utilisateur connecté est toujours le signaleur
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['utilisateur_signaleur'] = request.user
+        return super().create(validated_data)
 
 class AlerteSerializer(serializers.ModelSerializer):
     materiel_nom = serializers.CharField(source='materiel_source.nom', read_only=True)
@@ -76,14 +136,6 @@ class AlerteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Alerte
         fields = '__all__'
-
-class ReparationSerializer(serializers.ModelSerializer):
-    materiel_nom = serializers.CharField(source='materiel.nom', read_only=True)
-    
-    class Meta:
-        model = Reparation
-        fields = '__all__'
-
 class ProfilUtilisateurSerializer(serializers.ModelSerializer):
     user_nom = serializers.CharField(source='user.get_full_name', read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
@@ -127,11 +179,16 @@ class MaterielSerializer(serializers.ModelSerializer):
         return value
 
     def validate_etat(self, value):
-        valid_etats = [choice[0] for choice in Materiel.ETAT_CHOICES]
-        if value not in valid_etats:
-            raise serializers.ValidationError(f"État invalide. Choix valides: {', '.join(valid_etats)}")
+        etats_valides = ['fonctionnel', 'en_panne', 'repare', 'obsolete', 
+                        'en_maintenance', 'en_amelioration', 'en_reparation', 'hors_service']
+        
+        print(f"🔍 Validation état: '{value}' dans {etats_valides}")
+        if value not in etats_valides:
+            raise serializers.ValidationError(
+                f"État '{value}' non valide. États valides: {', '.join(etats_valides)}"
+            )
+        print(f"✅ État '{value}' validé avec succès")
         return value
-
     def create(self, validated_data):
         try:
             return super().create(validated_data)
@@ -314,3 +371,149 @@ class ProfilUtilisateurSerializer(serializers.ModelSerializer):
         # Puis supprimer l'utilisateur
         user.delete()
         return instance
+    
+    
+    
+    
+# historique
+
+# Dans serializers.py
+# Dans serializers.py - Ajoutez ce serializer
+class HistoriqueActionSerializer(serializers.ModelSerializer):
+    utilisateur_nom = serializers.SerializerMethodField()
+    action_display = serializers.SerializerMethodField()
+    module_display = serializers.SerializerMethodField()
+    date_formattee = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = HistoriqueAction
+        fields = [
+            'id', 'utilisateur', 'utilisateur_nom', 'action', 'action_display',
+            'module', 'module_display', 'objet_id', 'objet_nom', 'description',
+            'date_action', 'date_formattee', 'ip_address', 'donnees_avant',
+            'donnees_apres', 'created_at'
+        ]
+    
+    def get_utilisateur_nom(self, obj):
+        if obj.utilisateur:
+            return f"{obj.utilisateur.get_full_name()} ({obj.utilisateur.username})"
+        return "Système"
+    
+    def get_action_display(self, obj):
+        return obj.get_action_display()
+    
+    def get_module_display(self, obj):
+        return obj.get_module_display()
+    
+    def get_date_formattee(self, obj):
+        return obj.date_action.strftime("%d/%m/%Y %H:%M:%S")
+    
+    
+# Dans serializers.py, ajoutez ce serializer
+class MaterielEnPanneSerializer(serializers.ModelSerializer):
+    """Serializer spécifique pour les matériels en panne"""
+    class Meta:
+        model = Materiel
+        fields = [
+            'id', 'nom', 'reference', 'etat', 'service_attribue',
+            'utilisateur_attribue', 'date_achat'
+        ]
+        read_only_fields = fields
+        
+        
+        
+# Dans serializers.py - REPLACE COMPLETELY the ReparationSerializer
+class ReparationSerializer(serializers.ModelSerializer):
+    materiel_nom = serializers.CharField(source='materiel.nom', read_only=True)
+    incident_nom = serializers.SerializerMethodField(read_only=True)
+    statut = serializers.SerializerMethodField(read_only=True)
+    technicien_responsable = serializers.CharField(required=True)  # FORCER comme requis
+    
+    class Meta:
+        model = Reparation
+        fields = [
+            'id', 'description', 'date_debut', 'date_fin', 
+            'type_reparation', 'cout', 'technicien_responsable',
+            'materiel', 'materiel_nom', 'incident', 'incident_nom',
+            'statut'
+        ]
+        read_only_fields = ['date_debut', 'materiel_nom', 'incident_nom']
+    
+    def get_incident_nom(self, obj):
+        if obj.incident:
+            return f"Incident #{obj.incident.id}"
+        return None
+    
+    def get_statut(self, obj):
+        return 'termine' if obj.date_fin else 'en_cours'
+    
+    def validate_technicien_responsable(self, value):
+        """Valider que le nom du technicien n'est pas vide"""
+        if not value or value.strip() == '':
+            raise serializers.ValidationError("Le nom du technicien est requis")
+        return value.strip()
+    
+    def create(self, validated_data):
+        """Création avec mise à jour automatique du matériel"""
+        # Assurer que technicien_responsable est présent
+        if 'technicien_responsable' not in validated_data:
+            # Récupérer l'utilisateur connecté
+            request = self.context.get('request')
+            if request and hasattr(request, 'user'):
+                user = request.user
+                validated_data['technicien_responsable'] = f"{user.first_name} {user.last_name}".strip() or user.username
+        
+        reparation = super().create(validated_data)
+        
+        # Mettre à jour l'état du matériel
+        materiel = reparation.materiel
+        if reparation.date_fin:
+            # Réparation terminée
+            if reparation.type_reparation == 'corrective':
+                materiel.etat = 'repare'
+            else:
+                materiel.etat = 'fonctionnel'
+        else:
+            # Réparation en cours
+            if reparation.type_reparation == 'corrective':
+                materiel.etat = 'en_panne'
+            elif reparation.type_reparation == 'preventive':
+                materiel.etat = 'en_maintenance'
+            elif reparation.type_reparation == 'ameliorative':
+                materiel.etat = 'en_amelioration'
+            else:
+                materiel.etat = 'en_reparation'
+        
+        materiel.save()
+        return reparation
+    
+    def update(self, instance, validated_data):
+        """Mise à jour avec mise à jour automatique du matériel"""
+        # Assurer que technicien_responsable est présent
+        if 'technicien_responsable' not in validated_data:
+            # Garder la valeur existante
+            validated_data['technicien_responsable'] = instance.technicien_responsable
+        
+        reparation = super().update(instance, validated_data)
+        
+        # Mettre à jour l'état du matériel
+        materiel = reparation.materiel
+        if reparation.date_fin:
+            # Réparation terminée
+            if reparation.type_reparation == 'corrective':
+                materiel.etat = 'repare'
+            else:
+                materiel.etat = 'fonctionnel'
+        else:
+            # Réparation en cours
+            if reparation.type_reparation == 'corrective':
+                materiel.etat = 'en_panne'
+            elif reparation.type_reparation == 'preventive':
+                materiel.etat = 'en_maintenance'
+            elif reparation.type_reparation == 'ameliorative':
+                materiel.etat = 'en_amelioration'
+            else:
+                materiel.etat = 'en_reparation'
+        
+        materiel.save()
+        return reparation

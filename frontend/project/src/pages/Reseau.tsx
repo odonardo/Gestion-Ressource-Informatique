@@ -308,12 +308,12 @@ const Reseau: React.FC = () => {
                     </td>
                     <td>
                       <div className="flex space-x-1">
-                        <button
+                        {/* <button
                           className="btn btn-sm btn-primary btn-outline"
                           title="Voir les détails"
                         >
                           <Eye className="h-3 w-3" />
-                        </button>
+                        </button> */}
                         <button
                           onClick={() => handleEdit(equipement)}
                           className="btn btn-sm btn-secondary btn-outline"

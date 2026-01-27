@@ -333,7 +333,7 @@ export interface Materiel {
   nom: string;
   reference: string;
   date_achat: string;
-  etat: 'fonctionnel' | 'en_panne' | 'repare' | 'obsolete';
+  etat: 'fonctionnel' | 'en_panne' | 'repare' | 'obsolete' | 'en_maintenance' | 'en_amelioration' | 'en_reparation' | 'hors_service';
   service_attribue: string;
   utilisateur_attribue?: string | null;
   fournisseur: number | null;
@@ -393,7 +393,7 @@ export interface Incident {
   reseau?: number | null;    // Ajout de cette prop
   
   // Relations (IDs)
-  utilisateur_signaleur?: number | null;
+  signaleur?: number | null;
   materiel_concerne?: number | null;
   logiciel_concerne?: number | null;
   reseau_concerne?: number | null;
@@ -445,17 +445,28 @@ export interface Alerte {
 
 
 // Réparation
+// Dans types.ts
 export interface Reparation {
   id: number;
-  description: string;
-  date_debut: string;
-  date_fin?: string | null;
-  type_reparation: 'preventive' | 'corrective' | 'ameliorative';
-  cout?: number | null;
-  materiel: number;
+  materiel?: {
+    id: number;
+    nom: string;
+    modele?: string;
+    numero_serie?: string;
+  };
   materiel_nom?: string;
-  incident?: number | null;
-  technicien_responsable?: string; // propriété optionnelle
+  type_reparation: 'preventive' | 'corrective' | 'ameliorative';
+  date_debut: string;
+  date_fin?: string;
+  cout: number;
+  technicien_responsable: string;
+  description?: string;
+  incident?: {
+    id: number;
+    description?: string;
+  };
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Profil Utilisateur
@@ -662,6 +673,92 @@ export interface ProfilUtilisateurAPIData {
   date_embauche: string | null;
   role: 'user' | 'technician' | 'secretary' | 'director' | 'admin';
 }
+
+
+// src/types/index.ts
+export interface HistoriqueAction {
+  id: number;
+  utilisateur: number;
+  utilisateur_nom: string;
+  action: string;
+  action_display: string;
+  module: string;
+  module_display: string;
+  objet_id: number;
+  objet_nom: string;
+  description: string;
+  date_action: string;
+  date_formattee: string;
+  ip_address?: string;
+  donnees_avant?: any;
+  donnees_apres?: any;
+  created_at?: string;
+}
+
+export interface StatistiquesModule {
+  module: string;
+  total: number;
+  creations: number;
+  modifications: number;
+  suppressions: number;
+}
+
+export interface StatistiquesJour {
+  date: string;
+  total: number;
+}
+
+export interface UtilisateurActif {
+  utilisateur__username: string;
+  utilisateur__first_name: string;
+  utilisateur__last_name: string;
+  total_actions: number;
+  derniere_action: string;
+}
+
+export interface StatistiquesHistorique {
+  total: number;
+  par_module: StatistiquesModule[];
+  par_jour: StatistiquesJour[];
+  utilisateurs_actifs: UtilisateurActif[];
+}
+
+export interface Incident {
+  id: number;
+  description: string;
+  source?: string;
+  date_creation: string;
+  date_resolution?: string | null;
+  priorite: 'critique' | 'elevee' | 'moyenne' | 'basse';
+  statut: 'ouvert' | 'en_cours' | 'resolu' | 'ferme';
+  type_incident: 'materiel' | 'logiciel' | 'reseau' | 'mixte';
+  
+  // Relations principales (nommées comme dans votre modèle Django)
+  utilisateur_signaleur: number;
+  materiel?: number | null;  // ID du matériel
+  logiciel?: number | null;  // ID du logiciel
+  reseau?: number | null;    // ID du réseau
+  
+  // Champs en lecture seule pour l'affichage
+  materiel_nom?: string;
+  materiel_details?: Materiel; // Ajout de la relation complète
+  logiciel_nom?: string;
+  utilisateur_nom?: string;
+  reseau_nom?: string;
+  alerte_source?: number; // ID de l'alerte source
+}
+// Interface pour la création d'un incident depuis un matériel en panne
+export interface IncidentFromMaterielData {
+  description: string;
+  priorite: 'critique' | 'elevee' | 'moyenne' | 'basse';
+  type_incident: 'materiel';
+  utilisateur_signaleur: number;
+  materiel: number; // ID du matériel en panne
+  date_resolution?: string;
+  statut?: 'ouvert' | 'en_cours' | 'resolu' | 'ferme';
+}
+
+// ... autres interfaces existantes ...
 // export const usersAPI = {
 //   getAll: (params?: any) => api.get<User[]>('/users/', { params }),
 //   getById: (id: number) => api.get<User>(`/users/${id}/`),

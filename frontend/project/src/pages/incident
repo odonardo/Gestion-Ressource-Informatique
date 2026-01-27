@@ -1,0 +1,1468 @@
+// // src/pages/Incidents.tsx - Version avec materiel_en_panne dans le tableau
+// import React, { useState, useEffect } from 'react';
+// import { 
+//   Plus, Search, Eye, Filter, Download, Edit, Trash2, 
+//   CheckSquare, Square, X, AlertTriangle, Clock, 
+//   CheckCircle, RefreshCw, Wrench, User, Server, 
+//   Monitor, Cpu, Bell, Package, AlertCircle, HardDrive,
+//   Database, Network, Zap
+// } from 'lucide-react';
+// import { Incident, Materiel, Alerte } from '../types';
+// import IncidentForm from '../components/IncidentForm';
+// import ReparationForm from '../components/ReparationForm';
+// import { incidentsAPI, materielsAPI, alertesAPI, reparationsAPI, handleApiError } from '../services/api';
+// import { useAuth } from '../context/AuthContext';
+
+// // Type pour les incidents formatés
+// interface FormattedIncident extends Omit<Incident, 'utilisateur_nom' | 'materiel_nom' | 'logiciel_nom'> {
+//   utilisateur_nom?: string;
+//   materiel_nom?: string;
+//   logiciel_nom?: string;
+//   materiel_details?: any;
+//   signaleur_details?: any;
+//   alerte_source?: Alerte | null;
+//   alerte_id?: number | null;
+//   source_type: 'alerte' | 'manuel' | 'auto';
+//   source_label: string;
+//   materiel_en_panne: boolean;
+//   materiel_en_panne_nom: string;
+//   materiel_en_panne_type: string;
+//   materiel_en_panne_id?: number;
+// }
+
+// // Fonctions helper
+// const safeArray = <T,>(data: any): T[] => {
+//   if (!data) return [];
+//   if (Array.isArray(data)) return data as T[];
+//   if (data.results && Array.isArray(data.results)) return data.results as T[];
+//   if (data.data && Array.isArray(data.data)) return data.data as T[];
+//   return [];
+// };
+
+// const extractDataFromResponse = (response: any): any[] => {
+//   if (!response) return [];
+  
+//   if (Array.isArray(response)) return response;
+  
+//   if (response.data !== undefined) {
+//     if (Array.isArray(response.data)) return response.data;
+    
+//     if (response.data.results && Array.isArray(response.data.results)) {
+//       return response.data.results;
+//     }
+    
+//     if (response.data.data && Array.isArray(response.data.data)) {
+//       return response.data.data;
+//     }
+    
+//     if (typeof response.data === 'object' && !Array.isArray(response.data)) {
+//       return [response.data];
+//     }
+//   }
+  
+//   if (response.results && Array.isArray(response.results)) {
+//     return response.results;
+//   }
+  
+//   return [];
+// };
+
+// const Incidents: React.FC = () => {
+//   const { user: authUser } = useAuth();
+  
+//   const [incidents, setIncidents] = useState<FormattedIncident[]>([]);
+//   const [materiels, setMateriels] = useState<Materiel[]>([]);
+//   const [alertes, setAlertes] = useState<Alerte[]>([]);
+//   const [filteredIncidents, setFilteredIncidents] = useState<FormattedIncident[]>([]);
+//   const [loading, setLoading] = useState<boolean>(true);
+//   const [error, setError] = useState<string>('');
+//   const [searchTerm, setSearchTerm] = useState<string>('');
+//   const [filterStatut, setFilterStatut] = useState<string>('');
+//   const [filterPriorite, setFilterPriorite] = useState<string>('');
+//   const [filterSource, setFilterSource] = useState<string>('');
+//   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+//   const [isFormOpen, setIsFormOpen] = useState(false);
+//   const [editingIncident, setEditingIncident] = useState<FormattedIncident | undefined>();
+//   const [selectedIncidents, setSelectedIncidents] = useState<number[]>([]);
+//   const [isSelectAll, setIsSelectAll] = useState<boolean>(false);
+//   const [refreshing, setRefreshing] = useState<boolean>(false);
+  
+//   // États pour réparation
+//   const [isRepairFormOpen, setIsRepairFormOpen] = useState(false);
+//   const [incidentToRepair, setIncidentToRepair] = useState<FormattedIncident | null>(null);
+
+//   // États pour les statistiques
+//   const [statistiques, setStatistiques] = useState({
+//     total: 0,
+//     ouvert: 0,
+//     en_cours: 0,
+//     resolu: 0,
+//     parSource: {
+//       alerte: 0,
+//       manuel: 0,
+//       auto: 0
+//     },
+//     parPriorite: {
+//       critique: 0,
+//       elevee: 0,
+//       moyenne: 0,
+//       basse: 0
+//     },
+//     materielsEnPanne: 0
+//   });
+
+//   // Fonction pour obtenir l'utilisateur courant
+//   const getCurrentUser = () => {
+//     if (authUser) {
+//       return {
+//         id: authUser.id || 0,
+//         username: authUser.username || '',
+//         first_name: authUser.first_name || '',
+//         last_name: authUser.last_name || '',
+//         email: authUser.email || '',
+//         is_active: authUser.is_active !== false,
+//         date_joined: authUser.date_joined || new Date().toISOString(),
+//         role: authUser.role,
+//         departement: authUser.departement || '',
+//         telephone: authUser.telephone || ''
+//       };
+//     }
+    
+//     try {
+//       const userStr = localStorage.getItem('user');
+//       if (userStr) {
+//         const user = JSON.parse(userStr);
+//         return {
+//           id: user.id || 0,
+//           username: user.username || '',
+//           first_name: user.first_name || '',
+//           last_name: user.last_name || '',
+//           email: user.email || '',
+//           is_active: user.is_active !== false,
+//           date_joined: user.date_joined || new Date().toISOString(),
+//           role: user.role,
+//           departement: user.departement || ''
+//         };
+//       }
+//     } catch (e) {
+//       console.error('Erreur parsing user:', e);
+//     }
+    
+//     return {
+//       id: 0,
+//       username: 'utilisateur',
+//       first_name: 'Utilisateur',
+//       last_name: 'Inconnu',
+//       email: 'user@example.com',
+//       is_active: true,
+//       date_joined: new Date().toISOString(),
+//       role: 'user',
+//       departement: ''
+//     };
+//   };
+
+//   // Fonction pour récupérer les détails d'un matériel
+//   const fetchMaterielDetails = async (materielId: number): Promise<any> => {
+//     try {
+//       console.log(`🔍 Récupération matériel #${materielId}`);
+//       const response = await materielsAPI.getById(materielId);
+//       const data = extractDataFromResponse(response);
+//       return data[0] || null;
+//     } catch (error) {
+//       console.error(`❌ Erreur récupération matériel #${materielId}:`, error);
+//       return null;
+//     }
+//   };
+
+//   // Fonction pour récupérer les détails d'une alerte
+//   const fetchAlerteDetails = async (alerteId: number): Promise<Alerte | null> => {
+//     try {
+//       console.log(`🔍 Récupération alerte #${alerteId}`);
+//       const response = await alertesAPI.getById(alerteId);
+//       const data = extractDataFromResponse(response);
+//       return data[0] || null;
+//     } catch (error) {
+//       console.error(`❌ Erreur récupération alerte #${alerteId}:`, error);
+//       return null;
+//     }
+//   };
+
+//   // Fonction pour déterminer la source d'un incident
+//   const determineSource = (incident: any, materielDetails: any): { 
+//     type: 'alerte' | 'manuel' | 'auto', 
+//     label: string,
+//     materielNom: string,
+//     materielType: string,
+//     isEnPanne: boolean
+//   } => {
+//     let materielNom = 'Non spécifié';
+//     let materielType = 'inconnu';
+//     let isEnPanne = false;
+    
+//     // Déterminer le nom du matériel
+//     if (materielDetails) {
+//       materielNom = materielDetails.nom || materielDetails.reference || `Matériel #${materielDetails.id}`;
+//       materielType = materielDetails.type_materiel || materielDetails.etat || 'inconnu';
+//       isEnPanne = materielDetails.etat === 'en_panne';
+//     }
+
+//     // 1. Vérifier si l'incident a une alerte source
+//     if (incident.alerte_source || incident.alert_id) {
+//       return {
+//         type: 'alerte',
+//         label: `🚨 Depuis Alerte #${incident.alerte_source || incident.alert_id}`,
+//         materielNom: materielNom,
+//         materielType: materielType,
+//         isEnPanne: isEnPanne
+//       };
+//     }
+    
+//     // 2. Vérifier si l'incident a un matériel en panne
+//     if (isEnPanne) {
+//       return {
+//         type: 'auto',
+//         label: `🤖 Détection automatique`,
+//         materielNom: materielNom,
+//         materielType: materielType,
+//         isEnPanne: true
+//       };
+//     }
+    
+//     // 3. Sinon, c'est manuel
+//     return {
+//       type: 'manuel',
+//       label: `👤 Création manuelle`,
+//       materielNom: materielNom,
+//       materielType: materielType,
+//       isEnPanne: false
+//     };
+//   };
+
+//   // Fonction pour déterminer la priorité automatique
+//   const determinePriority = (incident: any, alerte?: Alerte | null): string => {
+//     // Si l'incident a une priorité définie, l'utiliser
+//     if (incident.priorite) return incident.priorite;
+    
+//     // Si c'est depuis une alerte, utiliser la sévérité de l'alerte
+//     if (alerte) {
+//       switch (alerte.severite) {
+//         case 'critique': return 'critique';
+//         case 'elevee': return 'elevee';
+//         case 'moyenne': return 'moyenne';
+//         case 'basse': return 'basse';
+//         default: return 'moyenne';
+//       }
+//     }
+    
+//     // Si c'est un matériel en panne
+//     if (incident.materiel_details && incident.materiel_details.etat === 'en_panne') {
+//       return 'critique';
+//     }
+    
+//     // Par défaut
+//     return 'moyenne';
+//   };
+
+//   // Obtenir l'icône du matériel selon son type
+//   const getMaterielIcon = (type: string) => {
+//     if (!type) return <Package className="h-4 w-4" />;
+    
+//     const typeLower = type.toLowerCase();
+//     if (typeLower.includes('ordinateur') || typeLower.includes('pc') || typeLower.includes('laptop') || typeLower.includes('poste')) 
+//       return <Monitor className="h-4 w-4" />;
+//     if (typeLower.includes('serveur')) return <Server className="h-4 w-4" />;
+//     if (typeLower.includes('imprimante') || typeLower.includes('printer')) 
+//       return <Printer className="h-4 w-4" />;
+//     if (typeLower.includes('réseau') || typeLower.includes('switch') || typeLower.includes('routeur') || typeLower.includes('network')) 
+//       return <Network className="h-4 w-4" />;
+//     if (typeLower.includes('logiciel') || typeLower.includes('software') || typeLower.includes('application')) 
+//       return <Cpu className="h-4 w-4" />;
+//     if (typeLower.includes('stockage') || typeLower.includes('disque') || typeLower.includes('storage')) 
+//       return <HardDrive className="h-4 w-4" />;
+//     if (typeLower.includes('base') || typeLower.includes('database')) 
+//       return <Database className="h-4 w-4" />;
+//     if (typeLower.includes('énergie') || typeLower.includes('alimentation') || typeLower.includes('power')) 
+//       return <Zap className="h-4 w-4" />;
+//     return <Package className="h-4 w-4" />;
+//   };
+
+//   // Composant d'icône d'imprimante
+//   const Printer = ({ className }: { className: string }) => (
+//     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+//     </svg>
+//   );
+
+//   // Charger les incidents avec détails
+//   const fetchIncidents = async () => {
+//     try {
+//       setLoading(true);
+//       console.log('🔄 Chargement des incidents avec détails...');
+      
+//       // Récupérer tous les incidents, matériels et alertes
+//       const [incidentsRes, materielsRes, alertesRes] = await Promise.allSettled([
+//         incidentsAPI.getAll(),
+//         materielsAPI.getAll(),
+//         alertesAPI.getAll()
+//       ]);
+      
+//       let incidentsData: any[] = [];
+//       if (incidentsRes.status === 'fulfilled') {
+//         incidentsData = extractDataFromResponse(incidentsRes.value);
+//         console.log(`✅ ${incidentsData.length} incidents récupérés`);
+//       }
+      
+//       let materielsData: Materiel[] = [];
+//       if (materielsRes.status === 'fulfilled') {
+//         materielsData = extractDataFromResponse(materielsRes.value) as Materiel[];
+//         console.log(`✅ ${materielsData.length} matériels récupérés`);
+//       }
+      
+//       let alertesData: Alerte[] = [];
+//       if (alertesRes.status === 'fulfilled') {
+//         alertesData = extractDataFromResponse(alertesRes.value) as Alerte[];
+//         console.log(`✅ ${alertesData.length} alertes récupérées`);
+//       }
+      
+//       // Mettre à jour les états
+//       setMateriels(materielsData);
+//       setAlertes(alertesData);
+      
+//       // Formater les incidents avec détails
+//       const incidentsFormattesPromises = incidentsData.map(async (incident: any) => {
+//         try {
+//           // Récupérer les détails du matériel si disponible
+//           let materielDetails = null;
+//           if (incident.materiel) {
+//             materielDetails = materielsData.find(m => m.id === incident.materiel) || 
+//                             await fetchMaterielDetails(incident.materiel);
+//           }
+          
+//           // Récupérer les détails de l'alerte si disponible
+//           let alerteSource = null;
+//           if (incident.alerte_source) {
+//             alerteSource = alertesData.find(a => a.id === incident.alerte_source) || 
+//                           await fetchAlerteDetails(incident.alerte_source);
+//           }
+          
+//           // Déterminer la source
+//           const source = determineSource({
+//             ...incident,
+//             materiel_details: materielDetails,
+//             alerte_source: alerteSource
+//           }, materielDetails);
+          
+//           // Déterminer la priorité
+//           const prioriteAuto = determinePriority(incident, alerteSource);
+          
+//           // Formatter l'incident
+//           const formattedIncident: FormattedIncident = {
+//             id: incident.id || 0,
+//             description: incident.description || '',
+//             type_incident: incident.type_incident || 'materiel',
+//             priorite: incident.priorite || prioriteAuto,
+//             statut: incident.statut || 'ouvert',
+//             date_creation: incident.date_creation || incident.created_at || new Date().toISOString(),
+//             date_resolution: incident.date_resolution || null,
+//             utilisateur_signaleur: incident.utilisateur_signaleur || incident.user || null,
+//             materiel: incident.materiel || null,
+//             logiciel: incident.logiciel || null,
+//             reseau: incident.reseau || null,
+            
+//             // Informations formatées
+//             utilisateur_nom: incident.utilisateur_nom || 'Non spécifié',
+//             materiel_nom: materielDetails?.nom || 'Non spécifié',
+//             materiel_details: materielDetails,
+//             logiciel_nom: incident.logiciel_nom || 'Non spécifié',
+//             alerte_source: alerteSource,
+//             alerte_id: incident.alerte_source,
+//             source_type: source.type,
+//             source_label: source.label,
+//             materiel_en_panne: source.isEnPanne,
+//             materiel_en_panne_nom: source.materielNom,
+//             materiel_en_panne_type: source.materielType,
+//             materiel_en_panne_id: materielDetails?.id
+//           };
+          
+//           console.log(`📄 Incident ${incident.id} formaté:`, {
+//             materiel_en_panne: source.isEnPanne,
+//             materiel_en_panne_nom: source.materielNom,
+//             type: source.materielType
+//           });
+          
+//           return formattedIncident;
+//         } catch (error) {
+//           console.error(`❌ Erreur formatage incident ${incident.id}:`, error);
+//           return null;
+//         }
+//       });
+      
+//       const incidentsFormattesResults = await Promise.all(incidentsFormattesPromises);
+//       const incidentsFormattes = incidentsFormattesResults.filter(inc => inc !== null) as FormattedIncident[];
+      
+//       setIncidents(incidentsFormattes);
+//       setFilteredIncidents(incidentsFormattes);
+//       setError('');
+      
+//       // Calculer les statistiques
+//       calculerStatistiques(incidentsFormattes);
+      
+//       if (incidentsFormattes.length === 0) {
+//         showMessage('info', 'Aucun incident trouvé');
+//       } else {
+//         console.log('📊 Statistiques incidents:');
+//         console.log(`   Total: ${incidentsFormattes.length}`);
+//         console.log(`   Depuis alertes: ${incidentsFormattes.filter(i => i.source_type === 'alerte').length}`);
+//         console.log(`   Matériels en panne: ${incidentsFormattes.filter(i => i.materiel_en_panne).length}`);
+//       }
+      
+//     } catch (err: any) {
+//       console.error('❌ Erreur chargement incidents:', err);
+//       const errorMsg = handleApiError(err);
+//       setError(errorMsg);
+//       showMessage('error', errorMsg);
+//     } finally {
+//       setLoading(false);
+//       setRefreshing(false);
+//     }
+//   };
+
+//   // Fonction pour calculer les statistiques
+//   const calculerStatistiques = (data: FormattedIncident[]) => {
+//     const stats = {
+//       total: data.length,
+//       ouvert: data.filter(i => i.statut === 'ouvert').length,
+//       en_cours: data.filter(i => i.statut === 'en_cours').length,
+//       resolu: data.filter(i => i.statut === 'resolu').length,
+//       parSource: {
+//         alerte: data.filter(i => i.source_type === 'alerte').length,
+//         manuel: data.filter(i => i.source_type === 'manuel').length,
+//         auto: data.filter(i => i.source_type === 'auto').length
+//       },
+//       parPriorite: {
+//         critique: data.filter(i => i.priorite === 'critique').length,
+//         elevee: data.filter(i => i.priorite === 'elevee').length,
+//         moyenne: data.filter(i => i.priorite === 'moyenne').length,
+//         basse: data.filter(i => i.priorite === 'basse').length
+//       },
+//       materielsEnPanne: data.filter(i => i.materiel_en_panne).length
+//     };
+    
+//     setStatistiques(stats);
+//   };
+
+//   // Effets
+//   useEffect(() => {
+//     fetchIncidents();
+//   }, []);
+
+//   useEffect(() => {
+//     filterIncidents();
+//   }, [incidents, searchTerm, filterStatut, filterPriorite, filterSource]);
+
+//   useEffect(() => {
+//     if (filteredIncidents.length > 0 && selectedIncidents.length === filteredIncidents.length) {
+//       setIsSelectAll(true);
+//     } else {
+//       setIsSelectAll(false);
+//     }
+//   }, [selectedIncidents, filteredIncidents]);
+
+//   // Filtrer les incidents
+//   const filterIncidents = () => {
+//     let filtered = safeArray<FormattedIncident>(incidents);
+
+//     if (searchTerm) {
+//       const searchLower = searchTerm.toLowerCase();
+//       filtered = filtered.filter(incident => 
+//         (incident.description?.toLowerCase() || '').includes(searchLower) ||
+//         (incident.materiel_en_panne_nom?.toLowerCase() || '').includes(searchLower) ||
+//         (incident.source_label?.toLowerCase() || '').includes(searchLower) ||
+//         (incident.utilisateur_nom?.toLowerCase() || '').includes(searchLower)
+//       );
+//     }
+
+//     if (filterStatut) {
+//       filtered = filtered.filter(incident => incident.statut === filterStatut);
+//     }
+
+//     if (filterPriorite) {
+//       filtered = filtered.filter(incident => incident.priorite === filterPriorite);
+//     }
+
+//     if (filterSource) {
+//       filtered = filtered.filter(incident => incident.source_type === filterSource);
+//     }
+
+//     setFilteredIncidents(filtered);
+//     setSelectedIncidents([]);
+//   };
+
+//   // Fonctions utilitaires
+//   const showMessage = (type: 'success' | 'error' | 'info', text: string) => {
+//     setMessage({ type, text });
+//     setTimeout(() => setMessage(null), 5000);
+//   };
+
+//   const handleExport = () => {
+//     try {
+//       const dataToExport = filteredIncidents.map(i => ({
+//         ID: i.id,
+//         Source: i.source_label,
+//         Priorité: getPriorityText(i.priorite),
+//         Statut: getStatusText(i.statut),
+//         Description: i.description,
+//         'Matériel en panne': i.materiel_en_panne ? i.materiel_en_panne_nom : 'Non',
+//         'Type matériel': i.materiel_en_panne_type || 'Inconnu',
+//         'Signaleur': i.utilisateur_nom || 'Non spécifié',
+//         'Date création': i.date_creation ? new Date(i.date_creation).toLocaleDateString('fr-FR') : 'Non spécifiée',
+//         'Date résolution': i.date_resolution ? new Date(i.date_resolution).toLocaleDateString('fr-FR') : 'Non résolu',
+//         'Alerte source': i.alerte_id ? `Alerte #${i.alerte_id}` : 'Non'
+//       }));
+
+//       if (dataToExport.length === 0) {
+//         showMessage('error', 'Aucune donnée à exporter');
+//         return;
+//       }
+
+//       const csvContent = [
+//         Object.keys(dataToExport[0] || {}).join(','),
+//         ...dataToExport.map(row => Object.values(row).map(field => `"${field}"`).join(','))
+//       ].join('\n');
+
+//       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+//       const link = document.createElement('a');
+//       const url = URL.createObjectURL(blob);
+//       link.setAttribute('href', url);
+//       link.setAttribute('download', `incidents_${new Date().toISOString().split('T')[0]}.csv`);
+//       link.style.visibility = 'hidden';
+//       document.body.appendChild(link);
+//       link.click();
+//       document.body.removeChild(link);
+
+//       showMessage('success', '✅ Export CSV réussi !');
+//     } catch (error) {
+//       console.error('❌ Erreur export:', error);
+//       showMessage('error', 'Erreur lors de l\'export');
+//     }
+//   };
+
+//   const resetFilters = () => {
+//     setSearchTerm('');
+//     setFilterStatut('');
+//     setFilterPriorite('');
+//     setFilterSource('');
+//     setSelectedIncidents([]);
+//   };
+
+//   // Gestion des incidents
+//   const handleSubmit = async (incidentData: any) => {
+//     try {
+//       console.log('📤 Soumission incident:', incidentData);
+      
+//       const currentUser = getCurrentUser();
+      
+//       const formattedData: any = {
+//         description: incidentData.description,
+//         type_incident: incidentData.type_incident,
+//         priorite: incidentData.priorite,
+//         statut: incidentData.statut,
+//         utilisateur_signaleur: currentUser.id
+//       };
+      
+//       if (incidentData.date_creation) {
+//         formattedData.date_creation = incidentData.date_creation;
+//       } else if (editingIncident && editingIncident.date_creation) {
+//         formattedData.date_creation = editingIncident.date_creation;
+//       }
+      
+//       if (incidentData.date_resolution) {
+//         formattedData.date_resolution = incidentData.date_resolution;
+//       }
+      
+//       if (incidentData.materiel && incidentData.materiel > 0) {
+//         formattedData.materiel = incidentData.materiel;
+//       }
+//       if (incidentData.logiciel && incidentData.logiciel > 0) {
+//         formattedData.logiciel = incidentData.logiciel;
+//       }
+//       if (incidentData.reseau && incidentData.reseau > 0) {
+//         formattedData.reseau = incidentData.reseau;
+//       }
+      
+//       // Si création depuis alerte
+//       if (incidentData.alerte_source) {
+//         formattedData.alerte_source = incidentData.alerte_source;
+//       }
+      
+//       console.log('📤 Données envoyées à l\'API:', formattedData);
+      
+//       if (editingIncident && editingIncident.id) {
+//         await incidentsAPI.update(editingIncident.id, formattedData);
+//         showMessage('success', '✅ Incident modifié avec succès');
+//       } else {
+//         await incidentsAPI.create(formattedData);
+//         showMessage('success', '✅ Incident créé avec succès');
+//       }
+      
+//       await fetchIncidents();
+//       setIsFormOpen(false);
+//       setEditingIncident(undefined);
+      
+//     } catch (error: any) {
+//       console.error('❌ Erreur soumission incident:', error);
+//       const errorMsg = handleApiError(error);
+//       showMessage('error', errorMsg);
+//     }
+//   };
+
+//   // Gestion des sélections
+//   const toggleSelectIncident = (id: number) => {
+//     setSelectedIncidents(prev => 
+//       prev.includes(id) 
+//         ? prev.filter(item => item !== id)
+//         : [...prev, id]
+//     );
+//   };
+
+//   const toggleSelectAll = () => {
+//     if (isSelectAll) {
+//       setSelectedIncidents([]);
+//     } else {
+//       const allIds = filteredIncidents
+//         .map(i => i.id)
+//         .filter((id): id is number => id !== undefined);
+//       setSelectedIncidents(allIds);
+//     }
+//   };
+
+//   // Gestion des suppressions
+//   const handleDeleteSelected = async () => {
+//     if (selectedIncidents.length === 0) {
+//       showMessage('error', '❌ Aucun incident sélectionné');
+//       return;
+//     }
+
+//     if (window.confirm(`Êtes-vous sûr de vouloir supprimer ${selectedIncidents.length} incident(s) ?`)) {
+//       try {
+//         const deletePromises = selectedIncidents.map(id => 
+//           incidentsAPI.delete(id).catch(err => {
+//             console.error(`Erreur suppression incident ${id}:`, err);
+//             return null;
+//           })
+//         );
+        
+//         await Promise.all(deletePromises);
+        
+//         showMessage('success', `✅ ${selectedIncidents.length} incident(s) supprimé(s) avec succès`);
+//         setSelectedIncidents([]);
+//         await fetchIncidents();
+//       } catch (error: any) {
+//         console.error('❌ Erreur suppression incidents:', error);
+//         showMessage('error', handleApiError(error));
+//       }
+//     }
+//   };
+
+//   const handleEditSelected = () => {
+//     if (selectedIncidents.length === 0) {
+//       showMessage('error', '❌ Aucun incident sélectionné');
+//       return;
+//     }
+
+//     if (selectedIncidents.length === 1) {
+//       const incident = incidents.find(i => i.id === selectedIncidents[0]);
+//       if (incident) {
+//         handleEdit(incident);
+//       }
+//     } else {
+//       showMessage('info', `📝 Édition multiple de ${selectedIncidents.length} incidents`);
+//     }
+//   };
+
+//   const handleResoudreSelected = async () => {
+//     if (selectedIncidents.length === 0) {
+//       showMessage('error', '❌ Aucun incident sélectionné');
+//       return;
+//     }
+
+//     try {
+//       const resolvePromises = selectedIncidents.map(id => 
+//         incidentsAPI.resoudre(id).catch(err => {
+//           console.error(`Erreur résolution incident ${id}:`, err);
+//           return null;
+//         })
+//       );
+      
+//       await Promise.all(resolvePromises);
+      
+//       showMessage('success', `✅ ${selectedIncidents.length} incident(s) marqué(s) comme résolu(s)`);
+//       setSelectedIncidents([]);
+//       await fetchIncidents();
+//     } catch (error: any) {
+//       console.error('❌ Erreur résolution incidents:', error);
+//       showMessage('error', handleApiError(error));
+//     }
+//   };
+
+//   const handleEdit = (incident: FormattedIncident) => {
+//     console.log('✏️ Édition incident:', incident);
+//     setEditingIncident(incident);
+//     setIsFormOpen(true);
+//   };
+
+//   const handleDelete = async (id: number) => {
+//     if (window.confirm('Êtes-vous sûr de vouloir supprimer cet incident ?')) {
+//       try {
+//         await incidentsAPI.delete(id);
+//         showMessage('success', '✅ Incident supprimé avec succès');
+//         await fetchIncidents();
+//       } catch (error: any) {
+//         console.error('❌ Erreur suppression incident:', error);
+//         showMessage('error', handleApiError(error));
+//       }
+//     }
+//   };
+
+//   const handleResoudre = async (id: number) => {
+//     try {
+//       await incidentsAPI.resoudre(id);
+//       showMessage('success', '✅ Incident marqué comme résolu');
+//       await fetchIncidents();
+//     } catch (error: any) {
+//       console.error('❌ Erreur résolution incident:', error);
+//       showMessage('error', handleApiError(error));
+//     }
+//   };
+
+//   // Gestion de la réparation
+//   const handleReparationSubmit = async (reparationData: any) => {
+//     try {
+//       console.log('🛠️ Création de réparation:', reparationData);
+      
+//       await reparationsAPI.create(reparationData);
+      
+//       if (incidentToRepair && incidentToRepair.id) {
+//         await incidentsAPI.resoudre(incidentToRepair.id);
+//         showMessage('success', `✅ Réparation créée et incident #${incidentToRepair.id} résolu!`);
+//       } else {
+//         showMessage('success', '✅ Réparation créée avec succès!');
+//       }
+      
+//       await fetchIncidents();
+//       setIsRepairFormOpen(false);
+//       setIncidentToRepair(null);
+      
+//     } catch (error: any) {
+//       console.error('❌ Erreur création réparation:', error);
+//       showMessage('error', handleApiError(error));
+//     }
+//   };
+
+//   const handleRepairImmediate = (incident: FormattedIncident) => {
+//     console.log('🔧 Réparation immédiate pour incident:', incident);
+//     setIncidentToRepair(incident);
+//     setIsRepairFormOpen(true);
+//   };
+
+//   const handleAddNew = () => {
+//     setEditingIncident(undefined);
+//     setIsFormOpen(true);
+//   };
+
+//   const handleRefresh = async () => {
+//     setRefreshing(true);
+//     await fetchIncidents();
+//     showMessage('success', '🔄 Données rafraîchies avec succès');
+//   };
+
+//   // Fonctions d'affichage
+//   const getPriorityBadge = (priority: string) => {
+//     const badges: Record<string, string> = {
+//       critique: 'badge-error',
+//       elevee: 'badge-warning',
+//       moyenne: 'badge-info',
+//       basse: 'badge-success'
+//     };
+//     return badges[priority] || 'badge-neutral';
+//   };
+
+//   const getPriorityText = (priority: string) => {
+//     const texts: Record<string, string> = {
+//       critique: 'Critique',
+//       elevee: 'Élevée',
+//       moyenne: 'Moyenne',
+//       basse: 'Basse'
+//     };
+//     return texts[priority] || priority;
+//   };
+
+//   const getStatusBadge = (status: string) => {
+//     const badges: Record<string, string> = {
+//       ouvert: 'badge-error',
+//       en_cours: 'badge-warning',
+//       resolu: 'badge-success',
+//       ferme: 'badge-neutral'
+//     };
+//     return badges[status] || 'badge-neutral';
+//   };
+
+//   const getStatusText = (status: string) => {
+//     const texts: Record<string, string> = {
+//       ouvert: 'Ouvert',
+//       en_cours: 'En cours',
+//       resolu: 'Résolu',
+//       ferme: 'Fermé'
+//     };
+//     return texts[status] || status;
+//   };
+
+//   const getSourceBadge = (sourceType: string) => {
+//     const badges: Record<string, string> = {
+//       alerte: 'badge-error',
+//       auto: 'badge-warning',
+//       manuel: 'badge-info'
+//     };
+//     return badges[sourceType] || 'badge-neutral';
+//   };
+
+//   const getSourceIcon = (sourceType: string) => {
+//     switch (sourceType) {
+//       case 'alerte': return <Bell className="h-3 w-3" />;
+//       case 'auto': return <Cpu className="h-3 w-3" />;
+//       case 'manuel': return <User className="h-3 w-3" />;
+//       default: return <AlertCircle className="h-3 w-3" />;
+//     }
+//   };
+
+//   // Afficher la source avec détails
+//   const displaySource = (incident: FormattedIncident) => {
+//     return (
+//       <div className="flex flex-col gap-1">
+//         <div className="flex items-center gap-2">
+//           {getSourceIcon(incident.source_type)}
+//           <span className="text-sm font-medium">{incident.source_label}</span>
+//         </div>
+//         {incident.alerte_id && (
+//           <div className="text-xs text-gray-600">
+//             Alerte #{incident.alerte_id}
+//           </div>
+//         )}
+//       </div>
+//     );
+//   };
+
+//   // Afficher le matériel en panne
+//   const displayMaterielEnPanne = (incident: FormattedIncident) => {
+//     if (!incident.materiel_en_panne) {
+//       return (
+//         <div className="text-gray-400 italic text-sm">
+//           Aucun matériel en panne
+//         </div>
+//       );
+//     }
+    
+//     return (
+//       <div className="flex flex-col gap-2">
+//         <div className="flex items-center gap-2">
+//           {getMaterielIcon(incident.materiel_en_panne_type)}
+//           <div>
+//             <div className="font-medium text-sm text-error">
+//               {incident.materiel_en_panne_nom}
+//             </div>
+//             <div className="text-xs text-base-content opacity-60">
+//               {incident.materiel_en_panne_type}
+//               {incident.materiel_details?.reference && (
+//                 <span className="ml-2">
+//                   (Réf: {incident.materiel_details.reference})
+//                 </span>
+//               )}
+//             </div>
+//           </div>
+//         </div>
+        
+//         <div className="badge badge-error badge-sm gap-1">
+//           <AlertTriangle className="h-3 w-3" />
+//           Matériel en panne
+//         </div>
+        
+//         {incident.materiel_details?.service_attribue && (
+//           <div className="text-xs">
+//             <span className="font-medium">Service:</span> {incident.materiel_details.service_attribue}
+//           </div>
+//         )}
+        
+//         {incident.materiel_details?.utilisateur_attribue && (
+//           <div className="text-xs">
+//             <span className="font-medium">Utilisateur:</span> {incident.materiel_details.utilisateur_attribue}
+//           </div>
+//         )}
+        
+//         {incident.materiel_en_panne_id && (
+//           <div className="text-xs text-gray-500">
+//             ID: #{incident.materiel_en_panne_id}
+//           </div>
+//         )}
+//       </div>
+//     );
+//   };
+
+//   if (loading && !refreshing) {
+//     return (
+//       <div className="p-6 bg-base-100 min-h-screen flex items-center justify-center">
+//         <div className="flex flex-col items-center gap-4">
+//           <span className="loading loading-spinner loading-lg text-primary"></span>
+//           <p className="text-base-content">Chargement des incidents...</p>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="p-6 bg-base-100 min-h-screen">
+//       {/* Messages */}
+//       {message && (
+//         <div className={`alert ${
+//           message.type === 'success' ? 'alert-success' : 
+//           message.type === 'error' ? 'alert-error' : 
+//           'alert-info'
+//         } mb-4 shadow-lg`}>
+//           <span>{message.text}</span>
+//         </div>
+//       )}
+
+//       {error && (
+//         <div className="alert alert-error mb-4 shadow-lg">
+//           <AlertTriangle className="h-5 w-5" />
+//           <span>{error}</span>
+//           <button 
+//             className="btn btn-sm btn-ghost"
+//             onClick={handleRefresh}
+//           >
+//             <RefreshCw className="h-4 w-4" />
+//             Réessayer
+//           </button>
+//         </div>
+//       )}
+
+//       {/* En-tête */}
+//       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+//         <div>
+//           <h1 className="text-3xl font-bold text-base-content">🚨 Gestion des Incidents</h1>
+//           <p className="text-base-content opacity-60 mt-1">
+//             {filteredIncidents.length} incident(s) trouvé(s)
+//             {selectedIncidents.length > 0 && (
+//               <span className="text-primary font-semibold ml-2">
+//                 ({selectedIncidents.length} sélectionné(s))
+//               </span>
+//             )}
+//           </p>
+//         </div>
+//         <div className="flex gap-2 flex-wrap">
+//           <button
+//             onClick={handleRefresh}
+//             className="btn btn-outline btn-sm"
+//             title="Rafraîchir"
+//             disabled={refreshing}
+//           >
+//             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+//             {refreshing ? 'Rafraîchissement...' : 'Rafraîchir'}
+//           </button>
+//           <button
+//             onClick={handleExport}
+//             className="btn btn-outline btn-sm"
+//             title="Exporter la liste"
+//             disabled={filteredIncidents.length === 0}
+//           >
+//             <Download className="h-4 w-4 mr-2" />
+//             Exporter
+//           </button>
+//           <button
+//             onClick={handleAddNew}
+//             className="btn btn-primary btn-sm"
+//           >
+//             <Plus className="h-4 w-4 mr-2" />
+//             Nouvel incident
+//           </button>
+//         </div>
+//       </div>
+
+//       {/* Statistiques */}
+//       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+//         <div className="card bg-base-200 shadow-xl">
+//           <div className="card-body py-4">
+//             <div className="flex items-center justify-between">
+//               <div>
+//                 <p className="text-sm font-medium text-base-content opacity-70">Total</p>
+//                 <p className="text-2xl font-bold text-base-content">{statistiques.total}</p>
+//               </div>
+//               <div className="text-2xl">📊</div>
+//             </div>
+//           </div>
+//         </div>
+        
+//         <div className="card bg-error/10 shadow-xl">
+//           <div className="card-body py-4">
+//             <div className="flex items-center justify-between">
+//               <div>
+//                 <p className="text-sm font-medium text-base-content opacity-70">Ouverts</p>
+//                 <p className="text-2xl font-bold text-error">{statistiques.ouvert}</p>
+//               </div>
+//               <AlertTriangle className="w-6 h-6 text-error" />
+//             </div>
+//           </div>
+//         </div>
+        
+//         <div className="card bg-warning/10 shadow-xl">
+//           <div className="card-body py-4">
+//             <div className="flex items-center justify-between">
+//               <div>
+//                 <p className="text-sm font-medium text-base-content opacity-70">En cours</p>
+//                 <p className="text-2xl font-bold text-warning">{statistiques.en_cours}</p>
+//               </div>
+//               <Clock className="w-6 h-6 text-warning" />
+//             </div>
+//           </div>
+//         </div>
+        
+//         <div className="card bg-success/10 shadow-xl">
+//           <div className="card-body py-4">
+//             <div className="flex items-center justify-between">
+//               <div>
+//                 <p className="text-sm font-medium text-base-content opacity-70">Résolus</p>
+//                 <p className="text-2xl font-bold text-success">{statistiques.resolu}</p>
+//               </div>
+//               <CheckCircle className="w-6 h-6 text-success" />
+//             </div>
+//           </div>
+//         </div>
+        
+//         <div className="card bg-error/10 shadow-xl">
+//           <div className="card-body py-4">
+//             <div className="flex items-center justify-between">
+//               <div>
+//                 <p className="text-sm font-medium text-base-content opacity-70">Matériels en panne</p>
+//                 <p className="text-2xl font-bold text-error">{statistiques.materielsEnPanne}</p>
+//               </div>
+//               <HardDrive className="w-6 h-6 text-error" />
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Statistiques par source */}
+//       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+//         <div className="card bg-error/10 shadow-xl">
+//           <div className="card-body py-4">
+//             <div className="flex items-center justify-between">
+//               <div>
+//                 <p className="text-sm font-medium text-base-content opacity-70">Depuis Alertes</p>
+//                 <p className="text-2xl font-bold text-error">{statistiques.parSource.alerte}</p>
+//                 <p className="text-xs opacity-60">
+//                   {statistiques.total > 0 
+//                     ? `${Math.round((statistiques.parSource.alerte / statistiques.total) * 100)}% du total`
+//                     : '0%'
+//                   }
+//                 </p>
+//               </div>
+//               <Bell className="w-6 h-6 text-error" />
+//             </div>
+//           </div>
+//         </div>
+        
+//         <div className="card bg-warning/10 shadow-xl">
+//           <div className="card-body py-4">
+//             <div className="flex items-center justify-between">
+//               <div>
+//                 <p className="text-sm font-medium text-base-content opacity-70">Détection Auto</p>
+//                 <p className="text-2xl font-bold text-warning">{statistiques.parSource.auto}</p>
+//                 <p className="text-xs opacity-60">
+//                   {statistiques.total > 0 
+//                     ? `${Math.round((statistiques.parSource.auto / statistiques.total) * 100)}% du total`
+//                     : '0%'
+//                   }
+//                 </p>
+//               </div>
+//               <Cpu className="w-6 h-6 text-warning" />
+//             </div>
+//           </div>
+//         </div>
+        
+//         <div className="card bg-info/10 shadow-xl">
+//           <div className="card-body py-4">
+//             <div className="flex items-center justify-between">
+//               <div>
+//                 <p className="text-sm font-medium text-base-content opacity-70">Création Manuelle</p>
+//                 <p className="text-2xl font-bold text-info">{statistiques.parSource.manuel}</p>
+//                 <p className="text-xs opacity-60">
+//                   {statistiques.total > 0 
+//                     ? `${Math.round((statistiques.parSource.manuel / statistiques.total) * 100)}% du total`
+//                     : '0%'
+//                   }
+//                 </p>
+//               </div>
+//               <User className="w-6 h-6 text-info" />
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Filtres et actions */}
+//       <div className="card bg-base-200 shadow-xl mb-6">
+//         <div className="card-body">
+//           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text">🔍 Rechercher</span>
+//               </label>
+//               <div className="relative">
+//                 <Search className="absolute left-3 top-3 h-4 w-4 text-base-content opacity-50" />
+//                 <input
+//                   type="text"
+//                   placeholder="Description, matériel, source..."
+//                   className="input input-bordered w-full pl-10 bg-base-100"
+//                   value={searchTerm}
+//                   onChange={(e) => setSearchTerm(e.target.value)}
+//                 />
+//               </div>
+//             </div>
+
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text">📊 Statut</span>
+//               </label>
+//               <select
+//                 className="select select-bordered w-full bg-base-100"
+//                 value={filterStatut}
+//                 onChange={(e) => setFilterStatut(e.target.value)}
+//               >
+//                 <option value="">Tous les statuts</option>
+//                 <option value="ouvert">Ouvert</option>
+//                 <option value="en_cours">En cours</option>
+//                 <option value="resolu">Résolu</option>
+//               </select>
+//             </div>
+
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text">⚠️ Priorité</span>
+//               </label>
+//               <select
+//                 className="select select-bordered w-full bg-base-100"
+//                 value={filterPriorite}
+//                 onChange={(e) => setFilterPriorite(e.target.value)}
+//               >
+//                 <option value="">Toutes les priorités</option>
+//                 <option value="critique">Critique</option>
+//                 <option value="elevee">Élevée</option>
+//                 <option value="moyenne">Moyenne</option>
+//                 <option value="basse">Basse</option>
+//               </select>
+//             </div>
+
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text">🔧 Source</span>
+//               </label>
+//               <select
+//                 className="select select-bordered w-full bg-base-100"
+//                 value={filterSource}
+//                 onChange={(e) => setFilterSource(e.target.value)}
+//               >
+//                 <option value="">Toutes les sources</option>
+//                 <option value="alerte">Depuis alerte</option>
+//                 <option value="auto">Détection auto</option>
+//                 <option value="manuel">Création manuelle</option>
+//               </select>
+//             </div>
+
+//             <div className="form-control">
+//               <label className="label">
+//                 <span className="label-text">🔄 Actions</span>
+//               </label>
+//               <button
+//                 onClick={resetFilters}
+//                 className="btn btn-outline w-full gap-2"
+//               >
+//                 <Filter className="h-4 w-4" />
+//                 Réinitialiser
+//               </button>
+//             </div>
+//           </div>
+
+//           {/* Actions de sélection */}
+//           {selectedIncidents.length > 0 && (
+//             <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
+//               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+//                 <div className="flex items-center gap-4">
+//                   <div className="flex items-center gap-2">
+//                     <div className="w-3 h-3 bg-primary rounded-full animate-pulse"></div>
+//                     <span className="font-semibold text-primary text-lg">
+//                       {selectedIncidents.length} incident(s) sélectionné(s)
+//                     </span>
+//                   </div>
+//                 </div>
+//                 <div className="flex gap-2 flex-wrap">
+//                   <button
+//                     onClick={handleResoudreSelected}
+//                     className="btn btn-success btn-sm gap-2"
+//                   >
+//                     <CheckCircle className="h-4 w-4" />
+//                     Résoudre ({selectedIncidents.length})
+//                   </button>
+//                   <button
+//                     onClick={handleEditSelected}
+//                     className="btn btn-primary btn-sm gap-2"
+//                   >
+//                     <Edit className="h-4 w-4" />
+//                     Modifier ({selectedIncidents.length})
+//                   </button>
+//                   <button
+//                     onClick={handleDeleteSelected}
+//                     className="btn btn-error btn-sm gap-2"
+//                   >
+//                     <Trash2 className="h-4 w-4" />
+//                     Supprimer ({selectedIncidents.length})
+//                   </button>
+//                   <button
+//                     onClick={() => setSelectedIncidents([])}
+//                     className="btn btn-ghost btn-sm"
+//                   >
+//                     <X className="h-4 w-4" />
+//                     Annuler
+//                   </button>
+//                 </div>
+//               </div>
+//             </div>
+//           )}
+//         </div>
+//       </div>
+
+//       {/* Tableau des incidents */}
+//       <div className="card bg-base-200 shadow-xl">
+//         <div className="card-body p-0">
+//           <div className="overflow-x-auto">
+//             <table className="table table-zebra w-full">
+//               <thead>
+//                 <tr className="bg-base-300">
+//                   <th className="font-bold w-12 text-center">
+//                     <div className="flex justify-center">
+//                       <button
+//                         onClick={toggleSelectAll}
+//                         className="btn btn-ghost btn-xs p-1 hover:bg-base-200 transition-colors"
+//                         title={isSelectAll ? "Désélectionner tous" : "Sélectionner tous"}
+//                         disabled={filteredIncidents.length === 0}
+//                       >
+//                         {isSelectAll ? (
+//                           <CheckSquare className="h-5 w-5 text-primary" />
+//                         ) : (
+//                           <Square className="h-5 w-5 text-base-content/40" />
+//                         )}
+//                       </button>
+//                     </div>
+//                   </th>
+//                   <th className="font-bold">Source</th>
+//                   <th className="font-bold">Matériel en panne</th>
+//                   <th className="font-bold">Priorité</th>
+//                   <th className="font-bold">Statut</th>
+//                   <th className="font-bold">Description</th>
+//                   <th className="font-bold">Date création</th>
+//                   <th className="font-bold text-center">Actions</th>
+//                 </tr>
+//               </thead>
+//               <tbody>
+//                 {safeArray<FormattedIncident>(filteredIncidents).map((incident) => {
+//                   const isFromAlerte = incident.source_type === 'alerte';
+//                   const isAutoDetection = incident.source_type === 'auto';
+//                   const isMaterielEnPanne = incident.materiel_en_panne;
+                  
+//                   return (
+//                     <tr key={incident.id} className="hover">
+//                       <td className="text-center">
+//                         <div className="flex justify-center">
+//                           <input
+//                             type="checkbox"
+//                             className="checkbox checkbox-primary checkbox-sm transition-all duration-200"
+//                             checked={selectedIncidents.includes(incident.id || 0)}
+//                             onChange={() => toggleSelectIncident(incident.id || 0)}
+//                           />
+//                         </div>
+//                       </td>
+                      
+//                       <td className="max-w-xs">
+//                         {displaySource(incident)}
+//                         {isFromAlerte && incident.alerte_id && (
+//                           <div className="mt-1">
+//                             <div className={`badge ${getSourceBadge(incident.source_type)} badge-xs gap-1`}>
+//                               {getSourceIcon(incident.source_type)}
+//                               Alerte #{incident.alerte_id}
+//                             </div>
+//                           </div>
+//                         )}
+//                         {isAutoDetection && (
+//                           <div className="mt-1">
+//                             <div className="badge badge-warning badge-xs gap-1">
+//                               <Cpu className="h-3 w-3" />
+//                               Détection automatique
+//                             </div>
+//                           </div>
+//                         )}
+//                       </td>
+                      
+//                       <td className="max-w-xs">
+//                         {displayMaterielEnPanne(incident)}
+//                       </td>
+                      
+//                       <td>
+//                         <div className={`badge ${getPriorityBadge(incident.priorite)} badge-lg`}>
+//                           {getPriorityText(incident.priorite)}
+//                         </div>
+//                       </td>
+                      
+//                       <td>
+//                         <div className="flex items-center gap-2">
+//                           <div className={`badge ${getStatusBadge(incident.statut)}`}>
+//                             {getStatusText(incident.statut)}
+//                           </div>
+//                           {(incident.statut === 'ouvert' || incident.statut === 'en_cours') && (
+//                             <span className="text-xs text-warning font-semibold">
+//                               🔧
+//                             </span>
+//                           )}
+//                         </div>
+//                       </td>
+                      
+//                       <td className="max-w-xs">
+//                         <div className="font-medium text-base-content">
+//                           {incident.description}
+//                         </div>
+                        
+//                         {/* Signaleur */}
+//                         {incident.utilisateur_nom && incident.utilisateur_nom !== 'Non spécifié' && (
+//                           <div className="text-sm text-base-content opacity-70 mt-1 flex items-center gap-1">
+//                             <User className="h-3 w-3" />
+//                             <span className="font-medium">Signalé par:</span> 
+//                             <span className="ml-1">{incident.utilisateur_nom}</span>
+//                           </div>
+//                         )}
+//                       </td>
+                      
+//                       <td>
+//                         <div className="flex flex-col">
+//                           <span className="text-sm font-medium">
+//                             {incident.date_creation ? new Date(incident.date_creation).toLocaleDateString('fr-FR') : '-'}
+//                           </span>
+//                           <div className="text-xs text-base-content opacity-60">
+//                             {incident.date_creation ? new Date(incident.date_creation).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}
+//                           </div>
+//                           {incident.date_resolution && (
+//                             <div className="text-xs text-success mt-1">
+//                               Résolu le: {new Date(incident.date_resolution).toLocaleDateString('fr-FR')}
+//                             </div>
+//                           )}
+//                         </div>
+//                       </td>
+                      
+//                       <td>
+//                         <div className="flex justify-center space-x-1">
+//                           <button
+//                             onClick={() => handleEdit(incident)}
+//                             className="btn btn-ghost btn-sm btn-square text-primary hover:bg-primary/10"
+//                             title="Modifier"
+//                           >
+//                             <Edit className="h-4 w-4" />
+//                           </button>
+                          
+//                           {/* Bouton Réparer immédiatement */}
+//                           {incident.statut !== 'resolu' && incident.statut !== 'ferme' && (
+//                             <button
+//                               onClick={() => handleRepairImmediate(incident)}
+//                               className="btn btn-ghost btn-sm btn-square text-warning hover:bg-warning/10"
+//                               title="Réparer immédiatement"
+//                             >
+//                               <Wrench className="h-4 w-4" />
+//                             </button>
+//                           )}
+                          
+//                           {incident.statut !== 'resolu' && incident.statut !== 'ferme' && (
+//                             <button
+//                               onClick={() => handleResoudre(incident.id || 0)}
+//                               className="btn btn-ghost btn-sm btn-square text-success hover:bg-success/10"
+//                               title="Marquer comme résolu"
+//                             >
+//                               <CheckCircle className="h-4 w-4" />
+//                             </button>
+//                           )}
+                          
+//                           <button
+//                             onClick={() => handleDelete(incident.id || 0)}
+//                             className="btn btn-ghost btn-sm btn-square text-error hover:bg-error/10"
+//                             title="Supprimer"
+//                           >
+//                             <Trash2 className="h-4 w-4" />
+//                           </button>
+//                         </div>
+//                       </td>
+//                     </tr>
+//                   );
+//                 })}
+//               </tbody>
+//             </table>
+//           </div>
+
+//           {safeArray<FormattedIncident>(filteredIncidents).length === 0 && (
+//             <div className="text-center py-12">
+//               <div className="text-base-content opacity-40 mb-4">
+//                 <Search className="h-16 w-16 mx-auto mb-4" />
+//                 <p className="text-lg font-medium">Aucun incident trouvé</p>
+//                 <p className="text-sm mt-2">
+//                   {searchTerm || filterStatut || filterPriorite || filterSource
+//                     ? "Essayez de modifier vos critères de recherche" 
+//                     : "Aucun incident n'est enregistré dans le système"
+//                   }
+//                 </p>
+//                 <button
+//                   onClick={handleAddNew}
+//                   className="btn btn-primary btn-sm mt-4"
+//                 >
+//                   <Plus className="h-4 w-4 mr-2" />
+//                   Créer le premier incident
+//                 </button>
+//               </div>
+//             </div>
+//           )}
+//         </div>
+//       </div>
+
+//       {/* Formulaire d'incident */}
+//       <IncidentForm
+//         isOpen={isFormOpen}
+//         onClose={() => {
+//           setIsFormOpen(false);
+//           setEditingIncident(undefined);
+//         }}
+//         onSubmit={handleSubmit}
+//         incident={editingIncident}
+//         currentUser={getCurrentUser()}
+//         alertes={alertes}
+//         materiels={materiels}
+//         materielsEnPanne={materiels.filter(m => m.etat === 'en_panne')}
+//       />
+
+//       {/* Formulaire de réparation */}
+//       <ReparationForm
+//         isOpen={isRepairFormOpen}
+//         onClose={() => {
+//           setIsRepairFormOpen(false);
+//           setIncidentToRepair(null);
+//         }}
+//         onSubmit={handleReparationSubmit}
+//         incidentSource={incidentToRepair}
+//         materiels={materiels}
+//         incidents={incidents}
+//       />
+//     </div>
+//   );
+// };
+
+// export default Incidents;

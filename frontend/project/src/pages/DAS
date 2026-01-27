@@ -1,0 +1,1611 @@
+// // src/pages/Dashboard.jsx - VERSION OPTIMISÉE ET CORRIGÉE
+// import React, { useState, useEffect, useMemo, useCallback } from 'react';
+// import { 
+//   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+//   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line,
+//   AreaChart, Area
+// } from 'recharts';
+// import { 
+//   BarChart3, RefreshCw, Users, 
+//   AlertTriangle, CheckCircle,
+//   Database, Bell, Wrench,
+//   PieChart as PieChartIcon,
+//   LineChart as LineChartIcon, Info, 
+//   DollarSign,
+//   AlertCircle,
+//   Download,
+//   Eye,
+//   FileText,
+//   AlertOctagon,
+//   ClipboardCheck,
+//   ArrowRight
+// } from 'lucide-react';
+// import { 
+//   materielsAPI, 
+//   incidentsAPI, 
+//   reparationsAPI, 
+//   alertesAPI, 
+//   fournisseursAPI
+// } from '../services/api';
+// import { useAuth } from '../context/AuthContext';
+// import { useNotification } from '../context/NotificationContext';
+// import jsPDF from 'jspdf';
+// import autoTable from 'jspdf-autotable';
+
+// // Import du logo
+// import logoDren from '../assets/images/logo-dren.jpeg';
+
+// // COULEURS FIXES POUR CHAQUE SERVICE
+// const SERVICE_COLORS = {
+//   'Secrétariat': '#3b82f6',
+//   'Direction': '#8b5cf6',
+//   'Informatique': '#10b981',
+//   'Archives': '#f59e0b',
+//   'Non assigné': '#9ca3af',
+//   'Autre': '#6b7280',
+// };
+
+// // Fonction pour convertir une image en base64
+// const getBase64Image = (imgUrl) => new Promise((resolve, reject) => {
+//   const img = new Image();
+//   img.crossOrigin = 'Anonymous';
+//   img.onload = () => {
+//     const canvas = document.createElement('canvas');
+//     const ctx = canvas.getContext('2d');
+//     canvas.width = img.width;
+//     canvas.height = img.height;
+//     ctx.drawImage(img, 0, 0);
+//     resolve(canvas.toDataURL('image/jpeg'));
+//   };
+//   img.onerror = reject;
+//   img.src = imgUrl;
+// });
+
+// const Dashboard = () => {
+//   const { user } = useAuth();
+//   const { showNotification } = useNotification();
+  
+//   // DONNÉES PAR DÉFAUT pour affichage immédiat
+//   const defaultStats = {
+//     total_materiels: 8,
+//     materiels_fonctionnels: 5,
+//     materiels_en_panne: 2,
+//     materiels_maintenance: 1,
+//     materiels_obsolete: 0,
+//     materiels_en_reparation: 1,
+//     materiels_en_amelioration: 0,
+//     materiels_hors_service: 0,
+//     materiels_par_service: {
+//       'Informatique': 4,
+//       'Secrétariat': 2,
+//       'Direction': 1,
+//       'Archives': 1
+//     },
+    
+//     total_incidents: 6,
+//     incidents_ouverts: 2,
+//     incidents_en_cours: 1,
+//     incidents_resolus: 3,
+//     incidents_par_priorite: {
+//       'critique': 1,
+//       'haute': 2,
+//       'moyenne': 3
+//     },
+//     incidents_evolution: [],
+//     taux_resolution_incidents: 50,
+    
+//     reparations_ce_mois: 3,
+//     reparations_en_cours: 1,
+//     cout_total_reparations: 4500000,
+//     cout_reparations_ce_mois: 1200000,
+    
+//     alertes_actives: 4,
+//     alertes_critiques: 1,
+//     alertes_par_severite: {
+//       'critique': 1,
+//       'haute': 1,
+//       'moyenne': 2
+//     },
+    
+//     total_fournisseurs: 4,
+//     fournisseurs_actifs: 3,
+    
+//     taux_disponibilite: 62.5,
+//   };
+  
+//   // États principaux avec données par défaut
+//   const [stats, setStats] = useState(defaultStats);
+  
+//   // États pour les données brutes
+//   const [materiels, setMateriels] = useState([]);
+//   const [incidents, setIncidents] = useState([]);
+//   const [reparations, setReparations] = useState([]);
+//   const [alertes, setAlertes] = useState([]);
+//   const [fournisseurs, setFournisseurs] = useState([]);
+  
+//   // États UI
+//   const [loading, setLoading] = useState(false);
+//   const [autoRefresh, setAutoRefresh] = useState(false);
+//   const [lastUpdate, setLastUpdate] = useState(new Date());
+//   const [isLoadingRealData, setIsLoadingRealData] = useState(false);
+
+//   // Fonctions helper
+//   const safeArray = (data) => Array.isArray(data) ? data : [];
+//   const safeFilter = (array, condition) => array?.filter?.(condition) || [];
+//   const safeReduce = (array, reducer, initial = 0) => array?.reduce?.(reducer, initial) || initial;
+
+//   // Fonction pour extraire les données des réponses API
+//   const extractData = useCallback((response) => {
+//     if (!response) return [];
+    
+//     if (Array.isArray(response)) return response;
+    
+//     if (response?.data) {
+//       if (Array.isArray(response.data)) return response.data;
+//       if (response.data.results && Array.isArray(response.data.results)) return response.data.results;
+//       if (response.data.data && Array.isArray(response.data.data)) return response.data.data;
+//       if (typeof response.data === 'object' && !Array.isArray(response.data)) return [response.data];
+//     }
+    
+//     return [];
+//   }, []);
+
+//   // Formater la devise en Ariary
+//   const formatCurrency = useCallback((amount) => {
+//     return new Intl.NumberFormat('fr-FR').format(amount) + ' Ar';
+//   }, []);
+
+//   // Charger les données depuis les API
+//   const loadData = useCallback(async () => {
+//     try {
+//       setIsLoadingRealData(true);
+//       console.log('📊 Chargement des données réelles...');
+
+//       const [
+//         materielsResponse,
+//         incidentsResponse,
+//         reparationsResponse,
+//         alertesResponse,
+//         fournisseursResponse
+//       ] = await Promise.allSettled([
+//         materielsAPI.getAll().catch(e => {
+//           console.error('❌ Erreur matériels:', e);
+//           return { data: [] };
+//         }),
+//         incidentsAPI.getAll().catch(e => {
+//           console.error('❌ Erreur incidents:', e);
+//           return { data: [] };
+//         }),
+//         reparationsAPI.getAll().catch(e => {
+//           console.error('❌ Erreur réparations:', e);
+//           return { data: [] };
+//         }),
+//         alertesAPI.getAll().catch(e => {
+//           console.error('❌ Erreur alertes:', e);
+//           return { data: [] };
+//         }),
+//         fournisseursAPI.getAll().catch(e => {
+//           console.error('❌ Erreur fournisseurs:', e);
+//           return { data: [] };
+//         })
+//       ]);
+
+//       // Extraire les données
+//       const materielsData = extractData(materielsResponse.value);
+//       const incidentsData = extractData(incidentsResponse.value);
+//       const reparationsData = extractData(reparationsResponse.value);
+//       const alertesData = extractData(alertesResponse.value);
+//       const fournisseursData = extractData(fournisseursResponse.value);
+
+//       console.log('📦 Données réelles reçues:', {
+//         materiels: materielsData.length,
+//         incidents: incidentsData.length,
+//         reparations: reparationsData.length,
+//         alertes: alertesData.length,
+//         fournisseurs: fournisseursData.length
+//       });
+
+//       // Mettre à jour les états
+//       setMateriels(materielsData);
+//       setIncidents(incidentsData);
+//       setReparations(reparationsData);
+//       setAlertes(alertesData);
+//       setFournisseurs(fournisseursData);
+
+//       // Calculer les statistiques
+//       calculateStats({
+//         materiels: materielsData,
+//         incidents: incidentsData,
+//         reparations: reparationsData,
+//         alertes: alertesData,
+//         fournisseurs: fournisseursData
+//       });
+      
+//       setLastUpdate(new Date());
+//       showNotification('Données mises à jour avec succès', 'success');
+
+//     } catch (error) {
+//       console.error('❌ Erreur chargement données:', error);
+//       showNotification('Erreur lors du chargement des données', 'error');
+//     } finally {
+//       setIsLoadingRealData(false);
+//     }
+//   }, [extractData, showNotification]);
+
+//   // Calculer les statistiques
+//   const calculateStats = useCallback((data) => {
+//     const {
+//       materiels: materielsArray,
+//       incidents: incidentsArray,
+//       reparations: reparationsArray,
+//       alertes: alertesArray,
+//       fournisseurs: fournisseursArray
+//     } = data;
+
+//     // Si pas de données, utiliser les données par défaut
+//     if (materielsArray.length === 0 && incidentsArray.length === 0) {
+//       setStats(defaultStats);
+//       return;
+//     }
+
+//     // === MATÉRIELS ===
+//     const materielsFonctionnels = safeFilter(materielsArray, m => {
+//       const etat = (m.etat || '').toString().toLowerCase();
+//       return etat.includes('fonctionnel') || 
+//              etat.includes('actif') || 
+//              etat.includes('opérationnel') ||
+//              etat.includes('en service') ||
+//              etat === 'bon' ||
+//              etat === 'good' ||
+//              m.statut === 'actif' ||
+//              m.statut === 'fonctionnel';
+//     }).length;
+
+//     const materielsEnPanne = safeFilter(materielsArray, m => {
+//       const etat = (m.etat || '').toString().toLowerCase();
+//       return etat.includes('panne') || 
+//              etat.includes('défectueux') || 
+//              etat.includes('hors service') ||
+//              m.statut === 'panne' ||
+//              m.statut === 'hors service';
+//     }).length;
+
+//     const materielsMaintenance = safeFilter(materielsArray, m => {
+//       const etat = (m.etat || '').toString().toLowerCase();
+//       return etat.includes('maintenance') || 
+//              etat.includes('réparation') || 
+//              etat.includes('en réparation') ||
+//              m.statut === 'maintenance' ||
+//              m.statut === 'réparation';
+//     }).length;
+
+//     const materielsObsolete = safeFilter(materielsArray, m => {
+//       const etat = (m.etat || '').toString().toLowerCase();
+//       return etat.includes('obsolete') || 
+//              etat.includes('obsolète') ||
+//              m.statut === 'obsolete';
+//     }).length;
+
+//     const materielsEnReparation = safeFilter(materielsArray, m => {
+//       const etat = (m.etat || '').toString().toLowerCase();
+//       return etat.includes('en_reparation') || 
+//              etat.includes('en réparation');
+//     }).length;
+
+//     const materielsEnAmelioration = safeFilter(materielsArray, m => {
+//       const etat = (m.etat || '').toString().toLowerCase();
+//       return etat.includes('en_amelioration') || 
+//              etat.includes('en amélioration');
+//     }).length;
+
+//     const materielsHorsService = safeFilter(materielsArray, m => {
+//       const etat = (m.etat || '').toString().toLowerCase();
+//       return etat.includes('hors_service') || 
+//              etat.includes('hors service') ||
+//              m.statut === 'hors_service';
+//     }).length;
+
+//     const materielsParService = safeReduce(materielsArray, (acc, m) => {
+//       const service = m.service || m.departement || m.service_attribue || m.direction || 'Non assigné';
+      
+//       let serviceNormalise = 'Autre';
+//       const serviceLower = service.toLowerCase();
+      
+//       if (serviceLower.includes('secrétariat') || serviceLower.includes('secretariat')) {
+//         serviceNormalise = 'Secrétariat';
+//       } else if (serviceLower.includes('direction') || serviceLower.includes('dir')) {
+//         serviceNormalise = 'Direction';
+//       } else if (serviceLower.includes('informatique') || serviceLower.includes('it') || serviceLower.includes('info')) {
+//         serviceNormalise = 'Informatique';
+//       } else if (serviceLower.includes('archives') || serviceLower.includes('archive')) {
+//         serviceNormalise = 'Archives';
+//       } else {
+//         serviceNormalise = 'Autre';
+//       }
+      
+//       acc[serviceNormalise] = (acc[serviceNormalise] || 0) + 1;
+//       return acc;
+//     }, {});
+
+//     // === INCIDENTS ===
+//     const incidentsOuverts = safeFilter(incidentsArray, i => {
+//       const statut = (i.statut || '').toString().toLowerCase();
+//       return statut.includes('ouvert') || 
+//              statut === 'ouvert' ||
+//              statut === 'open';
+//     }).length;
+
+//     const incidentsEnCours = safeFilter(incidentsArray, i => {
+//       const statut = (i.statut || '').toString().toLowerCase();
+//       return statut.includes('en_cours') || 
+//              statut.includes('traitement') ||
+//              statut.includes('assigné') ||
+//              statut.includes('prise en charge');
+//     }).length;
+
+//     const incidentsResolus = safeFilter(incidentsArray, i => {
+//       const statut = (i.statut || '').toString().toLowerCase();
+//       return statut.includes('résolu') || 
+//              statut.includes('fermé') ||
+//              statut.includes('traité') ||
+//              statut.includes('terminé') ||
+//              statut.includes('clôturé') ||
+//              statut.includes('resolu');
+//     }).length;
+
+//     const incidentsParPriorite = safeReduce(incidentsArray, (acc, i) => {
+//       const priorite = (i.priorite || 'moyenne').toLowerCase();
+//       acc[priorite] = (acc[priorite] || 0) + 1;
+//       return acc;
+//     }, {});
+
+//     // Évolution des incidents (30 derniers jours)
+//     const incidentsParJour = {};
+//     const now = new Date();
+//     const last30Days = Array.from({ length: 30 }, (_, i) => {
+//       const date = new Date(now);
+//       date.setDate(date.getDate() - (29 - i));
+//       return date.toISOString().split('T')[0];
+//     });
+
+//     incidentsArray.forEach(incident => {
+//       const dateStr = incident.date_creation || incident.date || incident.created_at || incident.date_incident;
+//       if (dateStr) {
+//         try {
+//           const date = new Date(dateStr).toISOString().split('T')[0];
+//           if (last30Days.includes(date)) {
+//             incidentsParJour[date] = (incidentsParJour[date] || 0) + 1;
+//           }
+//         } catch (e) {
+//           console.warn('Date incident invalide:', dateStr);
+//         }
+//       }
+//     });
+
+//     const incidentsEvolution = last30Days.map(date => ({
+//       date: new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+//       incidents: incidentsParJour[date] || 0
+//     }));
+
+//     // === ALERTES ===
+//     const alertesActives = safeFilter(alertesArray, a => {
+//       const statut = (a.statut || '').toString().toLowerCase();
+//       return statut.includes('nouvelle') || 
+//              statut.includes('en_traitement') || 
+//              statut.includes('active') ||
+//              statut.includes('ouvert') ||
+//              statut.includes('en_cours') ||
+//              !statut.includes('résolu') && !statut.includes('fermé');
+//     }).length;
+
+//     const alertesCritiques = safeFilter(alertesArray, a => {
+//       const severite = (a.severite || '').toString().toLowerCase();
+//       const statut = (a.statut || '').toString().toLowerCase();
+      
+//       const isActive = statut.includes('nouvelle') || 
+//                        statut.includes('en_traitement') || 
+//                        statut.includes('active') ||
+//                        statut.includes('ouvert') ||
+//                        !statut.includes('résolu');
+      
+//       return isActive && (severite.includes('critique') || 
+//                           severite.includes('haute') || 
+//                           severite.includes('élevée') ||
+//                           a.priorite === 'critique' ||
+//                           a.priorite === 'haute');
+//     }).length;
+
+//     const alertesParSeverite = safeReduce(alertesArray, (acc, a) => {
+//       const severite = (a.severite || 'moyenne').toLowerCase();
+//       const statut = (a.statut || '').toString().toLowerCase();
+      
+//       const isActive = statut.includes('nouvelle') || 
+//                        statut.includes('en_traitement') || 
+//                        statut.includes('active') ||
+//                        statut.includes('ouvert') ||
+//                        !statut.includes('résolu');
+      
+//       if (isActive) {
+//         let severiteNormalisee = severite;
+        
+//         if (severite.includes('critique') || severite.includes('élevée')) {
+//           severiteNormalisee = 'critique';
+//         } else if (severite.includes('haute')) {
+//           severiteNormalisee = 'haute';
+//         } else if (severite.includes('moyenne') || severite.includes('moyen')) {
+//           severiteNormalisee = 'moyenne';
+//         } else if (severite.includes('basse') || severite.includes('faible')) {
+//           severiteNormalisee = 'basse';
+//         }
+        
+//         acc[severiteNormalisee] = (acc[severiteNormalisee] || 0) + 1;
+//       }
+//       return acc;
+//     }, {});
+
+//     // === RÉPARATIONS ===
+//     const coutTotalReparations = safeReduce(reparationsArray, (sum, r) => {
+//       const cout = parseFloat(r.cout) || parseFloat(r.cout_reparation) || parseFloat(r.prix) || 0;
+//       return sum + cout;
+//     }, 0);
+
+//     const reparationsCeMois = safeFilter(reparationsArray, r => {
+//       const date = r.date_reparation || r.date_debut || r.date || r.created_at || r.date_fin;
+//       if (!date) return false;
+//       try {
+//         const repDate = new Date(date);
+//         const now = new Date();
+//         return repDate.getMonth() === now.getMonth() && 
+//                repDate.getFullYear() === now.getFullYear();
+//       } catch {
+//         return false;
+//       }
+//     }).length;
+
+//     const reparationsEnCours = safeFilter(reparationsArray, r => {
+//       return !r.date_fin || r.date_fin.trim() === '';
+//     }).length;
+
+//     const coutReparationsCeMois = safeReduce(reparationsArray, (sum, r) => {
+//       const date = r.date_reparation || r.date_debut || r.date || r.created_at || r.date_fin;
+//       if (!date) return sum;
+//       try {
+//         const repDate = new Date(date);
+//         const now = new Date();
+//         if (repDate.getMonth() === now.getMonth() && repDate.getFullYear() === now.getFullYear()) {
+//           return sum + (parseFloat(r.cout) || parseFloat(r.cout_reparation) || parseFloat(r.prix) || 0);
+//         }
+//       } catch {}
+//       return sum;
+//     }, 0);
+
+//     // === FOURNISSEURS ===
+//     const fournisseursActifs = safeFilter(fournisseursArray, f => {
+//       const statut = (f.statut || '').toString().toLowerCase();
+//       const actif = (f.actif || '').toString().toLowerCase();
+      
+//       return statut.includes('actif') || 
+//              actif.includes('true') ||
+//              actif.includes('oui') ||
+//              actif.includes('actif') ||
+//              f.actif === true;
+//     }).length;
+
+//     // === CALCUL DES TAUX ===
+//     const tauxDisponibilite = materielsArray.length > 0 ? 
+//       (materielsFonctionnels / materielsArray.length * 100).toFixed(1) : 0;
+
+//     const tauxResolutionIncidents = (incidentsOuverts + incidentsEnCours + incidentsResolus) > 0 ? 
+//       (incidentsResolus / (incidentsOuverts + incidentsEnCours + incidentsResolus) * 100).toFixed(1) : 100;
+
+//     const calculatedStats = {
+//       total_materiels: materielsArray.length,
+//       materiels_fonctionnels: materielsFonctionnels,
+//       materiels_en_panne: materielsEnPanne,
+//       materiels_maintenance: materielsMaintenance,
+//       materiels_obsolete: materielsObsolete,
+//       materiels_en_reparation: materielsEnReparation,
+//       materiels_en_amelioration: materielsEnAmelioration,
+//       materiels_hors_service: materielsHorsService,
+//       materiels_par_service: materielsParService,
+      
+//       total_incidents: incidentsArray.length,
+//       incidents_ouverts: incidentsOuverts,
+//       incidents_en_cours: incidentsEnCours,
+//       incidents_resolus: incidentsResolus,
+//       incidents_par_priorite: incidentsParPriorite,
+//       incidents_evolution: incidentsEvolution,
+//       taux_resolution_incidents: parseFloat(tauxResolutionIncidents),
+      
+//       reparations_ce_mois: reparationsCeMois,
+//       reparations_en_cours: reparationsEnCours,
+//       cout_total_reparations: coutTotalReparations,
+//       cout_reparations_ce_mois: coutReparationsCeMois,
+      
+//       alertes_actives: alertesActives,
+//       alertes_critiques: alertesCritiques,
+//       alertes_par_severite: alertesParSeverite,
+      
+//       total_fournisseurs: fournisseursArray.length,
+//       fournisseurs_actifs: fournisseursActifs,
+      
+//       taux_disponibilite: parseFloat(tauxDisponibilite),
+//     };
+    
+//     setStats(calculatedStats);
+//   }, []);
+
+//   // Charger les données au montage
+//   useEffect(() => {
+//     // Afficher d'abord les données par défaut immédiatement
+//     setStats(defaultStats);
+//     setLastUpdate(new Date());
+    
+//     // Puis charger les données réelles en arrière-plan
+//     const timer = setTimeout(() => {
+//       loadData();
+//     }, 500);
+    
+//     return () => clearTimeout(timer);
+//   }, [loadData]);
+
+//   // Auto-refresh
+//   useEffect(() => {
+//     if (autoRefresh) {
+//       const interval = setInterval(() => {
+//         loadData();
+//       }, 30000);
+//       return () => clearInterval(interval);
+//     }
+//   }, [autoRefresh, loadData]);
+
+//   // Préparer les données pour les graphiques
+//   const chartData = useMemo(() => {
+//     // Matériels par Service
+//     const servicesData = [
+//       { service: 'Secrétariat', count: stats.materiels_par_service['Secrétariat'] || 0, fill: '#3b82f6' },
+//       { service: 'Direction', count: stats.materiels_par_service['Direction'] || 0, fill: '#8b5cf6' },
+//       { service: 'Informatique', count: stats.materiels_par_service['Informatique'] || 0, fill: '#10b981' },
+//       { service: 'Archives', count: stats.materiels_par_service['Archives'] || 0, fill: '#f59e0b' },
+//       { service: 'Autre', count: stats.materiels_par_service['Autre'] || 0, fill: '#6b7280' },
+//     ].filter(item => item.count > 0);
+
+//     // État des Matériels
+//     const materielsEtat = [
+//       { name: 'Fonctionnel', value: stats.materiels_fonctionnels, color: '#10b981' },
+//       { name: 'En panne', value: stats.materiels_en_panne, color: '#ef4444' },
+//       { name: 'Maintenance', value: stats.materiels_maintenance, color: '#f59e0b' },
+//       { name: 'Obsolète', value: stats.materiels_obsolete, color: '#6b7280' },
+//       { name: 'En réparation', value: stats.materiels_en_reparation, color: '#f97316' },
+//       { name: 'En amélioration', value: stats.materiels_en_amelioration, color: '#8b5cf6' },
+//       { name: 'Hors service', value: stats.materiels_hors_service, color: '#dc2626' },
+//     ].filter(item => item.value > 0);
+
+//     // Incidents par Priorité
+//     const incidentsPriorite = Object.entries(stats.incidents_par_priorite || {}).map(([priorite, count]) => ({
+//       priorite: priorite.charAt(0).toUpperCase() + priorite.slice(1),
+//       count,
+//       fill: priorite === 'critique' ? '#ef4444' : 
+//             priorite === 'haute' ? '#f97316' : 
+//             priorite === 'moyenne' ? '#eab308' : '#22c55e'
+//     }));
+
+//     // Évolution des Incidents
+//     const incidentsEvolution = stats.incidents_evolution || [];
+
+//     // Alertes par Sévérité
+//     const alertesSeverite = Object.entries(stats.alertes_par_severite || {}).map(([severite, count]) => ({
+//       severite: severite.charAt(0).toUpperCase() + severite.slice(1),
+//       count,
+//       fill: severite === 'critique' ? '#ef4444' : 
+//             severite === 'haute' ? '#f97316' : 
+//             severite === 'moyenne' ? '#eab308' : '#22c55e'
+//     }));
+
+//     // Données de Synthèse
+//     const syntheseData = [
+//       {
+//         label: 'Matériels fonctionnels',
+//         value: stats.materiels_fonctionnels,
+//         total: stats.total_materiels,
+//         icon: CheckCircle,
+//         color: 'success',
+//         description: `Taux: ${stats.taux_disponibilite}%`
+//       },
+//       {
+//         label: 'Incidents ouverts',
+//         value: stats.incidents_ouverts,
+//         icon: AlertTriangle,
+//         color: 'error',
+//         description: `${stats.incidents_en_cours} en cours • ${stats.incidents_resolus} résolus`
+//       },
+//       {
+//         label: 'Alertes critiques',
+//         value: stats.alertes_critiques,
+//         total: stats.alertes_actives,
+//         icon: AlertCircle,
+//         color: 'error',
+//         description: `${stats.alertes_actives} alertes actives`
+//       },
+//       {
+//         label: 'Réparations ce mois',
+//         value: stats.reparations_ce_mois,
+//         icon: Wrench,
+//         color: 'info',
+//         description: `${stats.reparations_en_cours} en cours`
+//       },
+//       {
+//         label: 'Fournisseurs actifs',
+//         value: stats.fournisseurs_actifs,
+//         total: stats.total_fournisseurs,
+//         icon: Users,
+//         color: 'success',
+//         description: `${stats.fournisseurs_actifs} / ${stats.total_fournisseurs}`
+//       },
+//       {
+//         label: 'Coût total réparations',
+//         value: formatCurrency(stats.cout_total_reparations),
+//         icon: DollarSign,
+//         color: 'info',
+//         description: `${stats.reparations_ce_mois} réparations ce mois`
+//       },
+//     ];
+
+//     return {
+//       servicesData,
+//       materielsEtat,
+//       incidentsPriorite,
+//       incidentsEvolution,
+//       alertesSeverite,
+//       syntheseData
+//     };
+//   }, [stats, formatCurrency]);
+
+//   // Générer rapport PDF
+//   const generateDetailedPDF = useCallback(async () => {
+//     const doc = new jsPDF('landscape');
+    
+//     try {
+//       const imgData = await getBase64Image(logoDren);
+//       doc.addImage(imgData, 'JPEG', 20, 15, 20, 20);
+//     } catch (error) {
+//       console.warn('Logo non chargé');
+//     }
+    
+//     doc.setFontSize(20);
+//     doc.text('DREN ANTSIMO ANDREFANA', 45, 25);
+//     doc.setFontSize(16);
+//     doc.text('TABLEAU DE BORD - GESTION DES RESSOURCES MATÉRIELS', 20, 45);
+    
+//     doc.setFontSize(12);
+//     doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, 20, 60);
+//     doc.text(`Généré par: ${user?.nom_complet || user?.username || 'Utilisateur'}`, 20, 67);
+    
+//     doc.setDrawColor(200, 200, 200);
+//     doc.line(20, 75, 190, 75);
+    
+//     doc.setFontSize(14);
+//     doc.text('SYNTHÈSE DES DONNÉES', 20, 90);
+    
+//     const syntheseStats = [
+//       ['Indicateur', 'Valeur', 'Détail'],
+//       ['Matériels fonctionnels', stats.materiels_fonctionnels.toString(), `${stats.total_materiels} total`],
+//       ['Incidents ouverts', stats.incidents_ouverts.toString(), `${stats.incidents_en_cours} en cours, ${stats.incidents_resolus} résolus`],
+//       ['Alertes critiques', stats.alertes_critiques.toString(), `${stats.alertes_actives} actives`],
+//       ['Réparations ce mois', stats.reparations_ce_mois.toString(), `${stats.reparations_en_cours} en cours`],
+//       ['Fournisseurs actifs', stats.fournisseurs_actifs.toString(), `${stats.total_fournisseurs} total`],
+//       ['Taux disponibilité', `${stats.taux_disponibilite}%`, 'Matériels'],
+//       ['Taux résolution incidents', `${stats.taux_resolution_incidents}%`, 'Incidents'],
+//       ['Coût total réparations', formatCurrency(stats.cout_total_reparations), 'Depuis le début'],
+//     ];
+    
+//     autoTable(doc, {
+//       startY: 95,
+//       head: syntheseStats.slice(0, 1),
+//       body: syntheseStats.slice(1),
+//       theme: 'grid',
+//       headStyles: { fillColor: [59, 130, 246] },
+//     });
+    
+//     doc.save(`dashboard-materiels-${new Date().toISOString().split('T')[0]}.pdf`);
+//     showNotification('Rapport PDF généré avec succès', 'success');
+//   }, [user, stats, formatCurrency, showNotification]);
+
+//   // Composant StatCard
+//   const StatCard = ({ title, value, icon: Icon, color = 'primary', subtitle, trend }) => {
+//     const colorClasses = {
+//       blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
+//       purple: { bg: 'bg-purple-100', text: 'text-purple-600' },
+//       yellow: { bg: 'bg-yellow-100', text: 'text-yellow-600' },
+//       red: { bg: 'bg-red-100', text: 'text-red-600' },
+//       indigo: { bg: 'bg-indigo-100', text: 'text-indigo-600' },
+//       green: { bg: 'bg-green-100', text: 'text-green-600' },
+//       primary: { bg: 'bg-primary/10', text: 'text-primary' },
+//       success: { bg: 'bg-success/10', text: 'text-success' },
+//       error: { bg: 'bg-error/10', text: 'text-error' },
+//       warning: { bg: 'bg-warning/10', text: 'text-warning' },
+//       info: { bg: 'bg-info/10', text: 'text-info' },
+//     };
+
+//     const colorConfig = colorClasses[color] || colorClasses.primary;
+
+//     return (
+//       <div className="card bg-base-100 border border-base-300 shadow-lg hover:shadow-xl transition-all duration-300 relative">
+//         {isLoadingRealData && (
+//           <div className="absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-lg">
+//             <RefreshCw className="h-6 w-6 text-primary animate-spin" />
+//           </div>
+//         )}
+//         {trend !== undefined && (
+//           <div className={`absolute -top-2 -right-2 badge badge-sm ${trend > 0 ? 'badge-success' : 'badge-error'}`}>
+//             {trend > 0 ? '+' : ''}{trend}%
+//           </div>
+//         )}
+//         <div className="card-body p-4">
+//           <div className="flex items-center justify-between">
+//             <div>
+//               <h3 className="text-sm font-semibold text-base-content opacity-70">{title}</h3>
+//               <p className="text-2xl font-bold mt-1 text-base-content">{value}</p>
+//               {subtitle && <p className="text-xs text-base-content opacity-60 mt-1">{subtitle}</p>}
+//             </div>
+//             <div className={`p-3 rounded-lg ${colorConfig.bg}`}>
+//               <Icon className={`h-6 w-6 ${colorConfig.text}`} />
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     );
+//   };
+
+//   // Composant SyntheseItem
+//   const SyntheseItem = ({ label, value, total, icon: Icon, color = 'primary', description }) => {
+//     const colorClasses = {
+//       success: { bg: 'bg-success/10', text: 'text-success', icon: 'text-success' },
+//       error: { bg: 'bg-error/10', text: 'text-error', icon: 'text-error' },
+//       info: { bg: 'bg-info/10', text: 'text-info', icon: 'text-info' },
+//       primary: { bg: 'bg-primary/10', text: 'text-primary', icon: 'text-primary' },
+//     };
+
+//     const colorConfig = colorClasses[color] || colorClasses.primary;
+//     const percentage = total ? Math.round((value / total) * 100) : 100;
+
+//     return (
+//       <div className="flex justify-between items-center p-4 bg-base-200 rounded-lg hover:bg-base-300 transition-colors relative">
+//         {isLoadingRealData && (
+//           <div className="absolute inset-0 bg-base-200/80 flex items-center justify-center z-10 rounded-lg">
+//             <RefreshCw className="h-4 w-4 text-primary animate-spin" />
+//           </div>
+//         )}
+//         <div className="flex items-center gap-3">
+//           <div className={`p-2 rounded-lg ${colorConfig.bg}`}>
+//             <Icon className={`h-5 w-5 ${colorConfig.icon}`} />
+//           </div>
+//           <div className="flex-1">
+//             <span className="font-medium text-base-content">{label}</span>
+//             {description && (
+//               <p className="text-xs text-base-content opacity-60 mt-1">{description}</p>
+//             )}
+//             {total && (
+//               <div className="mt-2 w-full bg-base-300 rounded-full h-2">
+//                 <div 
+//                   className={`h-2 rounded-full ${colorConfig.text.replace('text-', 'bg-')}`}
+//                   style={{ width: `${percentage}%` }}
+//                 />
+//               </div>
+//             )}
+//           </div>
+//         </div>
+//         <div className="text-right">
+//           <span className={`text-2xl font-bold ${colorConfig.text}`}>{value}</span>
+//           {total && (
+//             <p className="text-xs text-base-content opacity-60">sur {total}</p>
+//           )}
+//         </div>
+//       </div>
+//     );
+//   };
+
+//   // Actions rapides
+//   const quickActions = [
+//     { label: 'Voir les incidents', icon: Eye, path: '/incidents', color: 'error' },
+//     { label: 'Voir les alertes', icon: AlertOctagon, path: '/alertes', color: 'warning' },
+//     { label: 'Voir les réparations', icon: Wrench, path: '/reparations', color: 'info' },
+//     { label: 'Générer rapport', icon: FileText, action: generateDetailedPDF, color: 'primary' },
+//     { label: 'Historique', icon: ClipboardCheck, path: '/historique', color: 'success' },
+//   ];
+
+//   return (
+//     <div className="p-4 md:p-6 bg-base-100 min-h-screen">
+//       {/* En-tête */}
+//       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+//         <div>
+//           <h1 className="text-2xl md:text-3xl font-bold text-base-content flex items-center gap-3">
+//             <BarChart3 className="h-8 w-8 text-primary" />
+//             Tableau de Bord - Gestion des Ressources Matériels IT
+//             <span className="badge badge-primary badge-lg">DREN Antsimo Andrefana</span>
+//           </h1>
+//           <p className="text-base-content opacity-70 mt-1">
+//             Surveillance du parc matériel informatique - Dernière mise à jour: {lastUpdate.toLocaleTimeString('fr-FR')}
+//             {isLoadingRealData && (
+//               <span className="ml-2 text-primary animate-pulse">(Mise à jour en cours...)</span>
+//             )}
+//           </p>
+//         </div>
+        
+//         <div className="flex flex-wrap gap-2">
+//           <div className="form-control">
+//             <label className="label cursor-pointer gap-2">
+//               <span className="label-text text-sm text-base-content">Auto-refresh (30s)</span>
+//               <input 
+//                 type="checkbox" 
+//                 className="toggle toggle-primary toggle-sm"
+//                 checked={autoRefresh}
+//                 onChange={(e) => setAutoRefresh(e.target.checked)}
+//               />
+//             </label>
+//           </div>
+          
+//           <div className="dropdown dropdown-end">
+//             <button className="btn btn-primary btn-sm">
+//               <Download className="h-4 w-4 mr-2" />
+//               Exporter
+//             </button>
+//             <ul className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+//               <li><button onClick={generateDetailedPDF}>Rapport PDF</button></li>
+//               <li><button onClick={() => showNotification('Fonctionnalité à venir', 'info')}>Excel</button></li>
+//             </ul>
+//           </div>
+          
+//           <button 
+//             onClick={loadData}
+//             className="btn btn-outline btn-sm text-base-content"
+//             disabled={isLoadingRealData}
+//           >
+//             <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingRealData ? 'animate-spin' : ''}`} />
+//             {isLoadingRealData ? 'Mise à jour...' : 'Actualiser'}
+//           </button>
+//         </div>
+//       </div>
+
+//       {/* Actions rapides */}
+//       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+//         {quickActions.map((action, index) => (
+//           <button
+//             key={index}
+//             onClick={action.action}
+//             className="btn btn-outline btn-sm flex items-center gap-2 justify-start"
+//           >
+//             <action.icon className="h-4 w-4" />
+//             <span className="truncate">{action.label}</span>
+//             <ArrowRight className="h-3 w-3 ml-auto" />
+//           </button>
+//         ))}
+//       </div>
+
+//       {/* Statistiques principales */}
+//       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+//         <StatCard
+//           title="Matériels"
+//           value={stats.total_materiels}
+//           icon={Database}
+//           color="blue"
+//           subtitle={`${stats.materiels_fonctionnels} fonctionnels`}
+//         />
+        
+//         <StatCard
+//           title="Incidents"
+//           value={stats.total_incidents}
+//           icon={AlertTriangle}
+//           color="red"
+//           subtitle={`${stats.incidents_ouverts} ouverts`}
+//         />
+        
+//         <StatCard
+//           title="Alertes"
+//           value={stats.alertes_actives}
+//           icon={Bell}
+//           color="yellow"
+//           subtitle={`${stats.alertes_critiques} critiques`}
+//         />
+        
+//         <StatCard
+//           title="Fournisseurs"
+//           value={stats.total_fournisseurs}
+//           icon={Users}
+//           color="purple"
+//           subtitle={`${stats.fournisseurs_actifs} actifs`}
+//         />
+        
+//         <StatCard
+//           title="Réparations"
+//           value={stats.reparations_ce_mois}
+//           icon={Wrench}
+//           color="indigo"
+//           subtitle="ce mois"
+//         />
+        
+//         <StatCard
+//           title="Coût Réparations"
+//           value={formatCurrency(stats.cout_total_reparations)}
+//           icon={DollarSign}
+//           color="green"
+//           subtitle="total"
+//         />
+//       </div>
+
+//       {/* Section 1: Matériels */}
+//       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+//         {/* Matériels par Service */}
+//         <div className="card bg-base-100 shadow-lg border border-base-300">
+//           <div className="card-body">
+//             <h3 className="card-title text-base-content">
+//               <Users className="h-5 w-5 mr-2" />
+//               Matériels par Service
+//               <span className="badge badge-primary ml-2">
+//                 {Object.keys(stats.materiels_par_service).length} services
+//               </span>
+//             </h3>
+//             <ResponsiveContainer width="100%" height={300}>
+//               <BarChart data={chartData.servicesData}>
+//                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+//                 <XAxis 
+//                   dataKey="service" 
+//                   stroke="#9CA3AF"
+//                   tick={{ fill: '#9CA3AF', fontSize: 12 }}
+//                 />
+//                 <YAxis 
+//                   stroke="#9CA3AF"
+//                   tick={{ fill: '#9CA3AF' }}
+//                 />
+//                 <Tooltip 
+//                   contentStyle={{ 
+//                     backgroundColor: '#1F2937', 
+//                     borderColor: '#374151', 
+//                     color: '#F9FAFB',
+//                     borderRadius: '8px'
+//                   }}
+//                   formatter={(value) => [`${value} matériels`, 'Quantité']}
+//                 />
+//                 <Legend />
+//                 <Bar 
+//                   dataKey="count" 
+//                   name="Matériels"
+//                   radius={[4, 4, 0, 0]}
+//                 >
+//                   {chartData.servicesData.map((entry, index) => (
+//                     <Cell key={`cell-${index}`} fill={entry.fill} />
+//                   ))}
+//                 </Bar>
+//               </BarChart>
+//             </ResponsiveContainer>
+//           </div>
+//         </div>
+
+//         {/* État des Matériels */}
+//         <div className="card bg-base-100 shadow-lg border border-base-300">
+//           <div className="card-body">
+//             <h3 className="card-title text-base-content">
+//               <PieChartIcon className="h-5 w-5 mr-2" />
+//               État des Matériels
+//             </h3>
+//             <ResponsiveContainer width="100%" height={300}>
+//               <PieChart>
+//                 <Pie
+//                   data={chartData.materielsEtat}
+//                   cx="50%"
+//                   cy="50%"
+//                   labelLine={false}
+//                   label={({ name, value }) => `${name}: ${value}`}
+//                   outerRadius={80}
+//                   dataKey="value"
+//                 >
+//                   {chartData.materielsEtat.map((entry, index) => (
+//                     <Cell key={`cell-${index}`} fill={entry.color} />
+//                   ))}
+//                 </Pie>
+//                 <Tooltip />
+//                 <Legend />
+//               </PieChart>
+//             </ResponsiveContainer>
+//             <div className="text-sm text-base-content opacity-70 mt-2">
+//               Taux de disponibilité: <strong>{stats.taux_disponibilite}%</strong> • Total: {stats.total_materiels} matériels
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Section 2: Incidents */}
+//       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+//         {/* Incidents par Priorité */}
+//         <div className="card bg-base-100 shadow-lg border border-base-300">
+//           <div className="card-body">
+//             <h3 className="card-title text-base-content">
+//               <AlertTriangle className="h-5 w-5 mr-2" />
+//               Incidents par Priorité
+//               <span className="badge badge-error ml-2">{stats.incidents_ouverts} ouverts</span>
+//             </h3>
+//             <ResponsiveContainer width="100%" height={300}>
+//               <BarChart data={chartData.incidentsPriorite}>
+//                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+//                 <XAxis 
+//                   dataKey="priorite" 
+//                   stroke="#9CA3AF"
+//                   tick={{ fill: '#9CA3AF', fontSize: 12 }}
+//                 />
+//                 <YAxis stroke="#9CA3AF" />
+//                 <Tooltip 
+//                   contentStyle={{ 
+//                     backgroundColor: '#1F2937', 
+//                     borderColor: '#374151', 
+//                     color: '#F9FAFB'
+//                   }}
+//                   formatter={(value) => [`${value} incidents`, 'Quantité']}
+//                 />
+//                 <Legend />
+//                 <Bar 
+//                   dataKey="count" 
+//                   name="Incidents"
+//                   radius={[4, 4, 0, 0]}
+//                 >
+//                   {chartData.incidentsPriorite.map((entry, index) => (
+//                     <Cell key={`cell-${index}`} fill={entry.fill} />
+//                   ))}
+//                 </Bar>
+//               </BarChart>
+//             </ResponsiveContainer>
+//             <div className="text-sm text-base-content opacity-70 mt-2">
+//               <strong>Total: {stats.total_incidents} incidents</strong><br />
+//               • {stats.incidents_ouverts} ouverts • {stats.incidents_en_cours} en cours • {stats.incidents_resolus} résolus<br />
+//               • Taux de résolution: <strong>{stats.taux_resolution_incidents}%</strong>
+//             </div>
+//           </div>
+//         </div>
+
+//         {/* Évolution des Incidents */}
+//         <div className="card bg-base-100 shadow-lg border border-base-300">
+//           <div className="card-body">
+//             <h3 className="card-title text-base-content">
+//               <LineChartIcon className="h-5 w-5 mr-2" />
+//               Évolution des Incidents (30 jours)
+//             </h3>
+//             <ResponsiveContainer width="100%" height={300}>
+//               <AreaChart data={chartData.incidentsEvolution}>
+//                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+//                 <XAxis 
+//                   dataKey="date" 
+//                   stroke="#9CA3AF"
+//                   tick={{ fill: '#9CA3AF', fontSize: 11 }}
+//                 />
+//                 <YAxis stroke="#9CA3AF" />
+//                 <Tooltip 
+//                   contentStyle={{ 
+//                     backgroundColor: '#1F2937', 
+//                     borderColor: '#374151', 
+//                     color: '#F9FAFB'
+//                   }}
+//                   formatter={(value) => [`${value} incidents`, 'Quantité']}
+//                 />
+//                 <Legend />
+//                 <Area 
+//                   type="monotone" 
+//                   dataKey="incidents" 
+//                   stroke="#ef4444" 
+//                   fill="#ef4444"
+//                   fillOpacity={0.3}
+//                   name="Incidents"
+//                 />
+//               </AreaChart>
+//             </ResponsiveContainer>
+//             <div className="text-sm text-base-content opacity-70 mt-2">
+//               Moyenne: {chartData.incidentsEvolution.length > 0 ? 
+//                 Math.round(chartData.incidentsEvolution.reduce((sum, day) => sum + day.incidents, 0) / chartData.incidentsEvolution.length) : 0} incidents/jour
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Section 3: Synthèse */}
+//       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+//         {/* Synthèse des Données */}
+//         <div className="card bg-base-100 shadow-lg border border-base-300">
+//           <div className="card-body">
+//             <h3 className="card-title text-base-content">
+//               <Database className="h-5 w-5 mr-2" />
+//               Synthèse des Données
+//               <span className="badge badge-info ml-2">Indicateurs clés</span>
+//             </h3>
+            
+//             <div className="space-y-3">
+//               {chartData.syntheseData.map((item, index) => (
+//                 <SyntheseItem
+//                   key={index}
+//                   label={item.label}
+//                   value={item.value}
+//                   total={item.total}
+//                   icon={item.icon}
+//                   color={item.color}
+//                   description={item.description}
+//                 />
+//               ))}
+//             </div>
+//           </div>
+//         </div>
+
+//         {/* Informations système */}
+//         <div className="space-y-6">
+//           {/* Alertes par Sévérité */}
+//           <div className="card bg-base-100 shadow-lg border border-base-300">
+//             <div className="card-body">
+//               <h3 className="card-title text-base-content">
+//                 <Bell className="h-5 w-5 mr-2" />
+//                 Alertes par Sévérité
+//                 <span className="badge badge-warning ml-2">{stats.alertes_actives} actives</span>
+//               </h3>
+//               <ResponsiveContainer width="100%" height={250}>
+//                 <BarChart data={chartData.alertesSeverite}>
+//                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+//                   <XAxis 
+//                     dataKey="severite" 
+//                     stroke="#9CA3AF"
+//                     tick={{ fill: '#9CA3AF', fontSize: 12 }}
+//                   />
+//                   <YAxis stroke="#9CA3AF" />
+//                   <Tooltip 
+//                     contentStyle={{ backgroundColor: '#1F2937', borderColor: '#374151', color: '#F9FAFB' }}
+//                     formatter={(value) => [`${value} alertes`, 'Quantité']}
+//                   />
+//                   <Legend />
+//                   <Bar 
+//                     dataKey="count" 
+//                     name="Alertes"
+//                     radius={[4, 4, 0, 0]}
+//                   >
+//                     {chartData.alertesSeverite.map((entry, index) => (
+//                       <Cell key={`cell-${index}`} fill={entry.fill} />
+//                     ))}
+//                   </Bar>
+//                 </BarChart>
+//               </ResponsiveContainer>
+//               <div className="text-sm text-base-content opacity-70 mt-2">
+//                 {stats.alertes_critiques} critiques • {stats.alertes_actives - stats.alertes_critiques} autres
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* Informations système */}
+//           <div className="card bg-base-200 border border-base-300">
+//             <div className="card-body">
+//               <h3 className="card-title text-base-content">
+//                 <Info className="h-5 w-5 mr-2" />
+//                 Informations système
+//               </h3>
+//               <div className="space-y-3 text-sm">
+//                 <div className="flex justify-between">
+//                   <span className="font-medium text-base-content">Données chargées:</span>
+//                   <span className="text-base-content">
+//                     {materiels.length || stats.total_materiels} matériels, {incidents.length || stats.total_incidents} incidents
+//                   </span>
+//                 </div>
+//                 <div className="flex justify-between">
+//                   <span className="font-medium text-base-content">Utilisateur:</span>
+//                   <span className="text-base-content">{user?.nom_complet || user?.username || 'Non connecté'}</span>
+//                 </div>
+//                 <div className="flex justify-between">
+//                   <span className="font-medium text-base-content">Auto-refresh:</span>
+//                   <span className="text-base-content">{autoRefresh ? 'Activé (30s)' : 'Désactivé'}</span>
+//                 </div>
+//                 <div className="flex justify-between">
+//                   <span className="font-medium text-base-content">Dernière actualisation:</span>
+//                   <span className="text-base-content">{lastUpdate.toLocaleTimeString('fr-FR')}</span>
+//                 </div>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Recommandations & Alertes */}
+//       <div className="card bg-base-200 border border-base-300 mb-6">
+//         <div className="card-body">
+//           <h3 className="card-title text-base-content">
+//             <AlertCircle className="h-5 w-5 mr-2" />
+//             Recommandations & Alertes
+//           </h3>
+//           <div className="space-y-2 text-sm">
+//             {stats.materiels_en_panne > 0 && (
+//               <div className="alert alert-error">
+//                 <AlertTriangle className="h-4 w-4" />
+//                 <span className="text-base-content">🚨 {stats.materiels_en_panne} matériel(s) en panne nécessite(nt) intervention</span>
+//               </div>
+//             )}
+//             {stats.alertes_critiques > 0 && (
+//               <div className="alert alert-warning">
+//                 <AlertTriangle className="h-4 w-4" />
+//                 <span className="text-base-content">⚠️ {stats.alertes_critiques} alerte(s) critique(s) en attente</span>
+//               </div>
+//             )}
+//             {stats.incidents_ouverts > 0 && (
+//               <div className="alert alert-warning">
+//                 <AlertTriangle className="h-4 w-4" />
+//                 <span className="text-base-content">📋 {stats.incidents_ouverts} incident(s) ouvert(s) à traiter</span>
+//               </div>
+//             )}
+//             {stats.incidents_en_cours > 0 && (
+//               <div className="alert alert-info">
+//                 <Wrench className="h-4 w-4" />
+//                 <span className="text-base-content">🔧 {stats.incidents_en_cours} incident(s) en cours de traitement</span>
+//               </div>
+//             )}
+//             {stats.materiels_maintenance > 0 && (
+//               <div className="alert alert-warning">
+//                 <Wrench className="h-4 w-4" />
+//                 <span className="text-base-content">🔧 {stats.materiels_maintenance} matériel(s) en maintenance</span>
+//               </div>
+//             )}
+//             {stats.materiels_en_panne === 0 && stats.alertes_critiques === 0 && stats.incidents_ouverts === 0 && (
+//               <div className="alert alert-success">
+//                 <CheckCircle className="h-4 w-4" />
+//                 <span className="text-base-content">✅ Tous les systèmes sont opérationnels</span>
+//               </div>
+//             )}
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default Dashboard;
+
+
+
+
+// src/pages/Dashboard.jsx - VERSION ULTRA RAPIDE
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  PieChart, Pie, Cell, ResponsiveContainer
+} from 'recharts';
+import { 
+  BarChart3, Users, 
+  AlertTriangle, CheckCircle,
+  Database, Bell, 
+  Wrench, DollarSign,
+  AlertCircle,
+  ArrowRight
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
+
+const Dashboard = () => {
+  const { user } = useAuth();
+  const { showNotification } = useNotification();
+  
+  // États initiaux avec des données par défaut
+  const [stats, setStats] = useState({
+    total_materiels: 0,
+    materiels_fonctionnels: 0,
+    materiels_en_panne: 0,
+    materiels_maintenance: 0,
+    materiels_par_service: {},
+    
+    total_incidents: 0,
+    incidents_ouverts: 0,
+    incidents_en_cours: 0,
+    incidents_resolus: 0,
+    
+    alertes_actives: 0,
+    alertes_critiques: 0,
+    
+    taux_disponibilite: 0,
+  });
+  
+  const [lastUpdate] = useState(new Date());
+
+  // Formater la devise en Ariary
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('fr-FR').format(amount) + ' Ar';
+  };
+
+  // Charger les données SIMPLES sans attente
+  useEffect(() => {
+    // Données de démo pour affichage immédiat
+    const demoData = {
+      total_materiels: 8,
+      materiels_fonctionnels: 5,
+      materiels_en_panne: 2,
+      materiels_maintenance: 1,
+      materiels_par_service: {
+        'Informatique': 4,
+        'Secrétariat': 2,
+        'Direction': 1,
+        'Archives': 1
+      },
+      total_incidents: 6,
+      incidents_ouverts: 2,
+      incidents_en_cours: 1,
+      incidents_resolus: 3,
+      alertes_actives: 4,
+      alertes_critiques: 1,
+      taux_disponibilite: 62.5
+    };
+
+    setStats(demoData);
+    
+    // Essayer de charger les vraies données en arrière-plan sans bloquer
+    setTimeout(() => {
+      console.log('Chargement des données en arrière-plan...');
+      // Vous pouvez ajouter votre logique de chargement ici
+      // mais elle ne bloquera pas l'affichage
+    }, 100);
+    
+  }, []); // Une seule fois au montage
+
+  // Préparer les données pour les graphiques
+  const servicesData = Object.entries(stats.materiels_par_service || {})
+    .map(([service, count]) => ({
+      service,
+      count,
+      fill: service === 'Informatique' ? '#10b981' : 
+            service === 'Secrétariat' ? '#3b82f6' : 
+            service === 'Direction' ? '#8b5cf6' : '#f59e0b'
+    }));
+
+  const materielsEtat = [
+    { name: 'Fonctionnel', value: stats.materiels_fonctionnels, color: '#10b981' },
+    { name: 'En panne', value: stats.materiels_en_panne, color: '#ef4444' },
+    { name: 'Maintenance', value: stats.materiels_maintenance, color: '#f59e0b' },
+  ];
+
+  // Composant StatCard
+  const StatCard = ({ title, value, icon: Icon, color = 'primary', subtitle }) => {
+    const colorConfig = {
+      blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
+      red: { bg: 'bg-red-100', text: 'text-red-600' },
+      yellow: { bg: 'bg-yellow-100', text: 'text-yellow-600' },
+      green: { bg: 'bg-green-100', text: 'text-green-600' },
+    }[color] || { bg: 'bg-primary/10', text: 'text-primary' };
+
+    return (
+      <div className="card bg-base-100 border border-base-300 shadow hover:shadow-md transition-shadow">
+        <div className="card-body p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-base-content opacity-70">{title}</h3>
+              <p className="text-2xl font-bold mt-1 text-base-content">{value}</p>
+              {subtitle && <p className="text-xs text-base-content opacity-60 mt-1">{subtitle}</p>}
+            </div>
+            <div className={`p-3 rounded-lg ${colorConfig.bg}`}>
+              <Icon className={`h-6 w-6 ${colorConfig.text}`} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-4 md:p-6 bg-base-100 min-h-screen">
+      {/* En-tête */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-base-content flex items-center gap-3">
+            <BarChart3 className="h-8 w-8 text-primary" />
+            Tableau de Bord
+            <span className="badge badge-primary badge-lg">DREN AA</span>
+          </h1>
+          <p className="text-base-content opacity-70 mt-1">
+            Surveillance du parc matériel - Dernière mise à jour: {lastUpdate.toLocaleTimeString('fr-FR')}
+          </p>
+        </div>
+      </div>
+
+      {/* Actions rapides */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Link to="/materiels" className="card bg-primary/10 hover:bg-primary/20 transition-colors hover:scale-[1.02]">
+          <div className="card-body p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-primary">Gérer les Matériels</h3>
+                <p className="text-sm opacity-70">{stats.total_materiels} matériels</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-primary" />
+            </div>
+          </div>
+        </Link>
+
+        <Link to="/incidents" className="card bg-error/10 hover:bg-error/20 transition-colors hover:scale-[1.02]">
+          <div className="card-body p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-error">Incidents</h3>
+                <p className="text-sm opacity-70">{stats.incidents_ouverts} ouverts</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-error" />
+            </div>
+          </div>
+        </Link>
+
+        <Link to="/alertes" className="card bg-warning/10 hover:bg-warning/20 transition-colors hover:scale-[1.02]">
+          <div className="card-body p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-warning">Alertes</h3>
+                <p className="text-sm opacity-70">{stats.alertes_actives} actives</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-warning" />
+            </div>
+          </div>
+        </Link>
+
+        <Link to="/reparations" className="card bg-info/10 hover:bg-info/20 transition-colors hover:scale-[1.02]">
+          <div className="card-body p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-info">Réparations</h3>
+                <p className="text-sm opacity-70">Suivi</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-info" />
+            </div>
+          </div>
+        </Link>
+      </div>
+
+      {/* Statistiques principales */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <StatCard
+          title="Matériels"
+          value={stats.total_materiels}
+          icon={Database}
+          color="blue"
+          subtitle={`${stats.materiels_fonctionnels} fonctionnels`}
+        />
+        
+        <StatCard
+          title="Incidents"
+          value={stats.total_incidents}
+          icon={AlertTriangle}
+          color="red"
+          subtitle={`${stats.incidents_ouverts} ouverts`}
+        />
+        
+        <StatCard
+          title="Alertes"
+          value={stats.alertes_actives}
+          icon={Bell}
+          color="yellow"
+          subtitle={`${stats.alertes_critiques} critiques`}
+        />
+        
+        <StatCard
+          title="Disponibilité"
+          value={`${stats.taux_disponibilite}%`}
+          icon={CheckCircle}
+          color="green"
+          subtitle="Taux de disponibilité"
+        />
+      </div>
+
+      {/* Section Graphiques */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Matériels par Service */}
+        <div className="card bg-base-100 shadow">
+          <div className="card-body">
+            <h3 className="card-title text-base-content">
+              <Users className="h-5 w-5 mr-2" />
+              Matériels par Service
+            </h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={servicesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="service" stroke="#9CA3AF" fontSize={12} />
+                <YAxis stroke="#9CA3AF" />
+                <Tooltip />
+                <Bar dataKey="count" name="Matériels" radius={[4, 4, 0, 0]}>
+                  {servicesData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* État des Matériels */}
+        <div className="card bg-base-100 shadow">
+          <div className="card-body">
+            <h3 className="card-title text-base-content">
+              <BarChart3 className="h-5 w-5 mr-2" />
+              État des Matériels
+            </h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={materielsEtat}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value }) => `${name}: ${value}`}
+                  outerRadius={80}
+                  dataKey="value"
+                >
+                  {materielsEtat.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Recommandations */}
+      <div className="card bg-base-200 border border-base-300 mb-6">
+        <div className="card-body">
+          <h3 className="card-title text-base-content">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Recommandations
+          </h3>
+          <div className="space-y-2">
+            {stats.materiels_en_panne > 0 && (
+              <div className="alert alert-error">
+                <AlertTriangle className="h-4 w-4" />
+                <span>{stats.materiels_en_panne} matériel(s) en panne nécessite(nt) intervention</span>
+              </div>
+            )}
+            {stats.alertes_critiques > 0 && (
+              <div className="alert alert-warning">
+                <AlertCircle className="h-4 w-4" />
+                <span>{stats.alertes_critiques} alerte(s) critique(s) en attente</span>
+              </div>
+            )}
+            {stats.incidents_ouverts > 0 && (
+              <div className="alert alert-warning">
+                <AlertTriangle className="h-4 w-4" />
+                <span>{stats.incidents_ouverts} incident(s) ouvert(s) à traiter</span>
+              </div>
+            )}
+            {stats.materiels_en_panne === 0 && stats.alertes_critiques === 0 && stats.incidents_ouverts === 0 && (
+              <div className="alert alert-success">
+                <CheckCircle className="h-4 w-4" />
+                <span>Tous les systèmes sont opérationnels</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Informations système */}
+      <div className="card bg-base-200 border border-base-300">
+        <div className="card-body">
+          <h3 className="card-title text-base-content">
+            <Users className="h-5 w-5 mr-2" />
+            Informations système
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="font-medium text-base-content">Utilisateur:</span>
+              <p className="text-base-content">{user?.username || 'Administrateur'}</p>
+            </div>
+            <div>
+              <span className="font-medium text-base-content">Rôle:</span>
+              <p className="text-base-content">{user?.role || 'Admin'}</p>
+            </div>
+            <div>
+              <span className="font-medium text-base-content">Service:</span>
+              <p className="text-base-content">{user?.departement || 'Informatique'}</p>
+            </div>
+            <div>
+              <span className="font-medium text-base-content">Session:</span>
+              <p className="text-base-content">Active</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
